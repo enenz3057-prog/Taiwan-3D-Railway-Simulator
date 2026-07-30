@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Taiwan Railway Family Simulator</title>
+    <title>Roblox Style Taiwan Train Sim</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #87ceeb; }
+        body { margin: 0; overflow: hidden; background-color: #87ceeb; user-select: none; }
         canvas { display: block; }
         #info {
             position: absolute;
@@ -14,67 +14,81 @@
             color: white;
             font-family: sans-serif;
             background: rgba(0, 0, 0, 0.7);
-            padding: 12px;
+            padding: 10px;
             border-radius: 8px;
             pointer-events: none;
-            max-width: 85%;
+            max-width: 80%;
+            font-size: 14px;
         }
-        .controls-container {
+        /* RB 風格選單與按鈕 */
+        .top-menu {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+        .menu-btn {
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        /* RB 風格虛擬方向鍵 (右下角) */
+        .rb-controls {
             position: absolute;
             bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            width: 90%;
-            max-width: 400px;
+            right: 20px;
+            display: grid;
+            grid-template-columns: 60px 60px 60px;
+            grid-template-rows: 60px 60px;
+            gap: 5px;
         }
-        .btn-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-        }
-        .game-btn {
-            flex: 1;
-            background: #333;
+        .rb-btn {
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.6);
             color: white;
-            border: none;
-            padding: 12px;
-            font-size: 14px;
-            border-radius: 8px;
+            font-size: 20px;
             font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
             outline: none;
+            backdrop-filter: blur(4px);
         }
-        .game-btn:active {
-            transform: scale(0.95);
+        .rb-btn:active {
+            background: rgba(255, 255, 255, 0.6);
         }
-        #btn-tz { background: #d32f2f; } /* 自強號 紅白 */
-        #btn-gk { background: #e65100; } /* 莒光號 橘色 */
-        #btn-lc { background: #0288d1; } /* 區間車 藍銀 */
-        #btn-power { background: #388e3c; }
-        #btn-brake { background: #c2185b; }
+        #btn-up { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-down { grid-column: 2; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
     </style>
 </head>
 <body>
     <div id="info">
-        <h3>🇹🇼 台鐵家族模擬器</h3>
-        <p id="status-text">目前車種：自強號家族 (EMU/PP)</p>
-        <p>狀態：行駛中，準備進站</p>
+        <h3>🇹🇼 RB 風格台鐵模擬器</h3>
+        <p id="status-text">車種：自強號 | 速度: 0</p>
     </div>
 
-    <div class="controls-container">
-        <div class="btn-row">
-            <button class="game-btn" id="btn-tz" onclick="changeTrain('tz')">自強號</button>
-            <button class="game-btn" id="btn-gk" onclick="changeTrain('gk')">莒光號</button>
-            <button class="game-btn" id="btn-lc" onclick="changeTrain('lc')">區間車</button>
-        </div>
-        <div class="btn-row">
-            <button class="game-btn" id="btn-brake" onclick="toggleBrake()">煞車/開門</button>
-            <button class="game-btn" id="btn-power" onclick="togglePower()">發車/加速</button>
-        </div>
+    <!-- 右上角車種切換 -->
+    <div class="top-menu">
+        <button class="menu-btn" style="background:#d32f2f;" onclick="setTrain('tz', '自強號')">自強</button>
+        <button class="menu-btn" style="background:#e65100;" onclick="setTrain('gk', '莒光號')">莒光</button>
+        <button class="menu-btn" style="background:#0288d1;" onclick="setTrain('lc', '區間車')">區間</button>
+    </div>
+
+    <!-- RB 風格方向控制按鈕 (手機也能開) -->
+    <div class="rb-controls">
+        <button class="rb-btn" id="btn-up">▲</button>
+        <button class="rb-btn" id="btn-left">◀</button>
+        <button class="rb-btn" id="btn-down">▼</button>
+        <button class="rb-btn" id="btn-right">▶</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -84,103 +98,119 @@
         scene.background = new THREE.Color(0x87ceeb); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 5, 12);
-
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // 燈光
         scene.add(new THREE.DirectionalLight(0xffffff, 1).position.set(5, 10, 7.5));
         scene.add(new THREE.AmbientLight(0x404040));
 
-        // 軌道與月台
-        const trackGeo = new THREE.BoxGeometry(60, 0.2, 2);
+        // 建立大片地面與鐵軌
+        const groundGeo = new THREE.PlaneGeometry(200, 200);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        const trackGeo = new THREE.BoxGeometry(2, 0.1, 150);
         const trackMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
-        scene.add(new THREE.Mesh(trackGeo, trackMat).position.set(0, -0.1, 0));
+        const track = new THREE.Mesh(trackGeo, trackMat);
+        track.position.set(0, 0.05, 0);
+        scene.add(track);
 
-        const platformGeo = new THREE.BoxGeometry(15, 0.8, 2.5);
-        const platformMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-        scene.add(new THREE.Mesh(platformGeo, platformMat).position.set(10, 0.3, -2.5));
-
-        // 建立火車群組 (組合車身與塗裝)
+        // 建立火車群組 (RB 車輛物件)
         const trainGroup = new THREE.Group();
-        
-        // 主車體
-        const bodyGeo = new THREE.BoxGeometry(4.5, 1.4, 1.8);
+        const bodyGeo = new THREE.BoxGeometry(2.2, 1.5, 5);
         const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
         const trainBody = new THREE.Mesh(bodyGeo, bodyMat);
-        trainBody.position.y = 0.75;
+        trainBody.position.y = 0.8;
         trainGroup.add(trainBody);
 
-        // 裝飾腰線 (用來呈現台鐵各種家族的彩條)
-        const stripeGeo = new THREE.BoxGeometry(4.51, 0.3, 1.82);
-        const stripeMat = new THREE.MeshStandardMaterial({ color: 0xd32f2f }); // 預設自強號紅線
+        const stripeGeo = new THREE.BoxGeometry(2.22, 0.4, 5.02);
+        const stripeMat = new THREE.MeshStandardMaterial({ color: 0xd32f2f });
         const trainStripe = new THREE.Mesh(stripeGeo, stripeMat);
-        trainStripe.position.y = 0.85;
+        trainStripe.position.y = 0.9;
         trainGroup.add(trainStripe);
 
-        trainGroup.position.set(-25, 0, 0);
+        trainGroup.position.set(0, 0, 50);
         scene.add(trainGroup);
 
-        // 遊戲狀態變數
-        let trainSpeed = 0.08;
-        let isAtStation = false;
-        let currentType = '自強號家族';
+        // 遊戲操控變數
+        let speed = 0;
+        let maxSpeed = 0.8;
+        let steering = 0;
+        let currentName = '自強號';
         const statusText = document.getElementById('status-text');
 
-        // 切換車種功能
-        function changeTrain(type) {
-            if (type === 'tz') {
-                currentType = '自強號家族 (Tze-Chiang)';
-                bodyMat.color.setHex(0xffffff); // 白底
-                stripeMat.color.setHex(0xd32f2f); // 紅線
-            } else if (type === 'gk') {
-                currentType = '莒光號家族 (Chu-Kuang)';
-                bodyMat.color.setHex(0xe65100); // 經典橘身
-                stripeMat.color.setHex(0xffffff); // 白線
-            } else if (type === 'lc') {
-                currentType = '區間車家族 (Local Train)';
-                bodyMat.color.setHex(0x90a4ae); // 銀灰色
-                stripeMat.color.setHex(0x0288d1); // 藍線
-            }
-            statusText.innerText = `目前車種：${currentType}`;
+        // 按鍵狀態紀錄
+        const keys = { up: false, down: false, left: false, right: false };
+
+        // 綁定虛擬按鈕事件 (支援手機觸控與滑鼠點擊)
+        function bindButton(id, keyName) {
+            const btn = document.getElementById(id);
+            btn.addEventListener('touchstart', (e) => { keys[keyName] = true; e.preventDefault(); });
+            btn.addEventListener('touchend', () => { keys[keyName] = false; });
+            btn.addEventListener('mousedown', () => { keys[keyName] = true; });
+            btn.addEventListener('mouseup', () => { keys[keyName] = false; });
+            btn.addEventListener('mouseleave', () => { keys[keyName] = false; });
+        }
+        bindButton('btn-up', 'up');
+        bindButton('btn-down', 'down');
+        bindButton('btn-left', 'left');
+        bindButton('btn-right', 'right');
+
+        // 電腦鍵盤支援 (WASD / 方向鍵)
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.up = true;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.down = true;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.up = false;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.down = false;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+        });
+
+        function setTrain(type, name) {
+            currentName = name;
+            if (type === 'tz') { bodyMat.color.setHex(0xffffff); stripeMat.color.setHex(0xd32f2f); }
+            if (type === 'gk') { bodyMat.color.setHex(0xe65100); stripeMat.color.setHex(0xffffff); }
+            if (type === 'lc') { bodyMat.color.setHex(0x90a4ae); stripeMat.color.setHex(0x0288d1); }
         }
 
-        function toggleBrake() {
-            trainSpeed = 0;
-        }
-
-        function togglePower() {
-            if (!isAtStation) {
-                trainSpeed = 0.08;
-            }
-        }
-
+        // 遊戲主迴圈
         function update() {
-            trainGroup.position.x += trainSpeed;
-
-            // 月台自動停靠
-            if (trainGroup.position.x >= 9 && trainGroup.position.x <= 11 && trainSpeed > 0) {
-                if (!isAtStation) {
-                    trainSpeed = 0;
-                    isAtStation = true;
-                    setTimeout(() => {
-                        trainSpeed = 0.08;
-                        isAtStation = false;
-                    }, 3000);
-                }
+            // 油門與煞車邏輯
+            if (keys.up) {
+                speed += 0.01;
+                if (speed > maxSpeed) speed = maxSpeed;
+            } else if (keys.down) {
+                speed -= 0.01;
+                if (speed < -maxSpeed / 2) speed = -maxSpeed / 2;
+            } else {
+                speed *= 0.95; // 漸漸滑行減速
             }
 
-            // 循環
-            if (trainGroup.position.x > 30) {
-                trainGroup.position.x = -25;
+            // 左右轉向
+            if (keys.left) {
+                trainGroup.rotation.y += 0.03 * (speed !== 0 ? Math.sign(speed) : 1);
+            }
+            if (keys.right) {
+                trainGroup.rotation.y -= 0.03 * (speed !== 0 ? Math.sign(speed) : 1);
             }
 
-            // 相機跟隨
-            camera.position.x = trainGroup.position.x - 2;
-            camera.position.y = 5;
-            camera.position.z = 12;
+            // 根據車身朝向移動位置
+            trainGroup.translateZ(-speed);
+
+            // 更新介面狀態
+            statusText.innerText = `車種: ${currentName} | 速度: ${Math.abs(Math.round(speed * 100))}`;
+
+            // RB 風格第三人稱相機跟隨
+            const offset = new THREE.Vector3(0, 4, 10).applyAxisAngle(new THREE.Vector3(0, 1, 0), trainGroup.rotation.y);
+            camera.position.copy(trainGroup.position).add(offset);
+            camera.lookAt(trainGroup.position.clone().add(new THREE.Vector3(0, 1, 0)));
         }
 
         function animate() {
@@ -188,7 +218,6 @@
             update();
             renderer.render(scene, camera);
         }
-
         animate();
 
         window.addEventListener('resize', () => {
