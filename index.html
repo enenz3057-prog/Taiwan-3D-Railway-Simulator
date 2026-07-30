@@ -3,58 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Taiwan Railway Sim - RB Style</title>
+    <title>中台鐵路模擬器 - Chunghtai Railway Simulator</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87ceeb; user-select: none; }
         canvas { display: block; }
-        #info {
+        
+        /* 模仿真實模擬器的 HUD 介面 */
+        #hud {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 15px;
+            left: 15px;
             color: white;
-            font-family: sans-serif;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 12px;
+            font-family: monospace, sans-serif;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 15px;
             border-radius: 8px;
             pointer-events: none;
-            max-width: 85%;
-            font-size: 13px;
+            max-width: 90%;
+            border-left: 5px solid #ff9800;
         }
-        /* 車種選單 */
-        .top-menu {
+        #hud h3 { margin: 0 0 5px 0; font-size: 16px; color: #ff9800; }
+        #hud p { margin: 3px 0; font-size: 13px; }
+
+        /* 廣播字幕提示條 (模仿影片進站廣播) */
+        #announcement {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            display: flex;
-            gap: 5px;
-        }
-        .menu-btn {
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.4);
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 152, 0, 0.9);
+            color: black;
+            font-weight: bold;
             padding: 8px 12px;
             border-radius: 6px;
             font-size: 12px;
-            cursor: pointer;
+            display: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
-        /* 鐵道控制台 (右下角) */
-        .train-controls {
+
+        /* 底部駕駛控制板 */
+        .controls {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
+            bottom: 25px;
+            right: 25px;
             display: flex;
-            gap: 10px;
+            gap: 15px;
         }
         .ctrl-btn {
-            background: #ff5722;
+            background: #2196F3;
             color: white;
             border: none;
-            width: 70px;
-            height: 70px;
+            width: 75px;
+            height: 75px;
             border-radius: 50%;
             font-size: 16px;
             font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
             cursor: pointer;
             outline: none;
             display: flex;
@@ -62,26 +65,20 @@
             justify-content: center;
         }
         .ctrl-btn:active { transform: scale(0.92); }
-        #btn-brake { background: #e91e63; }
-        #btn-power { background: #4caf50; }
+        #btn-brake { background: #f44336; }
+        #btn-power { background: #4CAF50; }
     </style>
 </head>
 <body>
-    <div id="info">
-        <h3>🇹🇼 台鐵軌道模擬器</h3>
-        <p id="status-text">車種: 自強號 | 狀態: 行駛中</p>
-        <p>玩法: 火車沿著軌道走，用右下角控制加速與煞車！</p>
+    <div id="hud">
+        <h3>中台鐵路模擬器 (Chunghtai Railway)</h3>
+        <p id="station-info">下一站：中央車站 (Central Station)</p>
+        <p id="status-info">狀態：行駛中 | 速度：0 km/h</p>
     </div>
 
-    <!-- 車種切換 -->
-    <div class="top-menu">
-        <button class="menu-btn" style="background:#d32f2f;" onclick="setTrain('tz', '自強號')">自強</button>
-        <button class="menu-btn" style="background:#e65100;" onclick="setTrain('gk', '莒光號')">莒光</button>
-        <button class="menu-btn" style="background:#0288d1;" onclick="setTrain('lc', '區間車')">區間</button>
-    </div>
+    <div id="announcement">📢 Stand clear of moving train please</div>
 
-    <!-- 控制按鈕 -->
-    <div class="train-controls">
+    <div class="controls">
         <button class="ctrl-btn" id="btn-brake">煞車</button>
         <button class="ctrl-btn" id="btn-power">動力</button>
     </div>
@@ -97,93 +94,109 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.DirectionalLight(0xffffff, 1).position.set(5, 10, 7.5));
-        scene.add(new THREE.AmbientLight(0x404040));
+        scene.add(new THREE.DirectionalLight(0xffffff, 1).position.set(10, 20, 10));
+        scene.add(new THREE.AmbientLight(0x505050));
 
-        // 1. 建立環狀軌道路徑 (Path)
+        // 1. 鐵路軌道迴圈路徑
         const curve = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(-30, 0, 0),
-            new THREE.Vector3(-15, 0, -20),
-            new THREE.Vector3(15, 0, -20),
-            new THREE.Vector3(30, 0, 0),
-            new THREE.Vector3(15, 0, 20),
-            new THREE.Vector3(-15, 0, 20),
-        ], true); // true 代表封閉迴圈
+            new THREE.Vector3(-40, 0, 0),
+            new THREE.Vector3(-20, 0, -25),
+            new THREE.Vector3(20, 0, -25),
+            new THREE.Vector3(40, 0, 0),
+            new THREE.Vector3(20, 0, 25),
+            new THREE.Vector3(-20, 0, 25),
+        ], true);
 
-        // 畫出軌道視覺
-        const points = curve.getPoints(100);
-        const trackGeo = new THREE.BufferGeometry().setFromPoints(points);
-        const trackMat = new THREE.LineBasicMaterial({ color: 0x333333, linewidth: 3 });
-        const trackLine = new THREE.Line(trackGeo, trackMat);
+        const trackPoints = curve.getPoints(120);
+        const trackGeo = new THREE.BufferGeometry().setFromPoints(trackPoints);
+        const trackLine = new THREE.Line(trackGeo, new THREE.LineBasicMaterial({ color: 0x333333 }));
         scene.add(trackLine);
 
-        // 2. 建立台鐵火車物件
-        const trainGroup = new THREE.Group();
-        const bodyGeo = new THREE.BoxGeometry(2, 1.4, 4);
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-        const trainBody = new THREE.Mesh(bodyGeo, bodyMat);
-        trainBody.position.y = 0.7;
-        trainGroup.add(trainBody);
+        // 2. 模擬車站月台
+        const platformGeo = new THREE.BoxGeometry(16, 0.6, 3);
+        const platformMat = new THREE.MeshStandardMaterial({ color: 0x9e9e9e });
+        const platform = new THREE.Mesh(platformGeo, platformMat);
+        platform.position.set(20, 0.3, -3);
+        scene.add(platform);
 
-        const stripeGeo = new THREE.BoxGeometry(2.02, 0.3, 4.02);
-        const stripeMat = new THREE.MeshStandardMaterial({ color: 0xd32f2f });
-        const trainStripe = new THREE.Mesh(stripeGeo, stripeMat);
-        trainStripe.position.y = 0.8;
-        trainGroup.add(trainStripe);
+        // 3. 火車物件 (台鐵自強號藍白紅風格)
+        const trainGroup = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2, 1.4, 4.5), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+        body.position.y = 0.7;
+        trainGroup.add(body);
+        
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.02, 0.3, 4.52), new THREE.MeshStandardMaterial({ color: 0xd32f2f }));
+        stripe.position.y = 0.8;
+        trainGroup.add(stripe);
         scene.add(trainGroup);
 
-        // 遊戲變數
-        let trainProgress = 0; // 軌道進度 (0 到 1)
-        let trainSpeed = 0.001; // 當前速度
-        let targetSpeed = 0.001; // 目標速度
-        let currentName = '自強號';
-        const statusText = document.getElementById('status-text');
+        // 遊戲控制變數
+        let progress = 0;
+        let speed = 0;
+        let targetSpeed = 0.0015;
+        let isStoppedAtStation = false;
 
-        // 按鈕控制油門與煞車
+        const stationInfo = document.getElementById('station-info');
+        const statusInfo = document.getElementById('status-info');
+        const announcement = document.getElementById('announcement');
+
+        // 按鈕事件
         const powerBtn = document.getElementById('btn-power');
         const brakeBtn = document.getElementById('btn-brake');
 
-        powerBtn.addEventListener('touchstart', () => { targetSpeed = 0.003; });
-        powerBtn.addEventListener('touchend', () => { targetSpeed = 0.001; });
-        powerBtn.addEventListener('mousedown', () => { targetSpeed = 0.003; });
-        powerBtn.addEventListener('mouseup', () => { targetSpeed = 0.001; });
+        powerBtn.addEventListener('touchstart', () => { if(!isStoppedAtStation) targetSpeed = 0.003; });
+        powerBtn.addEventListener('touchend', () => { if(!isStoppedAtStation) targetSpeed = 0.0015; });
+        powerBtn.addEventListener('mousedown', () => { if(!isStoppedAtStation) targetSpeed = 0.003; });
+        powerBtn.addEventListener('mouseup', () => { if(!isStoppedAtStation) targetSpeed = 0.0015; });
 
         brakeBtn.addEventListener('touchstart', () => { targetSpeed = 0; });
         brakeBtn.addEventListener('mousedown', () => { targetSpeed = 0; });
 
-        function setTrain(type, name) {
-            currentName = name;
-            if (type === 'tz') { bodyMat.color.setHex(0xffffff); stripeMat.color.setHex(0xd32f2f); }
-            if (type === 'gk') { bodyMat.color.setHex(0xe65100); stripeMat.color.setHex(0xffffff); }
-            if (type === 'lc') { bodyMat.color.setHex(0x90a4ae); stripeMat.color.setHex(0x0288d1); }
-        }
-
-        // 主迴圈：火車嚴格乖乖照著軌道走
         function update() {
-            // 漸進式加速/減速 (有物理慣性)
-            trainSpeed += (targetSpeed - trainSpeed) * 0.05;
-            trainProgress += trainSpeed;
-            if (trainProgress > 1) trainProgress = 0;
+            speed += (targetSpeed - speed) * 0.05;
+            progress += speed;
+            if (progress > 1) progress = 0;
 
-            // 取得當前進度在軌道上的位置與方向
-            const position = curve.getPointAt(trainProgress);
-            const tangent = curve.getTangentAt(trainProgress);
+            const pos = curve.getPointAt(progress);
+            const tangent = curve.getTangentAt(progress);
 
-            trainGroup.position.copy(position);
-            trainGroup.position.y += 0.7; // 浮在軌道上
+            trainGroup.position.copy(pos);
+            trainGroup.position.y += 0.7;
+            trainGroup.lookAt(pos.clone().add(tangent));
+            trainGroup.rotateY(Math.PI);
 
-            // 讓車頭自動朝向軌道前方
-            const lookAtPos = position.clone().add(tangent);
-            trainGroup.lookAt(lookAtPos);
-            trainGroup.rotateY(Math.PI); // 修正車頭方向
+            // 模擬接近車站與廣播提示 (當進度大約經過月台區間)
+            if (progress > 0.35 && progress < 0.45) {
+                if (!isStoppedAtStation && speed > 0.0005) {
+                    // 自動進站停車
+                    targetSpeed = 0;
+                    isStoppedAtStation = true;
+                    stationInfo.innerText = "本站：中央車站 (Central Station)";
+                    statusInfo.innerText = "狀態：到站開門中 (上下客)";
+                    announcement.style.display = "block"; // 顯示英文廣播提示
 
-            statusText.innerText = `車種: ${currentName} | 速度: ${Math.round(trainSpeed * 3000)}`;
+                    // 模擬 3 秒後發車
+                    setTimeout(() => {
+                        targetSpeed = 0.0015;
+                        isStoppedAtStation = false;
+                        announcement.style.display = "none";
+                        statusInfo.innerText = "狀態：離站行駛中";
+                    }, 3500);
+                }
+            } else if (progress > 0.5 && progress < 0.55) {
+                stationInfo.innerText = "下一站：阿里林場線 (Ali Forest Line)";
+            }
 
-            // RB 風格第三人稱相機緊跟火車
-            const cameraOffset = new THREE.Vector3(0, 3, -8).applyQuaternion(trainGroup.quaternion);
-            camera.position.copy(position).add(cameraOffset);
-            camera.position.y = position.y + 3;
-            camera.lookAt(position);
+            let speedKmH = Math.round(speed * 35000);
+            if (!isStoppedAtStation) {
+                statusInfo.innerText = `狀態：行駛中 | 速度：${speedKmH} km/h`;
+            }
+
+            // 追隨視角
+            const camOffset = new THREE.Vector3(0, 3.5, -9).applyQuaternion(trainGroup.quaternion);
+            camera.position.copy(pos).add(camOffset);
+            camera.position.y = pos.y + 3.5;
+            camera.lookAt(pos);
         }
 
         function animate() {
@@ -201,4 +214,3 @@
     </script>
 </body>
 </html>
-
