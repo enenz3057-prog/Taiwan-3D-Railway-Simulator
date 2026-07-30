@@ -3,48 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>中台鐵路模擬器 - Chunghtai Railway Simulator</title>
+    <title>中台鐵路模擬器 - 駕駛視角</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87ceeb; user-select: none; }
         canvas { display: block; }
         
-        /* 模仿真實模擬器的 HUD 介面 */
-        #hud {
+        /* 模擬真實駕駛介面 HUD */
+        #driver-dashboard {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.4));
+            border-top: 4px solid #ff9800;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            color: white;
+            font-family: monospace, sans-serif;
+            box-sizing: border-box;
+            padding: 0 20px;
+        }
+
+        .dashboard-item {
+            text-align: center;
+        }
+        .dashboard-item span {
+            display: block;
+            font-size: 11px;
+            color: #ff9800;
+            margin-bottom: 3px;
+        }
+        .dashboard-item b {
+            font-size: 22px;
+        }
+
+        /* 站名與廣播提示 */
+        #info-panel {
             position: absolute;
             top: 15px;
             left: 15px;
             color: white;
             font-family: monospace, sans-serif;
-            background: rgba(0, 0, 0, 0.75);
-            padding: 15px;
-            border-radius: 8px;
-            pointer-events: none;
-            max-width: 90%;
-            border-left: 5px solid #ff9800;
-        }
-        #hud h3 { margin: 0 0 5px 0; font-size: 16px; color: #ff9800; }
-        #hud p { margin: 3px 0; font-size: 13px; }
-
-        /* 廣播字幕提示條 (模仿影片進站廣播) */
-        #announcement {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: rgba(255, 152, 0, 0.9);
-            color: black;
-            font-weight: bold;
-            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
             border-radius: 6px;
-            font-size: 12px;
-            display: none;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            pointer-events: none;
         }
 
-        /* 底部駕駛控制板 */
+        /* 駕駛操作按鈕 */
         .controls {
             position: absolute;
-            bottom: 25px;
-            right: 25px;
+            bottom: 135px;
+            right: 20px;
             display: flex;
             gap: 15px;
         }
@@ -52,17 +64,14 @@
             background: #2196F3;
             color: white;
             border: none;
-            width: 75px;
-            height: 75px;
+            width: 65px;
+            height: 65px;
             border-radius: 50%;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
             cursor: pointer;
             outline: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         .ctrl-btn:active { transform: scale(0.92); }
         #btn-brake { background: #f44336; }
@@ -70,17 +79,35 @@
     </style>
 </head>
 <body>
-    <div id="hud">
-        <h3>中台鐵路模擬器 (Chunghtai Railway)</h3>
-        <p id="station-info">下一站：中央車站 (Central Station)</p>
-        <p id="status-info">狀態：行駛中 | 速度：0 km/h</p>
+    <div id="info-panel">
+        <h3 style="margin:0 0 5px 0; color:#ff9800; font-size:14px;">中台鐵路模擬器</h3>
+        <p id="station-text" style="margin:0; font-size:12px;">下一站：中央車站</p>
     </div>
 
-    <div id="announcement">📢 Stand clear of moving train please</div>
-
+    <!-- 駕駛操作區 -->
     <div class="controls">
         <button class="ctrl-btn" id="btn-brake">煞車</button>
         <button class="ctrl-btn" id="btn-power">動力</button>
+    </div>
+
+    <!-- 擬真駕駛儀表板 -->
+    <div id="driver-dashboard">
+        <div class="dashboard-item">
+            <span>車種</span>
+            <b>太魯閣/新自強</b>
+        </div>
+        <div class="dashboard-item">
+            <span>車速</span>
+            <b id="speed-display">0 km/h</b>
+        </div>
+        <div class="dashboard-item">
+            <span>ATC 號誌</span>
+            <b style="color: #4CAF50;">P (進行)</b>
+        </div>
+        <div class="dashboard-item">
+            <span>車門狀態</span>
+            <b id="door-display" style="color: #ffeb3b;">關閉</b>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -89,65 +116,57 @@
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); 
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / (window.innerHeight - 120), 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
         scene.add(new THREE.DirectionalLight(0xffffff, 1).position.set(10, 20, 10));
-        scene.add(new THREE.AmbientLight(0x505050));
+        scene.add(new THREE.AmbientLight(0x606060));
 
-        // 1. 鐵路軌道迴圈路徑
+        // 鐵路路徑
         const curve = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(-40, 0, 0),
-            new THREE.Vector3(-20, 0, -25),
-            new THREE.Vector3(20, 0, -25),
-            new THREE.Vector3(40, 0, 0),
-            new THREE.Vector3(20, 0, 25),
-            new THREE.Vector3(-20, 0, 25),
+            new THREE.Vector3(-50, 0, 0),
+            new THREE.Vector3(-25, 0, -30),
+            new THREE.Vector3(25, 0, -30),
+            new THREE.Vector3(50, 0, 0),
+            new THREE.Vector3(25, 0, 30),
+            new THREE.Vector3(-25, 0, 30),
         ], true);
 
-        const trackPoints = curve.getPoints(120);
+        const trackPoints = curve.getPoints(150);
         const trackGeo = new THREE.BufferGeometry().setFromPoints(trackPoints);
-        const trackLine = new THREE.Line(trackGeo, new THREE.LineBasicMaterial({ color: 0x333333 }));
-        scene.add(trackLine);
+        scene.add(new THREE.Line(trackGeo, new THREE.LineBasicMaterial({ color: 0x222222 })));
 
-        // 2. 模擬車站月台
-        const platformGeo = new THREE.BoxGeometry(16, 0.6, 3);
-        const platformMat = new THREE.MeshStandardMaterial({ color: 0x9e9e9e });
-        const platform = new THREE.Mesh(platformGeo, platformMat);
-        platform.position.set(20, 0.3, -3);
+        // 月台
+        const platform = new THREE.Mesh(
+            new THREE.BoxGeometry(18, 0.8, 3.5),
+            new THREE.MeshStandardMaterial({ color: 0x9e9e9e })
+        );
+        platform.position.set(25, 0.4, -4);
         scene.add(platform);
 
-        // 3. 火車物件 (台鐵自強號藍白紅風格)
+        // 火車群組 (我們坐在車頭裡面看出去)
         const trainGroup = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.BoxGeometry(2, 1.4, 4.5), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-        body.position.y = 0.7;
-        trainGroup.add(body);
-        
-        const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.02, 0.3, 4.52), new THREE.MeshStandardMaterial({ color: 0xd32f2f }));
-        stripe.position.y = 0.8;
-        trainGroup.add(stripe);
         scene.add(trainGroup);
 
-        // 遊戲控制變數
         let progress = 0;
         let speed = 0;
-        let targetSpeed = 0.0015;
-        let isStoppedAtStation = false;
+        let targetSpeed = 0.0012;
+        let isStationStop = false;
 
-        const stationInfo = document.getElementById('station-info');
-        const statusInfo = document.getElementById('status-info');
-        const announcement = document.getElementById('announcement');
+        const speedDisplay = document.getElementById('speed-display');
+        const doorDisplay = document.getElementById('door-display');
+        const stationText = document.getElementById('station-text');
 
-        // 按鈕事件
+        // 控制按鈕
         const powerBtn = document.getElementById('btn-power');
         const brakeBtn = document.getElementById('btn-brake');
 
-        powerBtn.addEventListener('touchstart', () => { if(!isStoppedAtStation) targetSpeed = 0.003; });
-        powerBtn.addEventListener('touchend', () => { if(!isStoppedAtStation) targetSpeed = 0.0015; });
-        powerBtn.addEventListener('mousedown', () => { if(!isStoppedAtStation) targetSpeed = 0.003; });
-        powerBtn.addEventListener('mouseup', () => { if(!isStoppedAtStation) targetSpeed = 0.0015; });
+        powerBtn.addEventListener('touchstart', () => { if(!isStationStop) targetSpeed = 0.0025; });
+        powerBtn.addEventListener('touchend', () => { if(!isStationStop) targetSpeed = 0.0012; });
+        powerBtn.addEventListener('mousedown', () => { if(!isStationStop) targetSpeed = 0.0025; });
+        powerBtn.addEventListener('mouseup', () => { if(!isStationStop) targetSpeed = 0.0012; });
 
         brakeBtn.addEventListener('touchstart', () => { targetSpeed = 0; });
         brakeBtn.addEventListener('mousedown', () => { targetSpeed = 0; });
@@ -161,42 +180,39 @@
             const tangent = curve.getTangentAt(progress);
 
             trainGroup.position.copy(pos);
-            trainGroup.position.y += 0.7;
             trainGroup.lookAt(pos.clone().add(tangent));
             trainGroup.rotateY(Math.PI);
 
-            // 模擬接近車站與廣播提示 (當進度大約經過月台區間)
-            if (progress > 0.35 && progress < 0.45) {
-                if (!isStoppedAtStation && speed > 0.0005) {
-                    // 自動進站停車
+            // 到站自動停車與開門
+            if (progress > 0.38 && progress < 0.46) {
+                if (!isStationStop && speed > 0.0004) {
                     targetSpeed = 0;
-                    isStoppedAtStation = true;
-                    stationInfo.innerText = "本站：中央車站 (Central Station)";
-                    statusInfo.innerText = "狀態：到站開門中 (上下客)";
-                    announcement.style.display = "block"; // 顯示英文廣播提示
+                    isStationStop = true;
+                    stationText.innerText = "本站：中央車站 (Central Station)";
+                    doorDisplay.innerText = "開啟 (上下客)";
+                    doorDisplay.style.color = "#4CAF50";
 
-                    // 模擬 3 秒後發車
                     setTimeout(() => {
-                        targetSpeed = 0.0015;
-                        isStoppedAtStation = false;
-                        announcement.style.display = "none";
-                        statusInfo.innerText = "狀態：離站行駛中";
-                    }, 3500);
+                        targetSpeed = 0.0012;
+                        isStationStop = false;
+                        doorDisplay.innerText = "關閉";
+                        doorDisplay.style.color = "#ffeb3b";
+                        stationText.innerText = "下一站：阿里林場線";
+                    }, 4000);
                 }
-            } else if (progress > 0.5 && progress < 0.55) {
-                stationInfo.innerText = "下一站：阿里林場線 (Ali Forest Line)";
             }
 
-            let speedKmH = Math.round(speed * 35000);
-            if (!isStoppedAtStation) {
-                statusInfo.innerText = `狀態：行駛中 | 速度：${speedKmH} km/h`;
-            }
+            // 時速計算
+            let kmh = Math.round(speed * 30000);
+            speedDisplay.innerText = `${kmh} km/h`;
 
-            // 追隨視角
-            const camOffset = new THREE.Vector3(0, 3.5, -9).applyQuaternion(trainGroup.quaternion);
-            camera.position.copy(pos).add(camOffset);
-            camera.position.y = pos.y + 3.5;
-            camera.lookAt(pos);
+            // **關鍵：第一人稱駕駛視角 (視線固定在車頭正前方)**
+            camera.position.copy(pos);
+            camera.position.y += 1.2; // 駕駛座高度
+            
+            // 讓攝影機朝著火車前進的方向看出去
+            const lookTarget = pos.clone().add(tangent.clone().negate());
+            camera.lookAt(lookTarget);
         }
 
         function animate() {
@@ -207,7 +223,7 @@
         animate();
 
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = window.innerWidth / (window.innerHeight - 120);
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
