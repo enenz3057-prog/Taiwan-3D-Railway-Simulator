@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Taiwan 3D Railway Simulator</title>
+    <title>Taiwan Railway Family Simulator</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87ceeb; }
         canvas { display: block; }
@@ -13,27 +13,36 @@
             left: 10px;
             color: white;
             font-family: sans-serif;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.7);
             padding: 12px;
             border-radius: 8px;
             pointer-events: none;
             max-width: 85%;
         }
-        .btn-container {
+        .controls-container {
             position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 15px;
+            flex-direction: column;
+            gap: 10px;
+            width: 90%;
+            max-width: 400px;
+        }
+        .btn-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
         }
         .game-btn {
-            background: #ff5722;
+            flex: 1;
+            background: #333;
             color: white;
             border: none;
-            padding: 15px 25px;
-            font-size: 18px;
-            border-radius: 50px;
+            padding: 12px;
+            font-size: 14px;
+            border-radius: 8px;
             font-weight: bold;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             cursor: pointer;
@@ -41,20 +50,31 @@
         }
         .game-btn:active {
             transform: scale(0.95);
-            background: #e64a19;
         }
+        #btn-tz { background: #d32f2f; } /* 自強號 紅白 */
+        #btn-gk { background: #e65100; } /* 莒光號 橘色 */
+        #btn-lc { background: #0288d1; } /* 區間車 藍銀 */
+        #btn-power { background: #388e3c; }
+        #btn-brake { background: #c2185b; }
     </style>
 </head>
 <body>
     <div id="info">
-        <h3>台鐵風格 3D 模擬器 (調度版)</h3>
-        <p id="status-text">狀態：行駛中，準備進站</p>
-        <p>玩法：使用下方按鈕控制加速與進站煞車。</p>
+        <h3>🇹🇼 台鐵家族模擬器</h3>
+        <p id="status-text">目前車種：自強號家族 (EMU/PP)</p>
+        <p>狀態：行駛中，準備進站</p>
     </div>
 
-    <div class="btn-container">
-        <button class="game-btn" id="brake-btn">煞車 / 停車</button>
-        <button class="game-btn" id="power-btn" style="background: #4CAF50;">動力 / 發車</button>
+    <div class="controls-container">
+        <div class="btn-row">
+            <button class="game-btn" id="btn-tz" onclick="changeTrain('tz')">自強號</button>
+            <button class="game-btn" id="btn-gk" onclick="changeTrain('gk')">莒光號</button>
+            <button class="game-btn" id="btn-lc" onclick="changeTrain('lc')">區間車</button>
+        </div>
+        <div class="btn-row">
+            <button class="game-btn" id="btn-brake" onclick="toggleBrake()">煞車/開門</button>
+            <button class="game-btn" id="btn-power" onclick="togglePower()">發車/加速</button>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -74,75 +94,91 @@
         scene.add(new THREE.DirectionalLight(0xffffff, 1).position.set(5, 10, 7.5));
         scene.add(new THREE.AmbientLight(0x404040));
 
-        // --- 建立鐵路與月台 ---
-        // 長條主軌道
+        // 軌道與月台
         const trackGeo = new THREE.BoxGeometry(60, 0.2, 2);
         const trackMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
-        const track = new THREE.Mesh(trackGeo, trackMat);
-        track.position.set(0, -0.1, 0);
-        scene.add(track);
+        scene.add(new THREE.Mesh(trackGeo, trackMat).position.set(0, -0.1, 0));
 
-        // 月台 (車站)
         const platformGeo = new THREE.BoxGeometry(15, 0.8, 2.5);
         const platformMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-        const platform = new THREE.Mesh(platformGeo, platformMat);
-        platform.position.set(10, 0.3, -2.5);
-        scene.add(platform);
+        scene.add(new THREE.Mesh(platformGeo, platformMat).position.set(10, 0.3, -2.5));
 
-        // 火車
-        const trainGeo = new THREE.BoxGeometry(4, 1.5, 1.8);
-        const trainMat = new THREE.MeshStandardMaterial({ color: 0x1976D2 }); // 台鐵藍或自強號藍色調
-        const train = new THREE.Mesh(trainGeo, trainMat);
-        train.position.set(-25, 0.75, 0);
-        scene.add(train);
+        // 建立火車群組 (組合車身與塗裝)
+        const trainGroup = new THREE.Group();
+        
+        // 主車體
+        const bodyGeo = new THREE.BoxGeometry(4.5, 1.4, 1.8);
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const trainBody = new THREE.Mesh(bodyGeo, bodyMat);
+        trainBody.position.y = 0.75;
+        trainGroup.add(trainBody);
 
-        // --- 控制邏輯 ---
+        // 裝飾腰線 (用來呈現台鐵各種家族的彩條)
+        const stripeGeo = new THREE.BoxGeometry(4.51, 0.3, 1.82);
+        const stripeMat = new THREE.MeshStandardMaterial({ color: 0xd32f2f }); // 預設自強號紅線
+        const trainStripe = new THREE.Mesh(stripeGeo, stripeMat);
+        trainStripe.position.y = 0.85;
+        trainGroup.add(trainStripe);
+
+        trainGroup.position.set(-25, 0, 0);
+        scene.add(trainGroup);
+
+        // 遊戲狀態變數
         let trainSpeed = 0.08;
         let isAtStation = false;
-        let stationTimer = 0;
-
+        let currentType = '自強號家族';
         const statusText = document.getElementById('status-text');
 
-        document.getElementById('brake-btn').addEventListener('click', () => {
-            trainSpeed = 0;
-            statusText.innerText = "狀態：手動緊急煞車";
-        });
+        // 切換車種功能
+        function changeTrain(type) {
+            if (type === 'tz') {
+                currentType = '自強號家族 (Tze-Chiang)';
+                bodyMat.color.setHex(0xffffff); // 白底
+                stripeMat.color.setHex(0xd32f2f); // 紅線
+            } else if (type === 'gk') {
+                currentType = '莒光號家族 (Chu-Kuang)';
+                bodyMat.color.setHex(0xe65100); // 經典橘身
+                stripeMat.color.setHex(0xffffff); // 白線
+            } else if (type === 'lc') {
+                currentType = '區間車家族 (Local Train)';
+                bodyMat.color.setHex(0x90a4ae); // 銀灰色
+                stripeMat.color.setHex(0x0288d1); // 藍線
+            }
+            statusText.innerText = `目前車種：${currentType}`;
+        }
 
-        document.getElementById('power-btn').addEventListener('click', () => {
+        function toggleBrake() {
+            trainSpeed = 0;
+        }
+
+        function togglePower() {
             if (!isAtStation) {
                 trainSpeed = 0.08;
-                statusText.innerText = "狀態：加速行駛中";
             }
-        });
+        }
 
         function update() {
-            // 移動火車
-            train.position.x += trainSpeed;
+            trainGroup.position.x += trainSpeed;
 
-            // 模擬進站自動停車機制
-            if (train.position.x >= 9 && train.position.x <= 11 && trainSpeed > 0) {
+            // 月台自動停靠
+            if (trainGroup.position.x >= 9 && trainGroup.position.x <= 11 && trainSpeed > 0) {
                 if (!isAtStation) {
-                    trainSpeed = 0; // 自動停靠月台
+                    trainSpeed = 0;
                     isAtStation = true;
-                    statusText.innerText = "狀態：已到站，上下客中 (3秒後發車)...";
-                    
-                    // 模擬載客 3 秒後自動發車
                     setTimeout(() => {
                         trainSpeed = 0.08;
                         isAtStation = false;
-                        statusText.innerText = "狀態：離站加速中";
                     }, 3000);
                 }
             }
 
-            // 循環跑圖
-            if (train.position.x > 30) {
-                train.position.x = -25;
-                statusText.innerText = "狀態：行駛中，前往下一站";
+            // 循環
+            if (trainGroup.position.x > 30) {
+                trainGroup.position.x = -25;
             }
 
-            // 相機跟隨火車
-            camera.position.x = train.position.x - 2;
+            // 相機跟隨
+            camera.position.x = trainGroup.position.x - 2;
             camera.position.y = 5;
             camera.position.z = 12;
         }
