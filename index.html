@@ -2,173 +2,149 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <!-- 重要：禁止縮放，網頁才像 APP -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RB-Like Taiwan 3D Train Sim</title>
+    <title>Taiwan 3D Railway Simulator</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87ceeb; }
         canvas { display: block; }
-        
-        /* 手機控制介面 CSS */
-        #touch-controls {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 30%; /* 控制區域佔螢幕下方 30% */
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none; /* 讓點擊穿透到後面 canvas，除了按鈕區域 */
-        }
-
-        .control-area {
-            width: 40%;
-            height: 100%;
-            pointer-events: auto; /* 只有這塊區域可以接收觸控 */
-            /* background: rgba(255, 255, 255, 0.1);  除錯用：顯示控制區塊 */
-        }
-
         #info {
             position: absolute;
             top: 10px;
             left: 10px;
             color: white;
             font-family: sans-serif;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 12px;
+            border-radius: 8px;
             pointer-events: none;
-            max-width: 80%;
+            max-width: 85%;
+        }
+        .btn-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+        }
+        .game-btn {
+            background: #ff5722;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            font-size: 18px;
+            border-radius: 50px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+            outline: none;
+        }
+        .game-btn:active {
+            transform: scale(0.95);
+            background: #e64a19;
         }
     </style>
 </head>
 <body>
     <div id="info">
-        <h3>RB 風格 3D 鐵路 (雛形)</h3>
-        <p>狀態：火車自動行駛中</p>
-        <p>手機玩法：滑動左半邊螢幕向左轉，滑動右半邊向右轉。</p>
+        <h3>台鐵風格 3D 模擬器 (調度版)</h3>
+        <p id="status-text">狀態：行駛中，準備進站</p>
+        <p>玩法：使用下方按鈕控制加速與進站煞車。</p>
     </div>
 
-    <!-- 手機觸控區塊 -->
-    <div id="touch-controls">
-        <div id="left-area" class="control-area"></div>
-        <div id="right-area" class="control-area"></div>
+    <div class="btn-container">
+        <button class="game-btn" id="brake-btn">煞車 / 停車</button>
+        <button class="game-btn" id="power-btn" style="background: #4CAF50;">動力 / 發車</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
-        // --- 基礎場景 ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 5, 10);
-        camera.lookAt(0, 0, 0);
+        camera.position.set(0, 5, 12);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
         // 燈光
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(5, 10, 7.5);
-        scene.add(light);
+        scene.add(new THREE.DirectionalLight(0xffffff, 1).position.set(5, 10, 7.5));
         scene.add(new THREE.AmbientLight(0x404040));
 
-        // --- 建立物件 ---
-        
-        // 1. 軌道 (圓形軌道的一部份 - 圓弧)
-        // 使用 Curve 建立圓形路徑
-        const curve = new THREE.EllipseCurve(
-            0, 0,            // ax, aY (圓心)
-            15, 15,          // xRadius, yRadius (半徑)
-            -Math.PI / 2,    // startAngle (從上方開始)
-            Math.PI / 2,     // endAngle (轉 180 度)
-            false,           // clockwise
-            0                // rotation
-        );
-        
-        const points = curve.getPoints( 50 );
-        const trackGeometry = new THREE.BufferGeometry().setFromPoints( points );
-        // 將線條躺平 (原本是畫在 XY 平面，要轉成 XZ 平面)
-        trackGeometry.rotateX(Math.PI / 2);
-        
-        const trackMaterial = new THREE.LineBasicMaterial( { color: 0x333333, linewidth: 2 } );
-        const trackLine = new THREE.Line( trackGeometry, trackMaterial );
-        scene.add( trackLine );
+        // --- 建立鐵路與月台 ---
+        // 長條主軌道
+        const trackGeo = new THREE.BoxGeometry(60, 0.2, 2);
+        const trackMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+        const track = new THREE.Mesh(trackGeo, trackMat);
+        track.position.set(0, -0.1, 0);
+        scene.add(track);
 
-        // 2. 火車 (長方體)
-        const trainGeometry = new THREE.BoxGeometry(2, 1.5, 4);
-        const trainMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-        const train = new THREE.Mesh(trainGeometry, trainMaterial);
-        train.position.set(0, 0.75, 15); // 放在軌道起點
+        // 月台 (車站)
+        const platformGeo = new THREE.BoxGeometry(15, 0.8, 2.5);
+        const platformMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+        const platform = new THREE.Mesh(platformGeo, platformMat);
+        platform.position.set(10, 0.3, -2.5);
+        scene.add(platform);
+
+        // 火車
+        const trainGeo = new THREE.BoxGeometry(4, 1.5, 1.8);
+        const trainMat = new THREE.MeshStandardMaterial({ color: 0x1976D2 }); // 台鐵藍或自強號藍色調
+        const train = new THREE.Mesh(trainGeo, trainMat);
+        train.position.set(-25, 0.75, 0);
         scene.add(train);
 
-        // --- 遊戲邏輯變數 ---
-        let trainProgress = 0; // 火車在軌道上的進度 (0 到 1)
-        const trainSpeed = 0.003; // 自動行駛速度
-        let turnOffset = 0; // 火車偏移軌道的量 (RB式轉向)
+        // --- 控制邏輯 ---
+        let trainSpeed = 0.08;
+        let isAtStation = false;
+        let stationTimer = 0;
 
-        // --- 手機觸控邏輯 ---
-        let isTouchingLeft = false;
-        let isTouchingRight = false;
+        const statusText = document.getElementById('status-text');
 
-        // 左側區域事件
-        const leftArea = document.getElementById('left-area');
-        leftArea.addEventListener('touchstart', (e) => { isTouchingLeft = true; e.preventDefault(); }, {passive: false});
-        leftArea.addEventListener('touchend', () => { isTouchingLeft = false; });
+        document.getElementById('brake-btn').addEventListener('click', () => {
+            trainSpeed = 0;
+            statusText.innerText = "狀態：手動緊急煞車";
+        });
 
-        // 右側區域事件
-        const rightArea = document.getElementById('right-area');
-        rightArea.addEventListener('touchstart', (e) => { isTouchingRight = true; e.preventDefault(); }, {passive: false});
-        rightArea.addEventListener('touchend', () => { isTouchingRight = false; });
+        document.getElementById('power-btn').addEventListener('click', () => {
+            if (!isAtStation) {
+                trainSpeed = 0.08;
+                statusText.innerText = "狀態：加速行駛中";
+            }
+        });
 
-        // 防止手機瀏覽器預設的縮放和捲動行為
-        document.body.addEventListener('touchmove', function(e) {
-            e.preventDefault();
-        }, { passive: false });
-
-
-        // --- 更新與動畫 ---
         function update() {
-            // 1. 自動更新火車進度
-            trainProgress += trainSpeed;
-            if (trainProgress > 1) trainProgress = 0; // 循環
+            // 移動火車
+            train.position.x += trainSpeed;
 
-            // 2. 根據進度計算火車在軌道上的位置 (X, Y, Z)
-            const camPos = curve.getPointAt(trainProgress); // 取得軌道上的基礎座標
-            const camTangent = curve.getTangentAt(trainProgress); // 取得軌道切線方向 (火車頭朝向)
-
-            // 3. 處理 RB 式轉向 (簡單版)
-            // 根據按鈕調整水平偏移量 (turnOffset)
-            if (isTouchingLeft) {
-                turnOffset -= 0.2; // 向左偏 (轉向軌道內側)
-            } else if (isTouchingRight) {
-                turnOffset += 0.2; // 向右偏 (轉向軌道外側)
-            } else {
-                // 沒有按時慢慢回正
-                turnOffset *= 0.95; 
+            // 模擬進站自動停車機制
+            if (train.position.x >= 9 && train.position.x <= 11 && trainSpeed > 0) {
+                if (!isAtStation) {
+                    trainSpeed = 0; // 自動停靠月台
+                    isAtStation = true;
+                    statusText.innerText = "狀態：已到站，上下客中 (3秒後發車)...";
+                    
+                    // 模擬載客 3 秒後自動發車
+                    setTimeout(() => {
+                        trainSpeed = 0.08;
+                        isAtStation = false;
+                        statusText.innerText = "狀態：離站加速中";
+                    }, 3000);
+                }
             }
 
-            // 計算火車最終位置 (在基礎位置上加上偏移量)
-            // 我們需要一個垂直於切線的向量來做偏移
-            const normal = new THREE.Vector3( -camTangent.y, camTangent.x, 0 ); 
-            
-            train.position.x = camPos.x + (normal.x * turnOffset);
-            train.position.z = camPos.y + (normal.y * turnOffset); // 注意 EllipseCurve 返回的是 (x, y)，對應到 3D 是 (x, z)
-            train.position.y = 0.75;
+            // 循環跑圖
+            if (train.position.x > 30) {
+                train.position.x = -25;
+                statusText.innerText = "狀態：行駛中，前往下一站";
+            }
 
-            // 4. 設定火車旋轉角度 (讓它面向行進方向)
-            train.lookAt(train.position.clone().add(camTangent));
-            // 因為火車模型本身方向問題，可能需要微調旋轉
-            train.rotateY(Math.PI); // 轉 180 度讓車頭對
-
-            // 5. 相機跟隨 (第三人稱視角)
-            // 相機位置設定在火車後方一點點、高一點點
-            const cameraOffset = new THREE.Vector3(-camTangent.x * 10 + (normal.x * turnOffset), 5, -camTangent.z * 10 + (normal.y * turnOffset));
-            camera.position.lerp(train.position.clone().add(cameraOffset), 0.1); // 使用線性插值讓相機跟隨平滑
-            camera.lookAt(train.position);
+            // 相機跟隨火車
+            camera.position.x = train.position.x - 2;
+            camera.position.y = 5;
+            camera.position.z = 12;
         }
 
         function animate() {
@@ -179,13 +155,11 @@
 
         animate();
 
-        // 視窗大小調整
-        window.addEventListener('resize', onWindowResize, false);
-        function onWindowResize() {
+        window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        }
+        });
     </script>
 </body>
 </html>
