@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - 臺鐵標準懸臂與EMU500列車完整版</title>
+    <title>台灣3D鐵路模擬器 - 臺鐵標準斜張懸臂與 EMU500 列車完美視角版</title>
     <style>
         body {
             background-color: #557799;
@@ -80,10 +80,10 @@
         scene.background = new THREE.Color(0x667788);
         scene.fog = new THREE.FogExp2(0x667788, 0.012);
 
-        // 2. 建立相機
+        // 2. 建立相機（完美視角：拉後拉高，完整呈現車頭與鐵道）
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(2.5, 1.8, 8);
-        camera.lookAt(1.6, 1.2, -10);
+        camera.position.set(3.5, 3.2, 12);
+        camera.lookAt(1.6, 1.5, -2);
 
         // 3. 建立渲染器
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -317,7 +317,7 @@
             carGroup.add(createBogie(-5.5));
             carGroup.add(createBogie(5.5));
 
-            carGroup.position.set(1.6, 0.3, 0); // 放置於右側軌道
+            carGroup.position.set(1.6, 0.3, 2); // 放置於右側軌道前方
             return carGroup;
         }
 
