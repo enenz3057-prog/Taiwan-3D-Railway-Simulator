@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - 臺鐵標準斜張懸臂擬真版</title>
+    <title>台灣3D鐵路模擬器 - 臺鐵標準斜張懸臂精準擬真版</title>
     <style>
         body {
             background-color: #557799;
@@ -72,7 +72,7 @@
     <h1>台灣3D鐵路模擬器</h1>
     <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
     <div id="canvas-container"></div>
-    <div class="info">軌距設定：1067mm 臺鐵標準斜張懸臂擬真版</div>
+    <div class="info">軌距設定：1067mm 臺鐵標準斜張懸臂精準擬真版</div>
 
     <script>
         // 1. 建立場景
@@ -193,7 +193,7 @@
             scene.add(s2);
         }
 
-        // 8. 【完美復刻真實相片：頂部水平橫桿 + 斜拉絕緣懸臂】
+        // 8. 【完全對齊照片的臺鐵標準斜張懸臂系統】
         const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.7 }); 
         const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); 
         const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); 
@@ -224,31 +224,35 @@
             pole.castShadow = true;
             group.add(pole);
 
-            // 座標點精準定義
-            const pPoleTop = new THREE.Vector3(poleX - (0.15 * side), 6.5, 0);   // 電桿最上方固定點
-            const pPoleMid = new THREE.Vector3(poleX - (0.15 * side), 4.6, 0);   // 電桿中下方固定點
-            const pHorizontalEnd = new THREE.Vector3(wireTargetX, 6.5, 0);       // 水平橫桿末端（懸挂主吊線處）
-            
-            // 1. 頂部水平橫桿（從電桿頂端平直伸出）
+            // 結構座標定義（精確對應照片三角斜張）
+            const pPoleTop = new THREE.Vector3(poleX - (0.2 * side), 6.8, 0);    // 電桿最頂端夾具
+            const pPoleMid = new THREE.Vector3(poleX - (0.2 * side), 4.5, 0);    // 電桿中下方夾具
+            const pHorizontalEnd = new THREE.Vector3(wireTargetX, 6.8, 0);        // 水平橫桿末端
+
+            // 1. 頂部水平橫桿
             const topArm = createCylinderBetween(pPoleTop, pHorizontalEnd, 0.05, armMat);
             group.add(topArm);
 
-            // 2. 斜拉懸臂與絕緣子（從電桿中下方斜向上拉至水平橫桿的中段偏外側）
-            // 為了做出絕緣子，我們將斜拉桿分段：前半段金屬桿、中間絕緣子、後半段金屬桿
-            const pSlantStart = pPoleMid;
-            const pInsStart = new THREE.Vector3(poleX - (1.8 * side), 5.5, 0);
-            const pInsEnd = new THREE.Vector3(poleX - (2.3 * side), 5.8, 0);
-            const pSlantEnd = new THREE.Vector3(wireTargetX - (0.4 * side), 6.5, 0);
+            // 2. 上方斜撐小拉桿（從電桿頂端下方斜接到水平橫桿中段）
+            const pTopSlantStart = new THREE.Vector3(poleX - (0.2 * side), 6.2, 0);
+            const pTopSlantEnd = new THREE.Vector3(poleX - (2.0 * side), 6.8, 0);
+            const topSlantArm = createCylinderBetween(pTopSlantStart, pTopSlantEnd, 0.035, armMat);
+            group.add(topSlantArm);
 
-            const slantPart1 = createCylinderBetween(pSlantStart, pInsStart, 0.04, armMat);
-            const insulator = createCylinderBetween(pInsStart, pInsEnd, 0.07, insMat); // 咖啡色絕緣子本體
+            // 3. 下方主斜張懸臂與絕緣子（從電桿中下方斜向上拉至水平橫桿前端）
+            const pInsStart = new THREE.Vector3(poleX - (1.6 * side), 5.3, 0);
+            const pInsEnd = new THREE.Vector3(poleX - (2.3 * side), 5.8, 0);
+            const pSlantEnd = new THREE.Vector3(wireTargetX - (0.2 * side), 6.8, 0);
+
+            const slantPart1 = createCylinderBetween(pPoleMid, pInsStart, 0.04, armMat);
+            const insulator = createCylinderBetween(pInsStart, pInsEnd, 0.07, insMat); // 咖啡色絕緣子
             const slantPart2 = createCylinderBetween(pInsEnd, pSlantEnd, 0.04, armMat);
 
             group.add(slantPart1);
             group.add(insulator);
             group.add(slantPart2);
 
-            // 3. 連接接觸線的垂直/斜向小吊桿
+            // 4. 接觸線懸挂吊桿
             const pContactDrop = new THREE.Vector3(wireTargetX, 5.2, 0);
             const dropArm = createCylinderBetween(pHorizontalEnd, pContactDrop, 0.03, armMat);
             group.add(dropArm);
@@ -263,7 +267,7 @@
         wireGeo.rotateX(Math.PI / 2);
 
         const mainWire1 = new THREE.Mesh(wireGeo, wireMat);
-        mainWire1.position.set(-1.6, 6.5, 0);
+        mainWire1.position.set(-1.6, 6.8, 0);
         scene.add(mainWire1);
 
         const contactWire1 = new THREE.Mesh(wireGeo, wireMat);
@@ -271,7 +275,7 @@
         scene.add(contactWire1);
 
         const mainWire2 = new THREE.Mesh(wireGeo, wireMat);
-        mainWire2.position.set(1.6, 6.5, 0);
+        mainWire2.position.set(1.6, 6.8, 0);
         scene.add(mainWire2);
 
         const contactWire2 = new THREE.Mesh(wireGeo, wireMat);
