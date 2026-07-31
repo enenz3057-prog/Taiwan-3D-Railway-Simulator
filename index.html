@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - 臺鐵歸來車站 (全車型與平交道音效)</title>
+    <title>台灣3D鐵路模擬器 - 臺鐵歸來車站</title>
     <style>
         body {
             background-color: #557799;
@@ -16,36 +16,40 @@
         }
         h1 {
             color: #ffcc00;
-            font-size: 22px;
+            font-size: 18px;
             position: absolute;
             top: 10px;
-            left: 20px;
+            left: 15px;
             z-index: 10;
             margin: 0;
-            line-height: 40px;
+            line-height: 30px;
             pointer-events: none;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            display: none; /* 手機版隱藏大標題避免擋按鈕 */
         }
         .top-btns {
             position: absolute;
-            top: 12px;
-            right: 20px;
+            top: 10px;
+            right: 10px;
+            left: 10px;
             z-index: 20;
             display: flex;
-            gap: 10px;
+            justify-content: space-between;
+            gap: 5px;
         }
         .action-btn {
             background-color: #2ecc71;
             color: #fff;
-            padding: 6px 14px;
-            font-size: 12px;
+            padding: 8px 10px;
+            font-size: 11px;
             font-weight: bold;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             text-decoration: none;
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-            transition: background-color 0.2s;
+            flex: 1;
+            text-align: center;
         }
         .action-btn:hover {
             background-color: #27ae60;
@@ -53,40 +57,34 @@
         .drive-btn {
             background-color: #e67e22;
         }
-        .drive-btn:hover {
-            background-color: #d35400;
-        }
         .join-btn {
             background-color: #5865F2;
         }
-        .join-btn:hover {
-            background-color: #4752C4;
-        }
-        /* 車輛生成選單面板（完整收納所有台鐵車型） */
+        /* 車輛生成選單面板 */
         #train-menu {
             position: absolute;
-            top: 60px;
-            right: 180px;
+            top: 55px;
+            right: 10px;
+            left: 10px;
             background: rgba(30, 30, 30, 0.95);
             border: 1px solid #777;
             border-radius: 6px;
-            padding: 10px;
+            padding: 8px;
             display: none;
             z-index: 30;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             text-align: left;
-            max-height: 450px;
+            max-height: 60vh;
             overflow-y: auto;
-            width: 260px;
         }
         #train-menu h3 {
-            margin: 0 0 6px 0;
+            margin: 0 0 4px 0;
             font-size: 13px;
             color: #ffcc00;
         }
         #train-menu h4 {
-            margin: 8px 0 4px 0;
-            font-size: 12px;
+            margin: 6px 0 2px 0;
+            font-size: 11px;
             color: #2ecc71;
             border-bottom: 1px solid #555;
             padding-bottom: 2px;
@@ -97,15 +95,12 @@
             background: #444;
             color: #fff;
             border: none;
-            padding: 6px 8px;
-            margin-bottom: 4px;
+            padding: 6px;
+            margin-bottom: 3px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 11px;
             text-align: left;
-        }
-        #train-menu button:hover {
-            background: #666;
         }
         #canvas-container {
             position: absolute;
@@ -116,9 +111,10 @@
         }
         .info {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
-            font-size: 14px;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            font-size: 11px;
             color: #ddd;
             z-index: 10;
             pointer-events: none;
@@ -130,18 +126,16 @@
 </head>
 <body>
 
-    <h1>台灣3D鐵路模擬器</h1>
     <div class="top-btns">
-        <button class="action-btn" id="spawn-btn" onclick="toggleTrainMenu()">台鐵全車庫</button>
+        <button class="action-btn" onclick="toggleTrainMenu()">台鐵全車庫</button>
         <button class="action-btn drive-btn" id="drive-btn" onclick="toggleDrive()">發車開動</button>
         <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="action-btn join-btn">加入會員</a>
     </div>
 
-    <!-- 台鐵全車型車庫選單 -->
+    <!-- 車庫選單 -->
     <div id="train-menu">
         <h3>臺鐵全車型選擇</h3>
-        
-        <h4>1. 自強號家族 (Intercity)</h4>
+        <h4>1. 自強號家族</h4>
         <button onclick="spawnTrain('EMU3000')">EMU3000 新自強號</button>
         <button onclick="spawnTrain('PP')">E1000 推拉式自強號</button>
         <button onclick="spawnTrain('TEMU1000')">TEMU1000 太魯閣號</button>
@@ -153,14 +147,14 @@
         <button onclick="spawnTrain('DR2800')">DR2800 白鐵柴聯車</button>
         <button onclick="spawnTrain('DR3000')">DR3000 / DR2900 柴聯車</button>
 
-        <h4>2. 通勤與區間電聯車 (Commuter)</h4>
+        <h4>2. 通勤與區間電聯車</h4>
         <button onclick="spawnTrain('EMU900')">EMU900 新一代區間車</button>
         <button onclick="spawnTrain('EMU800')">EMU800 微笑號</button>
         <button onclick="spawnTrain('EMU700')">EMU700 阿福號</button>
         <button onclick="spawnTrain('EMU600')">EMU600 區間車</button>
         <button onclick="spawnTrain('EMU500')">EMU500 經典藍黃區間車</button>
 
-        <h4>3. 柴油客車與機車頭 (Locos & RDC)</h4>
+        <h4>3. 柴油客車與機車頭</h4>
         <button onclick="spawnTrain('DR1000')">DR1000 支線觀光柴車</button>
         <button onclick="spawnTrain('DR2700')">DR2700 光華號 (白鐵仔)</button>
         <button onclick="spawnTrain('R200')">R200 最新柴電機車</button>
@@ -168,49 +162,49 @@
     </div>
 
     <div id="canvas-container"></div>
-    <div class="info">場景：臺鐵歸來車站（前方100公尺平交道警報聲與全車系車庫） | 模擬引擎：Three.js</div>
+    <div class="info">場景：臺鐵歸來車站（含平交道警報聲）</div>
 
     <script>
-        // Web Audio API 真實平交道警報音效合成器（嗶－啵－雙音軌交替）
+        // 音訊初始化防護
         let audioCtx = null;
         let crossingInterval = null;
         let isCrossingActive = false;
 
         function initCrossingAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch(e) {
+                console.log("Audio not supported");
             }
         }
 
         function playCrossingSound() {
             initCrossingAudio();
-            if (isCrossingActive) return;
+            if (isCrossingActive || !audioCtx) return;
             isCrossingActive = true;
 
             let highPitch = true;
             crossingInterval = setInterval(() => {
                 if (!audioCtx) return;
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                
-                // 台灣平交道經典雙音頻率 (約 740 Hz 與 620 Hz 交替)
-                osc.frequency.value = highPitch ? 740 : 620;
-                osc.type = 'sine';
-
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
-
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.35);
-
-                highPitch = !highPitch;
-            }, 500); // 每半秒響一次
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.frequency.value = highPitch ? 740 : 620;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.3);
+                    highPitch = !highPitch;
+                } catch(e) {}
+            }, 500);
         }
 
         function stopCrossingSound() {
@@ -235,40 +229,27 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true; 
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        // 4. 自然光影
+        // 4. 光源
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
         scene.add(ambientLight);
 
         const sunLight = new THREE.DirectionalLight(0xfffaed, 1.3);
         sunLight.position.set(20, 35, 20);
         sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 4096;
-        sunLight.shadow.mapSize.height = 4096;
-        sunLight.shadow.bias = -0.0004;
         scene.add(sunLight);
 
-        // 5. 軌道區塊（延伸至前方 100 公尺處）
+        // 5. 軌道與石碴
         const stoneGeo = new THREE.DodecahedronGeometry(0.13, 0);
-        const stoneMats = [
-            new THREE.MeshStandardMaterial({ color: 0x6e6a65, roughness: 0.8 }),
-            new THREE.MeshStandardMaterial({ color: 0x524e49, roughness: 0.85 }),
-            new THREE.MeshStandardMaterial({ color: 0x827d76, roughness: 0.75 })
-        ];
-
-        for (let r = 0; r < 600; r++) {
-            const zPos = (r - 300) * 0.4;
-            for (let c = 0; c < 30; c++) {
-                const xPos = (c - 15) * 0.25;
-                if (Math.abs(xPos) < 4.8) {
-                    const mat = stoneMats[Math.floor(Math.random() * stoneMats.length)];
-                    const stone = new THREE.Mesh(stoneGeo, mat);
-                    stone.position.set(xPos + (Math.random()-0.5)*0.07, -0.34 + Math.random()*0.04, zPos);
-                    stone.scale.setScalar(0.6 + Math.random() * 0.6);
-                    stone.castShadow = true;
-                    stone.receiveShadow = true;
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x6e6a65, roughness: 0.8 });
+        for (let r = 0; r < 300; r++) {
+            const zPos = (r - 150) * 0.8;
+            for (let c = 0; c < 15; c++) {
+                const xPos = (c - 7.5) * 0.3;
+                if (Math.abs(xPos) < 4.5) {
+                    const stone = new THREE.Mesh(stoneGeo, stoneMat);
+                    stone.position.set(xPos, -0.34, zPos);
                     scene.add(stone);
                 }
             }
@@ -284,118 +265,39 @@
             return group;
         }
         const trackOffset = 1.6;
-        const l1 = createRail(); l1.position.x = -trackOffset - 0.53; scene.add(l1);
-        const l2 = createRail(); l2.position.x = -trackOffset + 0.53; scene.add(l2);
-        const r1 = createRail(); r1.position.x = trackOffset - 0.53; scene.add(r1);
-        const r2 = createRail(); r2.position.x = trackOffset + 0.53; scene.add(r2);
+        scene.add(createRail()).position.x = -trackOffset - 0.53;
+        scene.add(createRail()).position.x = -trackOffset + 0.53;
+        scene.add(createRail()).position.x = trackOffset - 0.53;
+        scene.add(createRail()).position.x = trackOffset + 0.53;
 
-        const sleeperGeo = new THREE.BoxGeometry(2.5, 0.16, 0.4);
-        const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x665544, roughness: 0.85 });
-        for (let i = 0; i < 260; i++) {
-            const zPos = (i - 130) * 0.9;
-            const s1 = new THREE.Mesh(sleeperGeo, sleeperMat); s1.position.set(-trackOffset, -0.02, zPos); s1.castShadow = true;
-            const s2 = new THREE.Mesh(sleeperGeo, sleeperMat); s2.position.set(trackOffset, -0.02, zPos); s2.castShadow = true;
-            scene.add(s1, s2);
-        }
-
-        // 6. 前方約 100 公尺處的「平交道設施」（閃光號誌燈與柵欄）
+        // 6. 平交道 (前方 100 公尺)
         const crossingZ = -100;
         const crossingGroup = new THREE.Group();
-
-        const postMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
-        const stripeRedMat = new THREE.MeshStandardMaterial({ color: 0xcc2222 });
-        const stripeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-
-        // 平交道左右立柱
+        const postMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
         [-3.2, 3.2].forEach(xP => {
             const cPost = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 5.5, 16), postMat);
             cPost.position.set(xP, 2.75, 0);
-            cPost.castShadow = true;
             crossingGroup.add(cPost);
-
-            // 警示紅白燈箱
-            const boxMat = new THREE.MeshStandardMaterial({ color: 0xf1c40f });
-            const lightBox = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.4), boxMat);
-            lightBox.position.set(xP, 5.0, 0);
-            crossingGroup.add(lightBox);
         });
-
-        // 紅白相間柵欄桿
-        const barrierMat = new THREE.MeshStandardMaterial({ color: 0xcc2222 });
-        const barrierBar = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.12, 0.12), barrierMat);
+        const barrierBar = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.12, 0.12), new THREE.MeshStandardMaterial({ color: 0xcc2222 }));
         barrierBar.position.set(0, 3.8, 0);
         crossingGroup.add(barrierBar);
-
         crossingGroup.position.set(0, 0, crossingZ);
         scene.add(crossingGroup);
 
-        // 7. 高架車站月台與綠色站名牌
-        const platformMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.8 }); 
-        const platform = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.8, 160), platformMat);
+        // 7. 月台與站名牌
+        const platform = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.8, 160), new THREE.MeshStandardMaterial({ color: 0xdddddd }));
         platform.position.set(5.3, -0.4, 0);
-        platform.castShadow = true; platform.receiveShadow = true;
         scene.add(platform);
 
-        const tileMat = new THREE.MeshStandardMaterial({ color: 0xcc9900, roughness: 0.6 });
-        const tactileTile = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.82, 160), tileMat);
-        tactileTile.position.set(2.45, -0.38, 0);
-        scene.add(tactileTile);
-
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.9 });
-        const platformWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.4, 160), wallMat);
-        platformWall.position.set(8.2, 0.3, 0);
-        platformWall.castShadow = true;
-        scene.add(platformWall);
-
         const signGroup = new THREE.Group();
-        const signPostMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-        const post1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.08), signPostMat); post1.position.set(-0.6, 0.5, 0);
-        const post2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.08), signPostMat); post2.position.set(0.6, 0.5, 0);
-        const boardGeo = new THREE.BoxGeometry(1.4, 0.8, 0.05);
-        const boardMat = new THREE.MeshStandardMaterial({ color: 0x006633 }); 
-        const signBoard = new THREE.Mesh(boardGeo, boardMat);
-        signBoard.position.set(0, 1.2, 0);
-        signGroup.add(post1, post2, signBoard);
+        const board = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.8, 0.05), new THREE.MeshStandardMaterial({ color: 0x006633 }));
+        board.position.set(0, 1.2, 0);
+        signGroup.add(board);
         signGroup.position.set(3.9, 0, -6);
-        signGroup.rotation.y = -0.3;
         scene.add(signGroup);
 
-        // 8. 雙側高擬真電線桿
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.5, metalness: 0.4 }); 
-        const armMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.3 }); 
-        const insMat = new THREE.MeshStandardMaterial({ color: 0x5a2d0c, roughness: 0.4 }); 
-
-        function createCatenaryPolePair(zPos) {
-            const group = new THREE.Group();
-            const rPoleX = 7.8;
-            const rPole = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 9.5, 16), poleMat);
-            rPole.position.set(rPoleX, 4.5, 0);
-            rPole.castShadow = true;
-            group.add(rPole);
-
-            const rArm1 = new THREE.Mesh(new THREE.BoxGeometry(7.0, 0.12, 0.12), armMat);
-            rArm1.position.set(rPoleX - 3.5, 7.8, 0);
-            group.add(rArm1);
-
-            const lPoleX = -4.5;
-            const lPole = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 9.5, 16), poleMat);
-            lPole.position.set(lPoleX, 4.5, 0);
-            lPole.castShadow = true;
-            group.add(lPole);
-
-            const lArm1 = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.12, 0.12), armMat);
-            lArm1.position.set(lPoleX + 2.5, 7.8, 0);
-            group.add(lArm1);
-
-            group.position.set(0, 0, zPos);
-            return group;
-        }
-
-        for (let z = -140; z <= 140; z += 16) {
-            scene.add(createCatenaryPolePair(z));
-        }
-
-        // 9. 全車型列車模組生成引擎
+        // 8. 列車模組
         let activeTrain = null;
         let isMoving = false;
 
@@ -406,35 +308,18 @@
 
         function createTrainCar(isHead, bodyColor, stripeColor, isFrontDirection) {
             const carGroup = new THREE.Group();
-
             const trainMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.25, metalness: 0.3 });
             const stripeMat = new THREE.MeshStandardMaterial({ color: stripeColor, roughness: 0.3 });
-            const windowMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.05, metalness: 0.9 });
-            const windshieldMat = new THREE.MeshStandardMaterial({ color: 0x112233, roughness: 0.05, metalness: 0.9 });
-            const underframeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
-            const bogieMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.5 });
+            const windowMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.05 });
+            const underframeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
 
             const carLength = 18;
-
             const underframe = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.45, carLength - 3), underframeMat);
             underframe.position.y = 0.22;
             carGroup.add(underframe);
 
-            [-5.5, 5.5].forEach(zBogie => {
-                const bogie = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.3, 2.0), bogieMat);
-                bogie.position.set(0, 0.12, zBogie);
-                carGroup.add(bogie);
-                [-1.2, 1.2].forEach(xWheel => {
-                    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.2, 16), bogieMat);
-                    wheel.rotation.x = Math.PI / 2;
-                    wheel.position.set(xWheel, 0.42, zBogie);
-                    carGroup.add(wheel);
-                });
-            });
-
             const body = new THREE.Mesh(new THREE.BoxGeometry(2.75, 2.5, carLength), trainMat);
             body.position.y = 1.75;
-            body.castShadow = true;
             carGroup.add(body);
 
             const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.78, 0.32, carLength), stripeMat);
@@ -448,33 +333,19 @@
             if (isHead) {
                 const noseLength = 2.8;
                 const zOffset = isFrontDirection ? (carLength / 2 + noseLength / 2) : (-carLength / 2 - noseLength / 2);
-                const noseGeo = new THREE.BoxGeometry(2.75, 2.3, noseLength);
-                const nose = new THREE.Mesh(noseGeo, trainMat);
+                const nose = new THREE.Mesh(new THREE.BoxGeometry(2.75, 2.3, noseLength), trainMat);
                 nose.position.set(0, 1.7, zOffset);
                 nose.rotation.x = isFrontDirection ? -0.12 : 0.12;
                 carGroup.add(nose);
-
-                const windshield = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.85, 0.12), windshieldMat);
-                const glassZ = isFrontDirection ? (carLength / 2 + noseLength - 0.2) : (-carLength / 2 - noseLength + 0.2);
-                windshield.position.set(0, 2.1, glassZ);
-                windshield.rotation.x = isFrontDirection ? -0.12 : 0.12;
-                if (!isFrontDirection) windshield.rotation.y = Math.PI;
-                carGroup.add(windshield);
             }
-
             return carGroup;
         }
 
         function spawnTrain(type) {
-            if (activeTrain) {
-                scene.remove(activeTrain);
-            }
-
+            if (activeTrain) scene.remove(activeTrain);
             activeTrain = new THREE.Group();
-            let bodyColor = 0xf5f5f5; 
-            let stripeColor = 0x111111; 
+            let bodyColor = 0xf5f5f5, stripeColor = 0x111111;
 
-            // 對應所有台鐵車型配色
             switch(type) {
                 case 'EMU3000': bodyColor = 0xf5f5f5; stripeColor = 0x111111; break;
                 case 'PP': bodyColor = 0xcc2222; stripeColor = 0xffffff; break;
@@ -484,4 +355,67 @@
                 case 'EMU1200': bodyColor = 0xb03a2e; stripeColor = 0xf39c12; break;
                 case 'EMU300': bodyColor = 0x283747; stripeColor = 0xf1c40f; break;
                 case 'DR3100': bodyColor = 0xd5d8dc; stripeColor = 0x1b4f72; break;
-                case 'DR2800': bodyColor
+                case 'DR2800': bodyColor = 0xe5e7e9; stripeColor = 0x900c3f; break;
+                case 'DR3000': bodyColor = 0xbdc3c7; stripeColor = 0xd35400; break;
+                case 'EMU900': bodyColor = 0xe5e8ec; stripeColor = 0x008866; break;
+                case 'EMU800': bodyColor = 0xcccccc; stripeColor = 0x0055aa; break;
+                case 'EMU700': bodyColor = 0xdddddd; stripeColor = 0x003366; break;
+                case 'EMU600': bodyColor = 0x0044aa; stripeColor = 0xffffff; break;
+                case 'EMU500': bodyColor = 0x003399; stripeColor = 0xffcc00; break;
+                case 'DR1000': bodyColor = 0xf0b27a; stripeColor = 0x78281f; break;
+                case 'DR2700': bodyColor = 0x95a5a6; stripeColor = 0x111111; break;
+                case 'R200': bodyColor = 0x1b4f72; stripeColor = 0xf1c40f; break;
+                case 'E500': bodyColor = 0x112233; stripeColor = 0x2ecc71; break;
+            }
+
+            for (let i = 0; i < 4; i++) {
+                const isHead = (i === 0 || i === 3);
+                const car = createTrainCar(isHead, bodyColor, stripeColor, i === 0);
+                car.position.set(-trackOffset, 0, (i - 1.5) * 18.5);
+                activeTrain.add(car);
+            }
+
+            scene.add(activeTrain);
+            document.getElementById('train-menu').style.display = 'none';
+            isMoving = false; 
+            document.getElementById('drive-btn').innerText = "發車開動";
+            stopCrossingSound();
+        }
+
+        function toggleDrive() {
+            if (!activeTrain) {
+                alert("請先點擊「台鐵全車庫」選擇列車！");
+                return;
+            }
+            isMoving = !isMoving;
+            const btn = document.getElementById('drive-btn');
+            btn.innerText = isMoving ? "煞車停靠" : "發車開動";
+
+            if (isMoving) {
+                playCrossingSound();
+            } else {
+                stopCrossingSound();
+            }
+        }
+
+        // 9. 動畫迴圈
+        function animate() {
+            requestAnimationFrame(animate);
+            if (activeTrain && isMoving) {
+                activeTrain.position.z -= 0.35; 
+                if (activeTrain.position.z < -160) {
+                    activeTrain.position.z = 140;
+                }
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
