@@ -63,6 +63,19 @@
             pointer-events: none;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
+        .speedometer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #11ff44;
+            background: rgba(0,0,0,0.6);
+            padding: 8px 15px;
+            border-radius: 6px;
+            z-index: 10;
+            pointer-events: none;
+        }
     </style>
     <!-- 引入 Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -72,7 +85,8 @@
     <h1>台灣3D鐵路模擬器</h1>
     <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
     <div id="canvas-container"></div>
-    <div class="info">駕駛室視角：臺鐵 EMU500</div>
+    <div class="info">操作方式：點擊畫面或按 ↑加速 / ↓減速</div>
+    <div class="speedometer" id="speed-display">速度: 0 km/h</div>
 
     <script>
         // 1. 建立場景
@@ -104,6 +118,10 @@
         sunLight.shadow.bias = -0.0005;
         scene.add(sunLight);
 
+        // 儲存所有需要移動的物件群組
+        const worldGroup = new THREE.Group();
+        scene.add(worldGroup);
+
         // 5. 立體碎石道床
         const stoneGeo = new THREE.DodecahedronGeometry(0.14, 0);
         const stoneMats = [
@@ -113,7 +131,7 @@
             new THREE.MeshStandardMaterial({ color: 0x3d3a36, roughness: 0.9 })
         ];
 
-        const lengthRows = 250;
+        const lengthRows = 300;
         const widthCols = 28;
         
         for (let r = 0; r < lengthRows; r++) {
@@ -133,7 +151,7 @@
                     
                     stone.castShadow = true;
                     stone.receiveShadow = true;
-                    scene.add(stone);
+                    worldGroup.add(stone);
                 }
             }
         }
@@ -148,17 +166,17 @@
 
         function createRail() {
             const railGroup = new THREE.Group();
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 110), railMat);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 120), railMat);
             head.position.y = 0.31;
             head.castShadow = true;
             railGroup.add(head);
 
-            const web = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 110), railMat);
+            const web = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 120), railMat);
             web.position.y = 0.16;
             web.castShadow = true;
             railGroup.add(web);
 
-            const base = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 110), railMat);
+            const base = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 120), railMat);
             base.position.y = 0.04;
             base.castShadow = true;
             railGroup.add(base);
@@ -167,16 +185,16 @@
         }
 
         const trackOffset = 1.6; 
-        const l1 = createRail(); l1.position.x = -trackOffset - 1.067/2; scene.add(l1);
-        const l2 = createRail(); l2.position.x = -trackOffset + 1.067/2; scene.add(l2);
-        const r1 = createRail(); r1.position.x = trackOffset - 1.067/2; scene.add(r1);
-        const r2 = createRail(); r2.position.x = trackOffset + 1.067/2; scene.add(r2);
+        const l1 = createRail(); l1.position.x = -trackOffset - 1.067/2; worldGroup.add(l1);
+        const l2 = createRail(); l2.position.x = -trackOffset + 1.067/2; worldGroup.add(l2);
+        const r1 = createRail(); r1.position.x = trackOffset - 1.067/2; worldGroup.add(r1);
+        const r2 = createRail(); r2.position.x = trackOffset + 1.067/2; worldGroup.add(r2);
 
         // 7. 灰色水泥枕木
         const sleeperGeo = new THREE.BoxGeometry(2.4, 0.18, 0.45);
         const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.75 });
         
-        const sleeperCount = 110;
+        const sleeperCount = 130;
         const sleeperSpacing = 0.8;
         
         for (let i = 0; i < sleeperCount; i++) {
@@ -185,15 +203,15 @@
             const s1 = new THREE.Mesh(sleeperGeo, sleeperMat);
             s1.position.set(-trackOffset, -0.02, zPos);
             s1.castShadow = true; s1.receiveShadow = true;
-            scene.add(s1);
+            worldGroup.add(s1);
 
             const s2 = new THREE.Mesh(sleeperGeo, sleeperMat);
             s2.position.set(trackOffset, -0.02, zPos);
             s2.castShadow = true; s2.receiveShadow = true;
-            scene.add(s2);
+            worldGroup.add(s2);
         }
 
-        // 8. 臺鐵標準斜張懸臂系統
+        // 8. 臺鐵標準斜張懸臂系統與電桿
         const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.7 }); 
         const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); 
         const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); 
@@ -254,27 +272,27 @@
 
         const poleInterval = 15; 
         let index = 0;
-        for (let z = -75; z <= 75; z += poleInterval) {
+        for (let z = -100; z <= 100; z += poleInterval) {
             const isLeftSide = (index % 2 === 0);
-            scene.add(createCatenaryPole(z, isLeftSide));
+            worldGroup.add(createCatenaryPole(z, isLeftSide));
             index++;
         }
 
         // 架空電車線
-        const wireGeo = new THREE.CylinderGeometry(0.015, 0.015, 165, 4);
+        const wireGeo = new THREE.CylinderGeometry(0.015, 0.015, 220, 4);
         wireGeo.rotateX(Math.PI / 2);
 
         [-1.6, 1.6].forEach(x => {
             const mw = new THREE.Mesh(wireGeo, wireMat);
             mw.position.set(x, 6.8, 0);
-            scene.add(mw);
+            worldGroup.add(mw);
 
             const cw = new THREE.Mesh(wireGeo, wireMat);
             cw.position.set(x, 5.2, 0);
-            scene.add(cw);
+            worldGroup.add(cw);
         });
 
-        // 9. 駕駛室內部與操控台
+        // 9. 駕駛室內部與操控台（固定在相機視角前方下方）
         function createDriverCab() {
             const cabGroup = new THREE.Group();
 
@@ -293,15 +311,43 @@
             handle.position.set(1.9, 1.35, 5.5);
             cabGroup.add(handle);
 
-            cabGroup.position.set(0, 0, 0);
             return cabGroup;
         }
 
         scene.add(createDriverCab());
 
-        // 10. 動態渲染循環
+        // 10. 駕駛控制與動畫循環
+        let currentSpeed = 0; // 當前速度
+        let targetSpeed = 45; // 目標速度 (預設自動起步加速到 45)
+
+        // 點擊畫面或按鍵控制加速/減速
+        window.addEventListener('click', () => {
+            targetSpeed = (targetSpeed === 0) ? 60 : 0; // 點擊切換 啟動 / 煞車
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') targetSpeed = Math.min(targetSpeed + 15, 110);
+            if (e.key === 'ArrowDown') targetSpeed = Math.max(targetSpeed - 15, 0);
+        });
+
         function animate() {
             requestAnimationFrame(animate);
+
+            // 模擬列車平滑加速與減速
+            currentSpeed += (targetSpeed - currentSpeed) * 0.05;
+
+            // 讓世界物件向後移動，製造前進感
+            const moveDelta = (currentSpeed * 0.0008);
+            worldGroup.position.z += moveDelta;
+
+            // 無限循環鐵軌與電桿
+            if (worldGroup.position.z > 30) {
+                worldGroup.position.z -= 30;
+            }
+
+            // 更新速度顯示
+            document.getElementById('speed-display').innerText = `速度: ${Math.round(currentSpeed)} km/h`;
+
             renderer.render(scene, camera);
         }
         animate();
