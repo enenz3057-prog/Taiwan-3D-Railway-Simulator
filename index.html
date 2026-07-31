@@ -1,69 +1,306 @@
-// 8. 【臺鐵標準斜張懸臂精準擬真系統】
-const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.7 }); 
-const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); 
-const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); // 咖啡色絕緣子
-const wireMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣3D鐵路模擬器 - 臺鐵標準斜張懸臂模組化版</title>
+    <style>
+        body {
+            background-color: #557799;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        h1 {
+            color: #ffcc00;
+            font-size: 22px;
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            z-index: 10;
+            margin: 0;
+            line-height: 40px;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        .join-btn {
+            position: absolute;
+            top: 12px;
+            right: 20px;
+            z-index: 20;
+            background-color: #5865F2;
+            color: #fff;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            transition: background-color 0.2s;
+        }
+        .join-btn:hover {
+            background-color: #4752C4;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+        .info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            font-size: 14px;
+            color: #ddd;
+            z-index: 10;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+    </style>
+    <!-- 引入 Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
 
-// 自動計算兩點間距離並生成圓柱桿件的輔助函式
-function createCylinderBetween(p1, p2, radius, material) {
-    const distance = p1.distanceTo(p2);
-    const geometry = new THREE.CylinderGeometry(radius, radius, distance, 8);
-    const mesh = new THREE.Mesh(geometry, material);
-    const midpoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
-    mesh.position.copy(midpoint);
-    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(p2, p1).normalize());
-    return mesh;
-}
+    <h1>台灣3D鐵路模擬器</h1>
+    <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
+    <div id="canvas-container"></div>
+    <div class="info">軌距設定：1067mm 臺鐵標準斜張懸臂模組化版</div>
 
-const poleInterval = 15; 
-let index = 0;
-for (let z = -75; z <= 75; z += poleInterval) {
-    const group = new THREE.Group();
-    
-    const side = (index % 2 === 0) ? 1 : -1; 
-    const poleX = 4.2 * side;
-    const wireTargetX = 1.6 * side;
+    <script>
+        // 1. 建立場景
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x667788);
+        scene.fog = new THREE.FogExp2(0x667788, 0.012);
 
-    // 主電桿
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 8.0, 16), poleMat);
-    pole.position.set(poleX, 4.0, 0);
-    pole.castShadow = true;
-    group.add(pole);
+        // 2. 建立相機
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.3, 4);
+        camera.lookAt(0, 1.1, -30);
 
-    // 結構點位定義
-    const pPoleTop = new THREE.Vector3(poleX - (0.2 * side), 6.8, 0);   // 電桿最頂端
-    const pPoleMid = new THREE.Vector3(poleX - (0.2 * side), 4.8, 0);   // 電桿中段固定點
-    const pHorizontalEnd = new THREE.Vector3(wireTargetX, 6.8, 0);       // 水平橫桿末端
+        // 3. 建立渲染器
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-    // 1. 頂部水平橫桿
-    const topArm = createCylinderBetween(pPoleTop, pHorizontalEnd, 0.045, armMat);
-    group.add(topArm);
+        // 4. 自然光影
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+        scene.add(ambientLight);
 
-    // 2. 上方斜撐小拉桿（從電桿頂端下方斜拉至水平橫桿中段）
-    const pTopSlantStart = new THREE.Vector3(poleX - (0.2 * side), 6.1, 0);
-    const pTopSlantEnd = new THREE.Vector3(poleX - (1.8 * side), 6.8, 0);
-    const topSlantArm = createCylinderBetween(pTopSlantStart, pTopSlantEnd, 0.03, armMat);
-    group.add(topSlantArm);
+        const sunLight = new THREE.DirectionalLight(0xffffee, 1.3);
+        sunLight.position.set(10, 25, 10);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 4096;
+        sunLight.shadow.mapSize.height = 4096;
+        sunLight.shadow.bias = -0.0005;
+        scene.add(sunLight);
 
-    // 3. 下方主斜張懸臂與絕緣子（從電桿中段斜向上拉至水平橫桿前端下方）
-    const pInsStart = new THREE.Vector3(poleX - (1.4 * side), 5.5, 0);
-    const pInsEnd = new THREE.Vector3(poleX - (2.1 * side), 5.9, 0);
-    const pSlantEnd = new THREE.Vector3(wireTargetX - (0.1 * side), 6.4, 0);
+        // 5. 立體碎石道床
+        const stoneGeo = new THREE.DodecahedronGeometry(0.14, 0);
+        const stoneMats = [
+            new THREE.MeshStandardMaterial({ color: 0x6e6a65, roughness: 0.8 }),
+            new THREE.MeshStandardMaterial({ color: 0x524e49, roughness: 0.85 }),
+            new THREE.MeshStandardMaterial({ color: 0x827d76, roughness: 0.75 }),
+            new THREE.MeshStandardMaterial({ color: 0x3d3a36, roughness: 0.9 })
+        ];
 
-    const slantPart1 = createCylinderBetween(pPoleMid, pInsStart, 0.035, armMat);
-    const insulator = createCylinderBetween(pInsStart, pInsEnd, 0.065, insMat); // 咖啡色絕緣子
-    const slantPart2 = createCylinderBetween(pInsEnd, pSlantEnd, 0.035, armMat);
+        const lengthRows = 250;
+        const widthCols = 28;
+        
+        for (let r = 0; r < lengthRows; r++) {
+            const zPos = (r - lengthRows / 2) * 0.4;
+            for (let c = 0; c < widthCols; c++) {
+                const xPos = (c - widthCols / 2) * 0.26;
+                if (Math.abs(xPos) < 4.2) {
+                    const mat = stoneMats[Math.floor(Math.random() * stoneMats.length)];
+                    const stone = new THREE.Mesh(stoneGeo, mat);
+                    const yPos = -0.35 + (Math.random() * 0.08);
+                    
+                    stone.position.set(xPos + (Math.random()-0.5)*0.08, yPos, zPos + (Math.random()-0.5)*0.08);
+                    stone.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                    
+                    const scale = 0.6 + Math.random() * 0.7;
+                    stone.scale.set(scale, scale * 0.6, scale);
+                    
+                    stone.castShadow = true;
+                    stone.receiveShadow = true;
+                    scene.add(stone);
+                }
+            }
+        }
 
-    group.add(slantPart1);
-    group.add(insulator);
-    group.add(slantPart2);
+        // 6. 鐵鏽色金屬鋼軌
+        const railMat = new THREE.MeshStandardMaterial({ 
+            color: 0x8c5b3e, 
+            metalness: 0.85, 
+            roughness: 0.3, 
+            emissive: 0x221105 
+        });
 
-    // 4. 接觸線懸挂吊桿
-    const pContactDrop = new THREE.Vector3(wireTargetX, 5.2, 0);
-    const dropArm = createCylinderBetween(pHorizontalEnd, pContactDrop, 0.025, armMat);
-    group.add(dropArm);
+        function createRail() {
+            const railGroup = new THREE.Group();
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 110), railMat);
+            head.position.y = 0.31;
+            head.castShadow = true;
+            railGroup.add(head);
 
-    group.position.set(0, 0, z);
-    scene.add(group);
-    index++;
-}
+            const web = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 110), railMat);
+            web.position.y = 0.16;
+            web.castShadow = true;
+            railGroup.add(web);
+
+            const base = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 110), railMat);
+            base.position.y = 0.04;
+            base.castShadow = true;
+            railGroup.add(base);
+
+            return railGroup;
+        }
+
+        const trackOffset = 1.6; 
+        const l1 = createRail(); l1.position.x = -trackOffset - 1.067/2; scene.add(l1);
+        const l2 = createRail(); l2.position.x = -trackOffset + 1.067/2; scene.add(l2);
+        const r1 = createRail(); r1.position.x = trackOffset - 1.067/2; scene.add(r1);
+        const r2 = createRail(); r2.position.x = trackOffset + 1.067/2; scene.add(r2);
+
+        // 7. 灰色水泥枕木
+        const sleeperGeo = new THREE.BoxGeometry(2.4, 0.18, 0.45);
+        const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.75 });
+        
+        const sleeperCount = 110;
+        const sleeperSpacing = 0.8;
+        
+        for (let i = 0; i < sleeperCount; i++) {
+            const zPos = (i - sleeperCount / 2) * sleeperSpacing;
+            
+            const s1 = new THREE.Mesh(sleeperGeo, sleeperMat);
+            s1.position.set(-trackOffset, -0.02, zPos);
+            s1.castShadow = true; s1.receiveShadow = true;
+            scene.add(s1);
+
+            const s2 = new THREE.Mesh(sleeperGeo, sleeperMat);
+            s2.position.set(trackOffset, -0.02, zPos);
+            s2.castShadow = true; s2.receiveShadow = true;
+            scene.add(s2);
+        }
+
+        // 8. 【導入：臺鐵標準斜張懸臂模組化系統】
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.7 }); 
+        const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); 
+        const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); 
+        const wireMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+
+        function createCylinderBetween(p1, p2, radius, material) {
+            const distance = p1.distanceTo(p2);
+            const geometry = new THREE.CylinderGeometry(radius, radius, distance, 8);
+            const mesh = new THREE.Mesh(geometry, material);
+            const midpoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+            mesh.position.copy(midpoint);
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(p2, p1).normalize());
+            return mesh;
+        }
+
+        // 封裝單支電桿與懸臂的生成函式
+        function createCatenaryPole(zPos, isLeftSide) {
+            const group = new THREE.Group();
+            const side = isLeftSide ? 1 : -1; 
+            const poleX = 4.2 * side;
+            const wireTargetX = 1.6 * side;
+
+            // 主電桿
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 8.0, 16), poleMat);
+            pole.position.set(poleX, 4.0, 0);
+            pole.castShadow = true;
+            group.add(pole);
+
+            // 結構點位定義
+            const pPoleTop = new THREE.Vector3(poleX - (0.2 * side), 6.8, 0);   
+            const pPoleMid = new THREE.Vector3(poleX - (0.2 * side), 4.8, 0);   
+            const pHorizontalEnd = new THREE.Vector3(wireTargetX, 6.8, 0);       
+
+            // 1. 頂部水平橫桿
+            const topArm = createCylinderBetween(pPoleTop, pHorizontalEnd, 0.045, armMat);
+            group.add(topArm);
+
+            // 2. 上方斜撐小拉桿
+            const pTopSlantStart = new THREE.Vector3(poleX - (0.2 * side), 6.1, 0);
+            const pTopSlantEnd = new THREE.Vector3(poleX - (1.8 * side), 6.8, 0);
+            const topSlantArm = createCylinderBetween(pTopSlantStart, pTopSlantEnd, 0.03, armMat);
+            group.add(topSlantArm);
+
+            // 3. 下方主斜張懸臂與絕緣子
+            const pInsStart = new THREE.Vector3(poleX - (1.4 * side), 5.5, 0);
+            const pInsEnd = new THREE.Vector3(poleX - (2.1 * side), 5.9, 0);
+            const pSlantEnd = new THREE.Vector3(wireTargetX - (0.1 * side), 6.4, 0);
+
+            const slantPart1 = createCylinderBetween(pPoleMid, pInsStart, 0.035, armMat);
+            const insulator = createCylinderBetween(pInsStart, pInsEnd, 0.065, insMat); 
+            const slantPart2 = createCylinderBetween(pInsEnd, pSlantEnd, 0.035, armMat);
+
+            group.add(slantPart1);
+            group.add(insulator);
+            group.add(slantPart2);
+
+            // 4. 接觸線懸挂吊桿
+            const pContactDrop = new THREE.Vector3(wireTargetX, 5.2, 0);
+            const dropArm = createCylinderBetween(pHorizontalEnd, pContactDrop, 0.025, armMat);
+            group.add(dropArm);
+
+            group.position.set(0, 0, zPos);
+            return group;
+        }
+
+        // 迴圈批次生成左右交錯電桿
+        const poleInterval = 15; 
+        let index = 0;
+        for (let z = -75; z <= 75; z += poleInterval) {
+            const isLeftSide = (index % 2 === 0);
+            const poleGroup = createCatenaryPole(z, isLeftSide);
+            scene.add(poleGroup);
+            index++;
+        }
+
+        // 貫穿遠方的架空主吊線與接觸線 (雙線對應)
+        const wireGeo = new THREE.CylinderGeometry(0.015, 0.015, 165, 4);
+        wireGeo.rotateX(Math.PI / 2);
+
+        const mainWire1 = new THREE.Mesh(wireGeo, wireMat);
+        mainWire1.position.set(-1.6, 6.8, 0);
+        scene.add(mainWire1);
+
+        const contactWire1 = new THREE.Mesh(wireGeo, wireMat);
+        contactWire1.position.set(-1.6, 5.2, 0);
+        scene.add(contactWire1);
+
+        const mainWire2 = new THREE.Mesh(wireGeo, wireMat);
+        mainWire2.position.set(1.6, 6.8, 0);
+        scene.add(mainWire2);
+
+        const contactWire2 = new THREE.Mesh(wireGeo, wireMat);
+        contactWire2.position.set(1.6, 5.2, 0);
+        scene.add(contactWire2);
+
+        // 9. 渲染迴圈
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
