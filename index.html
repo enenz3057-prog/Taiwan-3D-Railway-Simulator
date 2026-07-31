@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - 臺鐵 EMU500 駕駛室版</title>
+    <title>台灣3D鐵路模擬器 - 臺鐵 EMU500 試運轉</title>
     <style>
         body {
             background-color: #557799;
@@ -63,19 +63,6 @@
             pointer-events: none;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
-        .speedometer {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #11ff44;
-            background: rgba(0,0,0,0.6);
-            padding: 8px 15px;
-            border-radius: 6px;
-            z-index: 10;
-            pointer-events: none;
-        }
     </style>
     <!-- 引入 Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -85,25 +72,25 @@
     <h1>台灣3D鐵路模擬器</h1>
     <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
     <div id="canvas-container"></div>
-    <div class="info">操作方式：點擊畫面或按 ↑加速 / ↓減速</div>
-    <div class="speedometer" id="speed-display">速度: 0 km/h</div>
+    <div class="info">場景：臺鐵高架車站區間 | 駕駛視角：臺鐵 EMU500</div>
 
     <script>
         // 1. 建立場景
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x667788);
-        scene.fog = new THREE.FogExp2(0x667788, 0.012);
+        scene.background = new THREE.Color(0x667788); // 晴朗天空藍
+        scene.fog = new THREE.FogExp2(0x667788, 0.012); // 加入一點點霧氣，增加景深
 
         // 2. 建立相機
         const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // 調整相機位置，稍微偏左，模擬列車長視角
         camera.position.set(1.6, 2.3, 8.5); 
         camera.lookAt(1.6, 2.3, -10); 
 
         // 3. 建立渲染器
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.shadowMap.enabled = true; // 啟用陰影
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // 柔和陰影
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
         // 4. 自然光影
@@ -118,11 +105,7 @@
         sunLight.shadow.bias = -0.0005;
         scene.add(sunLight);
 
-        // 儲存所有需要移動的物件群組
-        const worldGroup = new THREE.Group();
-        scene.add(worldGroup);
-
-        // 5. 立體碎石道床
+        // 5. 立體碎石道床 (比原本更細緻)
         const stoneGeo = new THREE.DodecahedronGeometry(0.14, 0);
         const stoneMats = [
             new THREE.MeshStandardMaterial({ color: 0x6e6a65, roughness: 0.8 }),
@@ -131,13 +114,14 @@
             new THREE.MeshStandardMaterial({ color: 0x3d3a36, roughness: 0.9 })
         ];
 
-        const lengthRows = 300;
-        const widthCols = 28;
+        const lengthRows = 300; // 軌道長度
+        const widthCols = 28;   // 軌道寬度
         
         for (let r = 0; r < lengthRows; r++) {
             const zPos = (r - lengthRows / 2) * 0.4;
             for (let c = 0; c < widthCols; c++) {
                 const xPos = (c - widthCols / 2) * 0.26;
+                // 限制只在軌道下方生成
                 if (Math.abs(xPos) < 4.2) {
                     const mat = stoneMats[Math.floor(Math.random() * stoneMats.length)];
                     const stone = new THREE.Mesh(stoneGeo, mat);
@@ -151,7 +135,7 @@
                     
                     stone.castShadow = true;
                     stone.receiveShadow = true;
-                    worldGroup.add(stone);
+                    scene.add(stone);
                 }
             }
         }
@@ -166,16 +150,17 @@
 
         function createRail() {
             const railGroup = new THREE.Group();
+            // 軌頭
             const head = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 120), railMat);
             head.position.y = 0.31;
             head.castShadow = true;
             railGroup.add(head);
-
+            // 軌腰
             const web = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 120), railMat);
             web.position.y = 0.16;
             web.castShadow = true;
             railGroup.add(web);
-
+            // 軌底
             const base = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 120), railMat);
             base.position.y = 0.04;
             base.castShadow = true;
@@ -184,11 +169,11 @@
             return railGroup;
         }
 
-        const trackOffset = 1.6; 
-        const l1 = createRail(); l1.position.x = -trackOffset - 1.067/2; worldGroup.add(l1);
-        const l2 = createRail(); l2.position.x = -trackOffset + 1.067/2; worldGroup.add(l2);
-        const r1 = createRail(); r1.position.x = trackOffset - 1.067/2; worldGroup.add(r1);
-        const r2 = createRail(); r2.position.x = trackOffset + 1.067/2; worldGroup.add(r2);
+        const trackOffset = 1.6; // 軌道中心距
+        const l1 = createRail(); l1.position.x = -trackOffset - 1.067/2; scene.add(l1);
+        const l2 = createRail(); l2.position.x = -trackOffset + 1.067/2; scene.add(l2);
+        const r1 = createRail(); r1.position.x = trackOffset - 1.067/2; scene.add(r1);
+        const r2 = createRail(); r2.position.x = trackOffset + 1.067/2; scene.add(r2);
 
         // 7. 灰色水泥枕木
         const sleeperGeo = new THREE.BoxGeometry(2.4, 0.18, 0.45);
@@ -203,20 +188,21 @@
             const s1 = new THREE.Mesh(sleeperGeo, sleeperMat);
             s1.position.set(-trackOffset, -0.02, zPos);
             s1.castShadow = true; s1.receiveShadow = true;
-            worldGroup.add(s1);
+            scene.add(s1);
 
             const s2 = new THREE.Mesh(sleeperGeo, sleeperMat);
             s2.position.set(trackOffset, -0.02, zPos);
             s2.castShadow = true; s2.receiveShadow = true;
-            worldGroup.add(s2);
+            scene.add(s2);
         }
 
-        // 8. 臺鐵標準斜張懸臂系統與電桿
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.7 }); 
-        const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); 
-        const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); 
+        // 8. 升級版：臺鐵高架車站懸臂式電車線支架模組
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.7 }); // 白色鋼柱
+        const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); // 金屬支架
+        const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); // 咖啡色絕緣子
         const wireMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
 
+        // 輔助函數：在兩點間建立圓柱體（用於構建複雜支架）
         function createCylinderBetween(p1, p2, radius, material) {
             const distance = p1.distanceTo(p2);
             const geometry = new THREE.CylinderGeometry(radius, radius, distance, 8);
@@ -230,39 +216,44 @@
         function createCatenaryPole(zPos, isLeftSide) {
             const group = new THREE.Group();
             const side = isLeftSide ? 1 : -1; 
-            const poleX = 4.2 * side;
-            const wireTargetX = 1.6 * side;
+            const poleX = 4.2 * side; // 電線桿位置
+            const wireTargetX = 1.6 * side; // 電車線位置
 
-            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 8.0, 16), poleMat);
-            pole.position.set(poleX, 4.0, 0);
+            // 主立柱 (白色圓柱，比照照片中的鋼管柱)
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 8.5, 16), poleMat);
+            pole.position.set(poleX, 4.25, 0);
             pole.castShadow = true;
             group.add(pole);
 
-            const pPoleTop = new THREE.Vector3(poleX - (0.2 * side), 6.8, 0);   
-            const pPoleMid = new THREE.Vector3(poleX - (0.2 * side), 4.8, 0);   
-            const pHorizontalEnd = new THREE.Vector3(wireTargetX, 6.8, 0);       
+            // 頂部橫臂 (鎖在柱子頂端)
+            const pPoleTop = new THREE.Vector3(poleX - (0.2 * side), 7.2, 0);   
+            const pPoleMid = new THREE.Vector3(poleX - (0.2 * side), 5.0, 0);   
+            const pHorizontalEnd = new THREE.Vector3(wireTargetX, 7.2, 0);       
 
             const topArm = createCylinderBetween(pPoleTop, pHorizontalEnd, 0.045, armMat);
             group.add(topArm);
 
-            const pTopSlantStart = new THREE.Vector3(poleX - (0.2 * side), 6.1, 0);
-            const pTopSlantEnd = new THREE.Vector3(poleX - (1.8 * side), 6.8, 0);
+            // 斜拉支架 (增加穩定性)
+            const pTopSlantStart = new THREE.Vector3(poleX - (0.2 * side), 6.5, 0);
+            const pTopSlantEnd = new THREE.Vector3(poleX - (1.8 * side), 7.2, 0);
             const topSlantArm = createCylinderBetween(pTopSlantStart, pTopSlantEnd, 0.03, armMat);
             group.add(topSlantArm);
 
-            const pInsStart = new THREE.Vector3(poleX - (1.4 * side), 5.5, 0);
-            const pInsEnd = new THREE.Vector3(poleX - (2.1 * side), 5.9, 0);
-            const pSlantEnd = new THREE.Vector3(wireTargetX - (0.1 * side), 6.4, 0);
+            // 絕緣子與懸臂組合 (這是照片中最精細的部分)
+            const pInsStart = new THREE.Vector3(poleX - (1.4 * side), 5.7, 0);
+            const pInsEnd = new THREE.Vector3(poleX - (2.1 * side), 6.1, 0);
+            const pSlantEnd = new THREE.Vector3(wireTargetX - (0.1 * side), 6.8, 0);
 
             const slantPart1 = createCylinderBetween(pPoleMid, pInsStart, 0.035, armMat);
-            const insulator = createCylinderBetween(pInsStart, pInsEnd, 0.065, insMat); 
+            const insulator = createCylinderBetween(pInsStart, pInsEnd, 0.065, insMat); // 咖啡色絕緣子
             const slantPart2 = createCylinderBetween(pInsEnd, pSlantEnd, 0.035, armMat);
 
             group.add(slantPart1);
             group.add(insulator);
             group.add(slantPart2);
 
-            const pContactDrop = new THREE.Vector3(wireTargetX, 5.2, 0);
+            // 接觸線懸吊臂
+            const pContactDrop = new THREE.Vector3(wireTargetX, 5.5, 0);
             const dropArm = createCylinderBetween(pHorizontalEnd, pContactDrop, 0.025, armMat);
             group.add(dropArm);
 
@@ -270,94 +261,16 @@
             return group;
         }
 
-        const poleInterval = 15; 
+        // 在軌道兩側生成電線桿
+        const poleInterval = 15; // 電線桿間距
         let index = 0;
         for (let z = -100; z <= 100; z += poleInterval) {
+            // 左右交錯設置電線桿（模擬真實情況）
             const isLeftSide = (index % 2 === 0);
-            worldGroup.add(createCatenaryPole(z, isLeftSide));
+            scene.add(createCatenaryPole(z, isLeftSide));
             index++;
         }
 
-        // 架空電車線
+        // 架空電車線 (Catenary Wires)
         const wireGeo = new THREE.CylinderGeometry(0.015, 0.015, 220, 4);
-        wireGeo.rotateX(Math.PI / 2);
-
-        [-1.6, 1.6].forEach(x => {
-            const mw = new THREE.Mesh(wireGeo, wireMat);
-            mw.position.set(x, 6.8, 0);
-            worldGroup.add(mw);
-
-            const cw = new THREE.Mesh(wireGeo, wireMat);
-            cw.position.set(x, 5.2, 0);
-            worldGroup.add(cw);
-        });
-
-        // 9. 駕駛室內部與操控台（固定在相機視角前方下方）
-        function createDriverCab() {
-            const cabGroup = new THREE.Group();
-
-            const deskMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 });
-            const desk = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 0.8), deskMat);
-            desk.position.set(1.6, 1.1, 5.8);
-            cabGroup.add(desk);
-
-            const screenMat = new THREE.MeshBasicMaterial({ color: 0x11ff44 });
-            const screen = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 0.05), screenMat);
-            screen.position.set(1.3, 1.35, 5.5);
-            cabGroup.add(screen);
-
-            const handleMat = new THREE.MeshStandardMaterial({ color: 0xcc3333 });
-            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.15), handleMat);
-            handle.position.set(1.9, 1.35, 5.5);
-            cabGroup.add(handle);
-
-            return cabGroup;
-        }
-
-        scene.add(createDriverCab());
-
-        // 10. 駕駛控制與動畫循環
-        let currentSpeed = 0; // 當前速度
-        let targetSpeed = 45; // 目標速度 (預設自動起步加速到 45)
-
-        // 點擊畫面或按鍵控制加速/減速
-        window.addEventListener('click', () => {
-            targetSpeed = (targetSpeed === 0) ? 60 : 0; // 點擊切換 啟動 / 煞車
-        });
-
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp') targetSpeed = Math.min(targetSpeed + 15, 110);
-            if (e.key === 'ArrowDown') targetSpeed = Math.max(targetSpeed - 15, 0);
-        });
-
-        function animate() {
-            requestAnimationFrame(animate);
-
-            // 模擬列車平滑加速與減速
-            currentSpeed += (targetSpeed - currentSpeed) * 0.05;
-
-            // 讓世界物件向後移動，製造前進感
-            const moveDelta = (currentSpeed * 0.0008);
-            worldGroup.position.z += moveDelta;
-
-            // 無限循環鐵軌與電桿
-            if (worldGroup.position.z > 30) {
-                worldGroup.position.z -= 30;
-            }
-
-            // 更新速度顯示
-            document.getElementById('speed-display').innerText = `速度: ${Math.round(currentSpeed)} km/h`;
-
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        // 視窗大小改變自適應
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
-</body>
-</html>
+        wireGeo.rotateX(Math
