@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="__1kAC5hQYxQmy1DhMZvTPq0wvNsREk-6Ke8dhu5Sok" />
-    <title>3D 鐵道基礎架設 - 中台鐵路</title>
+    <title>台灣3D鐵路模擬器</title>
     <style>
         body {
             background-color: #1a1a1a;
@@ -23,6 +23,32 @@
             left: 20px;
             z-index: 10;
             pointer-events: none;
+            margin: 0;
+            line-height: 40px;
+        }
+        /* 右上角加入會員按鈕樣式 */
+        .join-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            z-index: 20;
+            background-color: #5865F2; /* Discord 經典藍紫色 */
+            color: #fff;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .join-btn:hover {
+            background-color: #4752C4;
+        }
+        .join-btn:active {
+            transform: scale(0.98);
         }
         #canvas-container {
             position: absolute;
@@ -48,7 +74,11 @@
 </head>
 <body>
 
-    <h1>中台鐵路 - 3D 標準軌道區段</h1>
+    <h1>台灣3D鐵路模擬器</h1>
+    
+    <!-- 右上角加入會員按鈕，點擊後另開視窗前往 Discord -->
+    <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
+
     <div id="canvas-container"></div>
     <div class="info">軌距設定：1067mm 臺鐵特有窄軌規格 | 滑鼠左鍵旋轉、右鍵平移、滾輪縮放</div>
 
