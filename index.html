@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - V型懸臂向量精準版</title>
+    <title>台灣3D鐵路模擬器 - 標準水平斜撐懸臂版</title>
     <style>
         body {
             background-color: #557799;
@@ -72,7 +72,7 @@
     <h1>台灣3D鐵路模擬器</h1>
     <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
     <div id="canvas-container"></div>
-    <div class="info">軌距設定：1067mm 臺鐵 V 型懸臂向量精準版</div>
+    <div class="info">軌距設定：1067mm 臺鐵標準懸臂結構版</div>
 
     <script>
         // 1. 建立場景
@@ -193,23 +193,18 @@
             scene.add(s2);
         }
 
-        // 8. 【用向量函數自動計算位置與角度的 V 型懸臂】
+        // 8. 【依最新照片修正：上水平、下斜托的標準懸臂系統】
         const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.7 }); 
         const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); 
         const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); 
         const wireMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
 
-        // 建立兩點之間的圓柱體桿件（完美對齊起點與終點）
         function createCylinderBetween(p1, p2, radius, material) {
             const distance = p1.distanceTo(p2);
             const geometry = new THREE.CylinderGeometry(radius, radius, distance, 8);
             const mesh = new THREE.Mesh(geometry, material);
-            
-            // 計算中點
             const midpoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
             mesh.position.copy(midpoint);
-            
-            // 對齊方向
             mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(p2, p1).normalize());
             return mesh;
         }
@@ -231,7 +226,7 @@
 
             // 上絕緣子
             const topIns = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.5, 12), insMat);
-            topIns.position.set(poleX - (0.3 * side), 6.0, 0);
+            topIns.position.set(poleX - (0.3 * side), 6.2, 0);
             group.add(topIns);
 
             // 下絕緣子
@@ -239,15 +234,16 @@
             botIns.position.set(poleX - (0.3 * side), 4.8, 0);
             group.add(botIns);
 
-            // 頂端支撐點與下方支撐點座標
-            const pTopIns = new THREE.Vector3(poleX - (0.3 * side), 6.0, 0);
+            // 座標點定義
+            const pTopIns = new THREE.Vector3(poleX - (0.3 * side), 6.2, 0);
             const pBotIns = new THREE.Vector3(poleX - (0.3 * side), 4.8, 0);
-            const pUpperWire = new THREE.Vector3(targetWireX, 6.2, 0);
-            const pLowerWire = new THREE.Vector3(targetWireX, 5.0, 0);
+            const pTopEnd = new THREE.Vector3(targetWireX, 6.2, 0); // 上懸臂水平延伸
+            const pBotConnect = new THREE.Vector3(targetWireX * 0.6, 5.6, 0); // 下懸臂斜向托起接至上懸臂下方
 
-            // 用向量建立懸臂桿（絕緣子連接到電線，完美形成 V 型交叉）
-            const topArm = createCylinderBetween(pTopIns, pLowerWire, 0.05, armMat);
-            const botArm = createCylinderBetween(pBotIns, pUpperWire, 0.05, armMat);
+            // 上懸臂（水平伸出）
+            const topArm = createCylinderBetween(pTopIns, pTopEnd, 0.05, armMat);
+            // 下懸臂（從下方絕緣子斜向上方托起）
+            const botArm = createCylinderBetween(pBotIns, pBotConnect, 0.05, armMat);
             
             group.add(topArm);
             group.add(botArm);
