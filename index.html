@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="__1kAC5hQYxQmy1DhMZvTPq0wvNsREk-6Ke8dhu5Sok" />
-    <title>台灣3D鐵路模擬器 - 完整電桿電線版</title>
+    <title>台灣3D鐵路模擬器 - 擬真台鐵電車線版</title>
     <style>
         body {
             background-color: #557799;
@@ -73,7 +73,7 @@
     <h1>台灣3D鐵路模擬器</h1>
     <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
     <div id="canvas-container"></div>
-    <div class="info">軌距設定：1067mm 臺鐵雙線電桿與架空線完全版</div>
+    <div class="info">軌距設定：1067mm 臺鐵特有電車線支柱實景版</div>
 
     <script>
         // 1. 建立場景
@@ -81,10 +81,10 @@
         scene.background = new THREE.Color(0x667788);
         scene.fog = new THREE.FogExp2(0x667788, 0.012);
 
-        // 2. 建立相機
+        // 2. 建立相機 (模擬照片中的低角度第一人稱)
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 1.6, 6);
-        camera.lookAt(0, 1.2, -20);
+        camera.position.set(0, 1.5, 5);
+        camera.lookAt(0, 1.2, -25);
 
         // 3. 建立渲染器
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -194,53 +194,53 @@
             scene.add(s2);
         }
 
-        // 8. 電車線桿與【貫穿整條鐵道的架空線】
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.3 });
-        const wireMat = new THREE.MeshBasicMaterial({ color: 0x111111 }); // 用細長方體或線條來做電線
+        // 8. 【高度還原台鐵風格的電車線桿與斜拉懸臂】
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.6 }); // 水泥柱質感
+        const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.3 }); // 金屬懸臂
+        const insulatorMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 }); // 絕緣子 (黑碟)
+        const wireMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
 
-        const poleInterval = 15; 
-        for (let z = -60; z <= 60; z += poleInterval) {
-            // 左側電桿
-            const leftPole = new THREE.Mesh(new THREE.BoxGeometry(0.3, 6, 0.3), poleMat);
-            leftPole.position.set(-4.5, 3, z);
-            leftPole.castShadow = true;
-            scene.add(leftPole);
-
-            // 右側電桿
-            const rightPole = new THREE.Mesh(new THREE.BoxGeometry(0.3, 6, 0.3), poleMat);
-            rightPole.position.set(4.5, 3, z);
+        const poleInterval = 16; 
+        for (let z = -64; z <= 64; z += poleInterval) {
+            // 右側主水泥電桿 (對應照片中右側那根粗大主柱)
+            const rightPole = new THREE.Mesh(new THREE.BoxGeometry(0.45, 7.5, 0.45), poleMat);
+            rightPole.position.set(4.8, 3.5, z);
             rightPole.castShadow = true;
             scene.add(rightPole);
 
-            // 橫跨鐵道上方的懸臂梁
-            const arm = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.2, 0.2), poleMat);
-            arm.position.set(0, 5.8, z);
-            arm.castShadow = true;
-            scene.add(arm);
+            // 右側電桿上的絕緣子串 (黑色的節點)
+            for (let iy = 4.5; iy < 6.2; iy += 0.4) {
+                const ins = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.25, 8), insulatorMat);
+                ins.position.set(4.6, iy, z);
+                scene.add(ins);
+            }
+
+            // 主水平懸臂 (向左延伸過鐵道上方)
+            const mainArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 8.5, 8), armMat);
+            mainArm.rotation.z = Math.PI / 2;
+            mainArm.position.set(0.6, 5.8, z);
+            mainArm.castShadow = true;
+            scene.add(mainArm);
+
+            // 斜拉支柱 (從電桿高處斜向下連接到水平懸臂，模擬照片中的三角支架)
+            const diagArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 5.2, 8), armMat);
+            diagArm.rotation.z = -Math.PI / 4;
+            diagArm.position.set(2.4, 4.8, z);
+            scene.add(diagArm);
         }
 
-        // 沿著鐵道上方加入貫穿遠方的架空導線（對應照片中 V 字形或平行的頭頂電線）
-        const wireGeo = new THREE.CylinderGeometry(0.015, 0.015, 130, 4);
-        wireGeo.rotateX(Math.PI / 2); // 轉向對齊 Z 軸
+        // 貫穿整條鐵道的架空接觸網與吊索
+        const wireGeo = new THREE.CylinderGeometry(0.015, 0.015, 140, 4);
+        wireGeo.rotateX(Math.PI / 2);
 
-        // 左線上方電車線
-        const leftWire = new THREE.Mesh(wireGeo, wireMat);
-        leftWire.position.set(-1.6, 5.2, 0);
-        scene.add(leftWire);
+        // 左線與右線上方主電車線
+        const wireLeft = new THREE.Mesh(wireGeo, wireMat);
+        wireLeft.position.set(-1.6, 5.1, 0);
+        scene.add(wireLeft);
 
-        // 右線上方電車線
-        const rightWire = new THREE.Mesh(wireGeo, wireMat);
-        rightWire.position.set(1.6, 5.2, 0);
-        scene.add(rightWire);
-
-        // 頂部導線（對應照片中橫臂上方的支撐線）
-        const topWire1 = new THREE.Mesh(wireGeo, wireMat);
-        topWire1.position.set(-2.5, 5.6, 0);
-        scene.add(topWire1);
-
-        const topWire2 = new THREE.Mesh(wireGeo, wireMat);
-        topWire2.position.set(2.5, 5.6, 0);
-        scene.add(topWire2);
+        const wireRight = new THREE.Mesh(wireGeo, wireMat);
+        wireRight.position.set(1.6, 5.1, 0);
+        scene.add(wireRight);
 
         // 9. 渲染迴圈
         function animate() {
