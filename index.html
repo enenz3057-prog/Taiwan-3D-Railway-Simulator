@@ -136,7 +136,7 @@
     </div>
 
     <div id="canvas-container"></div>
-    <div class="info">場景：臺鐵高架車站（歸來站視角） | 模擬引擎：Three.js</div>
+    <div class="info">場景：臺鐵高架車站（雙向電線桿與高擬真列車） | 模擬引擎：Three.js</div>
 
     <script>
         // 1. 建立場景
@@ -168,7 +168,7 @@
         sunLight.shadow.bias = -0.0005;
         scene.add(sunLight);
 
-        // 5. 軌道區塊（道碴、鋼軌、枕木）
+        // 5. 軌道區塊（道碴、雙線鋼軌、枕木）
         const stoneGeo = new THREE.DodecahedronGeometry(0.14, 0);
         const stoneMats = [
             new THREE.MeshStandardMaterial({ color: 0x6e6a65, roughness: 0.8 }),
@@ -178,9 +178,9 @@
 
         for (let r = 0; r < 350; r++) {
             const zPos = (r - 175) * 0.4;
-            for (let c = 0; c < 24; c++) {
-                const xPos = (c - 12) * 0.26 - 1.2;
-                if (Math.abs(xPos + 1.2) < 3.8) {
+            for (let c = 0; c < 28; c++) {
+                const xPos = (c - 14) * 0.26;
+                if (Math.abs(xPos) < 4.5) {
                     const mat = stoneMats[Math.floor(Math.random() * stoneMats.length)];
                     const stone = new THREE.Mesh(stoneGeo, mat);
                     stone.position.set(xPos + (Math.random()-0.5)*0.08, -0.35 + Math.random()*0.05, zPos);
@@ -202,6 +202,7 @@
             return group;
         }
         const trackOffset = 1.6;
+        // 雙線軌道
         const l1 = createRail(); l1.position.x = -trackOffset - 0.53; scene.add(l1);
         const l2 = createRail(); l2.position.x = -trackOffset + 0.53; scene.add(l2);
         const r1 = createRail(); r1.position.x = trackOffset - 0.53; scene.add(r1);
@@ -218,19 +219,19 @@
 
         // 6. 高架車站月台與黃色導盲磚
         const platformMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.8 }); 
-        const platform = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.8, 140), platformMat);
-        platform.position.set(4.5, -0.4, 0);
+        const platform = new THREE.Mesh(new THREE.BoxGeometry(6.0, 0.8, 140), platformMat);
+        platform.position.set(5.2, -0.4, 0);
         platform.castShadow = true; platform.receiveShadow = true;
         scene.add(platform);
 
         const tileMat = new THREE.MeshStandardMaterial({ color: 0xd4a017, roughness: 0.6 });
         const tactileTile = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.82, 140), tileMat);
-        tactileTile.position.set(2.05, -0.38, 0);
+        tactileTile.position.set(2.4, -0.38, 0);
         scene.add(tactileTile);
 
         const wallMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.9 });
         const platformWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.4, 140), wallMat);
-        platformWall.position.set(7.1, 0.3, 0);
+        platformWall.position.set(8.0, 0.3, 0);
         platformWall.castShadow = true;
         scene.add(platformWall);
 
@@ -245,7 +246,7 @@
         const signBoard = new THREE.Mesh(boardGeo, boardMat);
         signBoard.position.set(0, 1.2, 0);
         signGroup.add(post1, post2, signBoard);
-        signGroup.position.set(3.2, 0, -5);
+        signGroup.position.set(3.8, 0, -5);
         signGroup.rotation.y = -0.3;
         scene.add(signGroup);
 
@@ -258,14 +259,14 @@
             const cap = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.2, 16), capMat);
             cap.position.y = 3.5;
             lampGroup.add(pole, cap);
-            lampGroup.position.set(3.2, 0, zPos);
+            lampGroup.position.set(3.8, 0, zPos);
             return lampGroup;
         }
         for (let z = -60; z <= 60; z += 20) {
             scene.add(createPlatformLamp(z));
         }
 
-        // 9. 電線桿模組
+        // 9. 兩側電線桿模組（同時涵蓋軌道左側外緣與月台右側外緣，兩邊都有電線桿）
         const poleMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.6 }); 
         const armMat = new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.7, roughness: 0.3 }); 
         const insMat = new THREE.MeshStandardMaterial({ color: 0x3d1f0d, roughness: 0.4 }); 
@@ -279,36 +280,56 @@
             return mesh;
         }
 
-        function createCatenaryPole(zPos) {
+        function createCatenaryPolePair(zPos) {
             const group = new THREE.Group();
-            const poleX = 6.8; 
-            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 9.0, 16), poleMat);
-            pole.position.set(poleX, 4.5, 0);
-            pole.castShadow = true;
-            group.add(pole);
 
-            const pTopMast = new THREE.Vector3(poleX - 0.2, 7.8, 0);
-            const pTopTip = new THREE.Vector3(1.6, 7.8, 0);
-            group.add(createCylinderBetween(pTopMast, pTopTip, 0.04, armMat));
+            // --- 右側電線桿（月台外側） ---
+            const rPoleX = 7.6;
+            const rPole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 9.0, 16), poleMat);
+            rPole.position.set(rPoleX, 4.5, 0);
+            rPole.castShadow = true;
+            group.add(rPole);
 
-            const pMidMast = new THREE.Vector3(poleX - 0.2, 5.8, 0);
-            group.add(createCylinderBetween(pMidMast, pTopTip, 0.035, armMat));
+            const rTopMast = new THREE.Vector3(rPoleX - 0.2, 7.8, 0);
+            const rTopTip = new THREE.Vector3(1.6, 7.8, 0);
+            group.add(createCylinderBetween(rTopMast, rTopTip, 0.04, armMat));
+            const rMidMast = new THREE.Vector3(rPoleX - 0.2, 5.8, 0);
+            group.add(createCylinderBetween(rMidMast, rTopTip, 0.035, armMat));
+            
+            const rInsStart = new THREE.Vector3(rPoleX - 2.2, 6.4, 0);
+            const rInsEnd = new THREE.Vector3(rPoleX - 3.5, 7.0, 0);
+            group.add(createCylinderBetween(new THREE.Vector3(rPoleX - 0.2, 5.0, 0), rInsStart, 0.03, armMat));
+            group.add(createCylinderBetween(rInsStart, rInsEnd, 0.07, insMat)); 
+            group.add(createCylinderBetween(rInsEnd, new THREE.Vector3(1.8, 7.4, 0), 0.03, armMat));
 
-            const pInsStart = new THREE.Vector3(poleX - 2.2, 6.4, 0);
-            const pInsEnd = new THREE.Vector3(poleX - 3.5, 7.0, 0);
-            group.add(createCylinderBetween(new THREE.Vector3(poleX - 0.2, 5.0, 0), pInsStart, 0.03, armMat));
-            group.add(createCylinderBetween(pInsStart, pInsEnd, 0.07, insMat)); 
-            group.add(createCylinderBetween(pInsEnd, new THREE.Vector3(1.8, 7.4, 0), 0.03, armMat));
+            // --- 左側電線桿（左側軌道外側，對稱配置） ---
+            const lPoleX = -4.2;
+            const lPole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 9.0, 16), poleMat);
+            lPole.position.set(lPoleX, 4.5, 0);
+            lPole.castShadow = true;
+            group.add(lPole);
+
+            const lTopMast = new THREE.Vector3(lPoleX + 0.2, 7.8, 0);
+            const lTopTip = new THREE.Vector3(-1.6, 7.8, 0);
+            group.add(createCylinderBetween(lTopMast, lTopTip, 0.04, armMat));
+            const lMidMast = new THREE.Vector3(lPoleX + 0.2, 5.8, 0);
+            group.add(createCylinderBetween(lMidMast, lTopTip, 0.035, armMat));
+
+            const lInsStart = new THREE.Vector3(lPoleX + 2.2, 6.4, 0);
+            const lInsEnd = new THREE.Vector3(lPoleX + 3.5, 7.0, 0);
+            group.add(createCylinderBetween(new THREE.Vector3(lPoleX + 0.2, 5.0, 0), lInsStart, 0.03, armMat));
+            group.add(createCylinderBetween(lInsStart, lInsEnd, 0.07, insMat));
+            group.add(createCylinderBetween(lInsEnd, new THREE.Vector3(-1.8, 7.4, 0), 0.03, armMat));
 
             group.position.set(0, 0, zPos);
             return group;
         }
 
         for (let z = -100; z <= 100; z += 18) {
-            scene.add(createCatenaryPole(z));
+            scene.add(createCatenaryPolePair(z));
         }
 
-        // 10. 高擬真臺鐵列車模型建構
+        // 10. 高擬真臺鐵列車模型建構（流線車頭、立體窗框與轉向架）
         let activeTrain = null;
         let isMoving = false;
 
@@ -317,7 +338,6 @@
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         }
 
-        // 建立精緻單節車廂（包含流線車頭、駕駛窗、車門與轉向架底盤）
         function createCar(isHead, bodyColor, stripeColor, isFrontDirection) {
             const carGroup = new THREE.Group();
 
@@ -329,7 +349,7 @@
 
             const carLength = 18;
 
-            // 車底機械設備與轉向架（輪子）
+            // 車底機械設備與轉向架
             const underframe = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.5, carLength - 2), underframeMat);
             underframe.position.y = 0.25;
             carGroup.add(underframe);
@@ -355,13 +375,10 @@
                 const noseLength = 2.5;
                 const zOffset = isFrontDirection ? (carLength / 2 + noseLength / 2) : (-carLength / 2 - noseLength / 2);
                 
-                // 流線車頭鼻錐
-                const noseGeo = new THREE.BoxGeometry(2.7, 2.4, noseLength);
-                const nose = new THREE.Mesh(noseGeo, trainMat);
+                const nose = new THREE.Mesh(new THREE.BoxGeometry(2.7, 2.4, noseLength), trainMat);
                 nose.position.set(0, 1.8, zOffset);
                 carGroup.add(nose);
 
-                // 駕駛室大擋風玻璃
                 const windshield = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.9, 0.1), windshieldMat);
                 const glassZ = isFrontDirection ? (carLength / 2 + noseLength + 0.02) : (-carLength / 2 - noseLength - 0.02);
                 windshield.position.set(0, 2.2, glassZ);
@@ -382,23 +399,21 @@
             let stripeColor = 0xffcc00; 
 
             if (type === 'EMU500') {
-                bodyColor = 0x003399; // 經典藍
-                stripeColor = 0xffcc00; // 黃線
+                bodyColor = 0x003399; 
+                stripeColor = 0xffcc00; 
             } else if (type === 'EMU900') {
-                bodyColor = 0xe8e8e8; // 現代銀白
-                stripeColor = 0x00aa88; // 墨綠/青色飾帶
+                bodyColor = 0xe8e8e8; 
+                stripeColor = 0x00aa88; 
             } else if (type === 'PPEMU') {
-                bodyColor = 0xdd2222; // 自強號紅
-                stripeColor = 0xffffff; // 白線
+                bodyColor = 0xdd2222; 
+                stripeColor = 0xffffff; 
             }
 
-            // 編組：4節車廂（首尾為車頭帶駕駛艙）
             const totalCars = 4;
             const carSpacing = 18.5;
 
             for (let i = 0; i < totalCars; i++) {
                 const isHead = (i === 0 || i === totalCars - 1);
-                // i === 0 是最前端車頭（面向前方），i === 3 是尾端車頭
                 const isFrontDirection = (i === 0); 
                 
                 const car = createCar(isHead, bodyColor, stripeColor, isFrontDirection);
