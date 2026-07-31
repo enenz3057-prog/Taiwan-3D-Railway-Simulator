@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - 臺鐵標準斜張懸臂與 EMU500 列車完美視角版</title>
+    <title>台灣3D鐵路模擬器 - 駕駛室第一人稱視角</title>
     <style>
         body {
             background-color: #557799;
@@ -72,7 +72,7 @@
     <h1>台灣3D鐵路模擬器</h1>
     <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
     <div id="canvas-container"></div>
-    <div class="info">軌距設定：1067mm 臺鐵標準斜張懸臂與 EMU500 列車</div>
+    <div class="info">駕駛室視角：臺鐵 EMU500 駕駛座</div>
 
     <script>
         // 1. 建立場景
@@ -80,10 +80,10 @@
         scene.background = new THREE.Color(0x667788);
         scene.fog = new THREE.FogExp2(0x667788, 0.012);
 
-        // 2. 建立相機（完美視角：拉後拉高，完整呈現車頭與鐵道）
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(3.5, 3.2, 12);
-        camera.lookAt(1.6, 1.5, -2);
+        // 2. 建立相機（第一人稱駕駛室內視角）
+        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.05, 1000);
+        camera.position.set(1.6, 2.3, 7.8);
+        camera.lookAt(1.6, 2.3, -10);
 
         // 3. 建立渲染器
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -274,55 +274,33 @@
             scene.add(cw);
         });
 
-        // 9. 經典 EMU500 電聯車車廂
-        function createEMU500Car() {
-            const carGroup = new THREE.Group();
+        // 9. 駕駛室內部與操控台 (仿 Roblox 第一人稱駕駛介面)
+        function createDriverCab() {
+            const cabGroup = new THREE.Group();
 
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.3 });
-            const blueFrontMat = new THREE.MeshStandardMaterial({ color: 0x1a4b8c, roughness: 0.4 });
+            // 駕駛控制台主體
+            const deskMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 });
+            const desk = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.7, 0.8), deskMat);
+            desk.position.set(1.6, 1.7, 7.3);
+            cabGroup.add(desk);
 
-            // 車體主結構
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.4, 18), bodyMat);
-            body.position.y = 1.8;
-            body.castShadow = true;
-            carGroup.add(body);
+            // 儀表板螢幕
+            const screenMat = new THREE.MeshBasicMaterial({ color: 0x11ff44 });
+            const screen = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.05), screenMat);
+            screen.position.set(1.6, 2.1, 6.92);
+            cabGroup.add(screen);
 
-            // 車頭經典藍色面板
-            const frontFace = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.4, 0.2), blueFrontMat);
-            frontFace.position.set(0, 1.8, 9.05);
-            carGroup.add(frontFace);
+            // 主控把手 (游標/速度控制桿)
+            const handleMat = new THREE.MeshStandardMaterial({ color: 0xcc3333 });
+            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.25), handleMat);
+            handle.position.set(1.8, 2.15, 7.1);
+            cabGroup.add(handle);
 
-            // 轉向架與車輪
-            const bogieMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
-            function createBogie(zPos) {
-                const bogieGroup = new THREE.Group();
-                const frame = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.4, 2.4), bogieMat);
-                frame.position.y = 0.4;
-                bogieGroup.add(frame);
-
-                const wheelGeo = new THREE.CylinderGeometry(0.43, 0.43, 0.2, 16);
-                wheelGeo.rotateZ(Math.PI / 2);
-                
-                [-1.0, 1.0].forEach(x => {
-                    [-0.8, 0.8].forEach(z => {
-                        const wheel = new THREE.Mesh(wheelGeo, bogieMat);
-                        wheel.position.set(x, 0.43, z);
-                        bogieGroup.add(wheel);
-                    });
-                });
-                bogieGroup.position.z = zPos;
-                return bogieGroup;
-            }
-
-            carGroup.add(createBogie(-5.5));
-            carGroup.add(createBogie(5.5));
-
-            carGroup.position.set(1.6, 0.3, 2); // 放置於右側軌道前方
-            return carGroup;
+            cabGroup.position.set(0, 0, 0);
+            return cabGroup;
         }
 
-        const emuCar = createEMU500Car();
-        scene.add(emuCar);
+        scene.add(createDriverCab());
 
         // 10. 渲染迴圈
         function animate() {
