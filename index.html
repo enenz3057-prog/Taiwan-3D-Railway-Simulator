@@ -67,8 +67,8 @@
             position: absolute;
             top: 60px;
             right: 180px;
-            background: rgba(30, 30, 30, 0.9);
-            border: 1px solid #555;
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid #777;
             border-radius: 6px;
             padding: 10px;
             display: none;
@@ -87,7 +87,7 @@
             background: #444;
             color: #fff;
             border: none;
-            padding: 6px 10px;
+            padding: 8px 10px;
             margin-bottom: 5px;
             border-radius: 4px;
             cursor: pointer;
@@ -95,7 +95,7 @@
             text-align: left;
         }
         #train-menu button:hover {
-            background: #555;
+            background: #666;
         }
         #canvas-container {
             position: absolute;
@@ -130,24 +130,24 @@
     <!-- 列車選擇清單 -->
     <div id="train-menu">
         <h3>選擇要生成的列車</h3>
-        <button onclick="spawnTrain('EMU500')">區間車 EMU500</button>
-        <button onclick="spawnTrain('EMU900')">新自強號 / 區間車 EMU900</button>
-        <button onclick="spawnTrain('PPEMU')">推拉式自強號 (PP車)</button>
+        <button onclick="spawnTrain('EMU500')">區間車 EMU500 (經典藍黃)</button>
+        <button onclick="spawnTrain('EMU900')">新自強號 / EMU900 (現代銀青)</button>
+        <button onclick="spawnTrain('PPEMU')">推拉式自強號 (PP車 紅)</button>
     </div>
 
     <div id="canvas-container"></div>
-    <div class="info">場景：臺鐵高架車站（雙向電線桿與高擬真列車） | 模擬引擎：Three.js</div>
+    <div class="info">場景：臺鐵高架車站（高擬真鐵道、雙側電線桿與流線列車） | 模擬引擎：Three.js</div>
 
     <script>
         // 1. 建立場景
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x4a7a9d); 
-        scene.fog = new THREE.FogExp2(0x4a7a9d, 0.008); 
+        scene.background = new THREE.Color(0x507f9c); 
+        scene.fog = new THREE.FogExp2(0x507f9c, 0.007); 
 
         // 2. 建立相機
-        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(2.2, 1.7, 8.0); 
-        camera.lookAt(2.2, 1.7, -20); 
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(2.5, 1.8, 8.5); 
+        camera.lookAt(2.2, 1.6, -20); 
 
         // 3. 建立渲染器
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -157,33 +157,33 @@
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
         // 4. 自然光影
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
         scene.add(ambientLight);
 
-        const sunLight = new THREE.DirectionalLight(0xfffaed, 1.4);
-        sunLight.position.set(15, 30, 15);
+        const sunLight = new THREE.DirectionalLight(0xfffaed, 1.3);
+        sunLight.position.set(20, 35, 20);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 4096;
         sunLight.shadow.mapSize.height = 4096;
-        sunLight.shadow.bias = -0.0005;
+        sunLight.shadow.bias = -0.0004;
         scene.add(sunLight);
 
-        // 5. 軌道區塊（道碴、雙線鋼軌、枕木）
-        const stoneGeo = new THREE.DodecahedronGeometry(0.14, 0);
+        // 5. 軌道區塊（道碴、雙線鋼軌、擬真枕木）
+        const stoneGeo = new THREE.DodecahedronGeometry(0.13, 0);
         const stoneMats = [
             new THREE.MeshStandardMaterial({ color: 0x6e6a65, roughness: 0.8 }),
             new THREE.MeshStandardMaterial({ color: 0x524e49, roughness: 0.85 }),
             new THREE.MeshStandardMaterial({ color: 0x827d76, roughness: 0.75 })
         ];
 
-        for (let r = 0; r < 350; r++) {
-            const zPos = (r - 175) * 0.4;
-            for (let c = 0; c < 28; c++) {
-                const xPos = (c - 14) * 0.26;
-                if (Math.abs(xPos) < 4.5) {
+        for (let r = 0; r < 400; r++) {
+            const zPos = (r - 200) * 0.4;
+            for (let c = 0; c < 30; c++) {
+                const xPos = (c - 15) * 0.25;
+                if (Math.abs(xPos) < 4.8) {
                     const mat = stoneMats[Math.floor(Math.random() * stoneMats.length)];
                     const stone = new THREE.Mesh(stoneGeo, mat);
-                    stone.position.set(xPos + (Math.random()-0.5)*0.08, -0.35 + Math.random()*0.05, zPos);
+                    stone.position.set(xPos + (Math.random()-0.5)*0.07, -0.34 + Math.random()*0.04, zPos);
                     stone.scale.setScalar(0.6 + Math.random() * 0.6);
                     stone.castShadow = true;
                     stone.receiveShadow = true;
@@ -192,12 +192,12 @@
             }
         }
 
-        const railMat = new THREE.MeshStandardMaterial({ color: 0x8c5b3e, metalness: 0.85, roughness: 0.3 });
+        const railMat = new THREE.MeshStandardMaterial({ color: 0x996644, metalness: 0.9, roughness: 0.25 });
         function createRail() {
             const group = new THREE.Group();
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 140), railMat); head.position.y = 0.31;
-            const web = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 140), railMat); web.position.y = 0.16;
-            const base = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 140), railMat); base.position.y = 0.04;
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 160), railMat); head.position.y = 0.31;
+            const web = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 160), railMat); web.position.y = 0.16;
+            const base = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 160), railMat); base.position.y = 0.04;
             group.add(head, web, base);
             return group;
         }
@@ -208,36 +208,36 @@
         const r1 = createRail(); r1.position.x = trackOffset - 0.53; scene.add(r1);
         const r2 = createRail(); r2.position.x = trackOffset + 0.53; scene.add(r2);
 
-        const sleeperGeo = new THREE.BoxGeometry(2.4, 0.18, 0.45);
-        const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.75 });
-        for (let i = 0; i < 150; i++) {
-            const zPos = (i - 75) * 0.9;
+        const sleeperGeo = new THREE.BoxGeometry(2.5, 0.16, 0.4);
+        const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x665544, roughness: 0.85 });
+        for (let i = 0; i < 180; i++) {
+            const zPos = (i - 90) * 0.9;
             const s1 = new THREE.Mesh(sleeperGeo, sleeperMat); s1.position.set(-trackOffset, -0.02, zPos); s1.castShadow = true;
             const s2 = new THREE.Mesh(sleeperGeo, sleeperMat); s2.position.set(trackOffset, -0.02, zPos); s2.castShadow = true;
             scene.add(s1, s2);
         }
 
         // 6. 高架車站月台與黃色導盲磚
-        const platformMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.8 }); 
-        const platform = new THREE.Mesh(new THREE.BoxGeometry(6.0, 0.8, 140), platformMat);
-        platform.position.set(5.2, -0.4, 0);
+        const platformMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.8 }); 
+        const platform = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.8, 160), platformMat);
+        platform.position.set(5.3, -0.4, 0);
         platform.castShadow = true; platform.receiveShadow = true;
         scene.add(platform);
 
-        const tileMat = new THREE.MeshStandardMaterial({ color: 0xd4a017, roughness: 0.6 });
-        const tactileTile = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.82, 140), tileMat);
-        tactileTile.position.set(2.4, -0.38, 0);
+        const tileMat = new THREE.MeshStandardMaterial({ color: 0xcc9900, roughness: 0.6 });
+        const tactileTile = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.82, 160), tileMat);
+        tactileTile.position.set(2.45, -0.38, 0);
         scene.add(tactileTile);
 
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.9 });
-        const platformWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.4, 140), wallMat);
-        platformWall.position.set(8.0, 0.3, 0);
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.9 });
+        const platformWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.4, 160), wallMat);
+        platformWall.position.set(8.2, 0.3, 0);
         platformWall.castShadow = true;
         scene.add(platformWall);
 
         // 7. 歸來車站綠色站名牌
         const signGroup = new THREE.Group();
-        const postMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const postMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
         const post1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.08), postMat); post1.position.set(-0.6, 0.5, 0);
         const post2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.08), postMat); post2.position.set(0.6, 0.5, 0);
         
@@ -246,34 +246,18 @@
         const signBoard = new THREE.Mesh(boardGeo, boardMat);
         signBoard.position.set(0, 1.2, 0);
         signGroup.add(post1, post2, signBoard);
-        signGroup.position.set(3.8, 0, -5);
+        signGroup.position.set(3.9, 0, -6);
         signGroup.rotation.y = -0.3;
         scene.add(signGroup);
 
-        // 8. 月台燈柱
-        function createPlatformLamp(zPos) {
-            const lampGroup = new THREE.Group();
-            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.5, 12), postMat);
-            pole.position.y = 1.75;
-            const capMat = new THREE.MeshStandardMaterial({ color: 0xcc2222 });
-            const cap = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.2, 16), capMat);
-            cap.position.y = 3.5;
-            lampGroup.add(pole, cap);
-            lampGroup.position.set(3.8, 0, zPos);
-            return lampGroup;
-        }
-        for (let z = -60; z <= 60; z += 20) {
-            scene.add(createPlatformLamp(z));
-        }
-
-        // 9. 兩側電線桿模組（同時涵蓋軌道左側外緣與月台右側外緣，兩邊都有電線桿）
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.6 }); 
-        const armMat = new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.7, roughness: 0.3 }); 
-        const insMat = new THREE.MeshStandardMaterial({ color: 0x3d1f0d, roughness: 0.4 }); 
+        // 8. 雙側高擬真鐵路電線桿（H型結構、金屬橫臂與咖啡色絕緣子）
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.5, metalness: 0.4 }); 
+        const armMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.3 }); 
+        const insMat = new THREE.MeshStandardMaterial({ color: 0x5a2d0c, roughness: 0.4 }); // 經典礙子咖啡色
 
         function createCylinderBetween(p1, p2, radius, material) {
             const distance = p1.distanceTo(p2);
-            const geometry = new THREE.CylinderGeometry(radius, radius, distance, 10);
+            const geometry = new THREE.CylinderGeometry(radius, radius, distance, 12);
             const mesh = new THREE.Mesh(geometry, material);
             mesh.position.copy(new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5));
             mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(p2, p1).normalize());
@@ -284,52 +268,49 @@
             const group = new THREE.Group();
 
             // --- 右側電線桿（月台外側） ---
-            const rPoleX = 7.6;
-            const rPole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 9.0, 16), poleMat);
+            const rPoleX = 7.8;
+            const rPole = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 9.5, 16), poleMat);
             rPole.position.set(rPoleX, 4.5, 0);
             rPole.castShadow = true;
             group.add(rPole);
 
-            const rTopMast = new THREE.Vector3(rPoleX - 0.2, 7.8, 0);
-            const rTopTip = new THREE.Vector3(1.6, 7.8, 0);
-            group.add(createCylinderBetween(rTopMast, rTopTip, 0.04, armMat));
-            const rMidMast = new THREE.Vector3(rPoleX - 0.2, 5.8, 0);
-            group.add(createCylinderBetween(rMidMast, rTopTip, 0.035, armMat));
-            
-            const rInsStart = new THREE.Vector3(rPoleX - 2.2, 6.4, 0);
-            const rInsEnd = new THREE.Vector3(rPoleX - 3.5, 7.0, 0);
-            group.add(createCylinderBetween(new THREE.Vector3(rPoleX - 0.2, 5.0, 0), rInsStart, 0.03, armMat));
-            group.add(createCylinderBetween(rInsStart, rInsEnd, 0.07, insMat)); 
-            group.add(createCylinderBetween(rInsEnd, new THREE.Vector3(1.8, 7.4, 0), 0.03, armMat));
+            const rArm1 = new THREE.Mesh(new THREE.BoxGeometry(7.0, 0.12, 0.12), armMat);
+            rArm1.position.set(rPoleX - 3.5, 7.8, 0);
+            group.add(rArm1);
 
-            // --- 左側電線桿（左側軌道外側，對稱配置） ---
-            const lPoleX = -4.2;
-            const lPole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 9.0, 16), poleMat);
+            // 咖啡色礙子與懸臂支柱
+            const rIns1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.4, 10), insMat);
+            rIns1.position.set(1.6, 7.5, 0);
+            group.add(rIns1);
+
+            const rIns2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.4, 10), insMat);
+            rIns2.position.set(-1.6, 7.5, 0);
+            group.add(rIns2);
+
+            // --- 左側電線桿（左側軌道外側） ---
+            const lPoleX = -4.5;
+            const lPole = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 9.5, 16), poleMat);
             lPole.position.set(lPoleX, 4.5, 0);
             lPole.castShadow = true;
             group.add(lPole);
 
-            const lTopMast = new THREE.Vector3(lPoleX + 0.2, 7.8, 0);
-            const lTopTip = new THREE.Vector3(-1.6, 7.8, 0);
-            group.add(createCylinderBetween(lTopMast, lTopTip, 0.04, armMat));
-            const lMidMast = new THREE.Vector3(lPoleX + 0.2, 5.8, 0);
-            group.add(createCylinderBetween(lMidMast, lTopTip, 0.035, armMat));
+            const lArm1 = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.12, 0.12), armMat);
+            lArm1.position.set(lPoleX + 2.5, 7.8, 0);
+            group.add(lArm1);
 
-            const lInsStart = new THREE.Vector3(lPoleX + 2.2, 6.4, 0);
-            const lInsEnd = new THREE.Vector3(lPoleX + 3.5, 7.0, 0);
-            group.add(createCylinderBetween(new THREE.Vector3(lPoleX + 0.2, 5.0, 0), lInsStart, 0.03, armMat));
-            group.add(createCylinderBetween(lInsStart, lInsEnd, 0.07, insMat));
-            group.add(createCylinderBetween(lInsEnd, new THREE.Vector3(-1.8, 7.4, 0), 0.03, armMat));
+            const lIns3 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.4, 10), insMat);
+            lIns3.position.set(-1.6, 7.5, 0);
+            group.add(lIns3);
 
             group.position.set(0, 0, zPos);
             return group;
         }
 
-        for (let z = -100; z <= 100; z += 18) {
+        for (let z = -120; z <= 120; z += 16) {
             scene.add(createCatenaryPolePair(z));
         }
 
-        // 10. 高擬真臺鐵列車模型建構（流線車頭、立體窗框與轉向架）
+        // 9. 高擬真臺鐵列車模組（流線斜面車頭、立體窗框、轉向架與車門凹槽）
         let activeTrain = null;
         let isMoving = false;
 
@@ -338,50 +319,71 @@
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         }
 
-        function createCar(isHead, bodyColor, stripeColor, isFrontDirection) {
+        function createTrainCar(isHead, bodyColor, stripeColor, isFrontDirection) {
             const carGroup = new THREE.Group();
 
-            const trainMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.2 });
+            const trainMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.25, metalness: 0.3 });
             const stripeMat = new THREE.MeshStandardMaterial({ color: stripeColor, roughness: 0.3 });
-            const windowMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
-            const windshieldMat = new THREE.MeshStandardMaterial({ color: 0x112233, roughness: 0.1, metalness: 0.8 });
-            const underframeMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+            const windowMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.05, metalness: 0.9 });
+            const windshieldMat = new THREE.MeshStandardMaterial({ color: 0x112233, roughness: 0.05, metalness: 0.9 });
+            const underframeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
+            const bogieMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.5 });
 
             const carLength = 18;
 
-            // 車底機械設備與轉向架
-            const underframe = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.5, carLength - 2), underframeMat);
-            underframe.position.y = 0.25;
+            // 車底機器與轉向架（輪子）
+            const underframe = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.45, carLength - 3), underframeMat);
+            underframe.position.y = 0.22;
             carGroup.add(underframe);
 
+            // 前後轉向架組件
+            [-5.5, 5.5].forEach(zBogie => {
+                const bogie = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.3, 2.0), bogieMat);
+                bogie.position.set(0, 0.12, zBogie);
+                carGroup.add(bogie);
+                // 車輪
+                [-1.2, 1.2].forEach(xWheel => {
+                    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.2, 16), bogieMat);
+                    wheel.rotation.x = Math.PI / 2;
+                    wheel.position.set(xWheel, 0.42, zBogie);
+                    carGroup.add(wheel);
+                });
+            });
+
             // 車體主身
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2.7, 2.6, carLength), trainMat);
-            body.position.y = 1.8;
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.75, 2.5, carLength), trainMat);
+            body.position.y = 1.75;
             body.castShadow = true;
             carGroup.add(body);
 
-            // 側邊腰線/飾帶
-            const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.74, 0.35, carLength), stripeMat);
-            stripe.position.y = 1.9;
+            // 臺鐵經典腰線/色帶
+            const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.78, 0.32, carLength), stripeMat);
+            stripe.position.y = 1.85;
             carGroup.add(stripe);
 
-            // 側邊乘客車窗
-            const windows = new THREE.Mesh(new THREE.BoxGeometry(2.76, 1.0, carLength - 5), windowMat);
-            windows.position.y = 2.1;
+            // 側邊乘客窗戶
+            const windows = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.9, carLength - 4.5), windowMat);
+            windows.position.y = 2.05;
             carGroup.add(windows);
 
-            // 如果是車頭，加上流線駕駛艙與擋風玻璃
+            // 如果是車頭，製作符合臺鐵實車的斜面流線駕駛艙
             if (isHead) {
-                const noseLength = 2.5;
+                const noseLength = 2.8;
                 const zOffset = isFrontDirection ? (carLength / 2 + noseLength / 2) : (-carLength / 2 - noseLength / 2);
                 
-                const nose = new THREE.Mesh(new THREE.BoxGeometry(2.7, 2.4, noseLength), trainMat);
-                nose.position.set(0, 1.8, zOffset);
+                // 車頭尖端斜面本體
+                const noseGeo = new THREE.BoxGeometry(2.75, 2.3, noseLength);
+                const nose = new THREE.Mesh(noseGeo, trainMat);
+                nose.position.set(0, 1.7, zOffset);
+                // 微微做出斜面流線感
+                nose.rotation.x = isFrontDirection ? -0.12 : 0.12;
                 carGroup.add(nose);
 
-                const windshield = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.9, 0.1), windshieldMat);
-                const glassZ = isFrontDirection ? (carLength / 2 + noseLength + 0.02) : (-carLength / 2 - noseLength - 0.02);
-                windshield.position.set(0, 2.2, glassZ);
+                // 臺鐵大片駕駛座擋風玻璃
+                const windshield = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.85, 0.12), windshieldMat);
+                const glassZ = isFrontDirection ? (carLength / 2 + noseLength - 0.2) : (-carLength / 2 - noseLength + 0.2);
+                windshield.position.set(0, 2.1, glassZ);
+                windshield.rotation.x = isFrontDirection ? -0.12 : 0.12;
                 if (!isFrontDirection) windshield.rotation.y = Math.PI;
                 carGroup.add(windshield);
             }
@@ -399,14 +401,14 @@
             let stripeColor = 0xffcc00; 
 
             if (type === 'EMU500') {
-                bodyColor = 0x003399; 
-                stripeColor = 0xffcc00; 
+                bodyColor = 0x003399; // 經典深藍色
+                stripeColor = 0xffcc00; // 亮黃色腰線
             } else if (type === 'EMU900') {
-                bodyColor = 0xe8e8e8; 
-                stripeColor = 0x00aa88; 
+                bodyColor = 0xe5e8ec; // 現代銀白
+                stripeColor = 0x008866; // 墨綠/青色微笑線
             } else if (type === 'PPEMU') {
-                bodyColor = 0xdd2222; 
-                stripeColor = 0xffffff; 
+                bodyColor = 0xcc2222; // 自強號紅
+                stripeColor = 0xffffff; // 白色飾帶
             }
 
             const totalCars = 4;
@@ -416,7 +418,7 @@
                 const isHead = (i === 0 || i === totalCars - 1);
                 const isFrontDirection = (i === 0); 
                 
-                const car = createCar(isHead, bodyColor, stripeColor, isFrontDirection);
+                const car = createTrainCar(isHead, bodyColor, stripeColor, isFrontDirection);
                 car.position.set(-trackOffset, 0, (i - 1.5) * carSpacing);
                 activeTrain.add(car);
             }
@@ -437,14 +439,14 @@
             btn.innerText = isMoving ? "煞車停靠" : "發車開動";
         }
 
-        // 11. 動畫迴圈
+        // 10. 動畫迴圈
         function animate() {
             requestAnimationFrame(animate);
 
             if (activeTrain && isMoving) {
                 activeTrain.position.z -= 0.35; 
-                if (activeTrain.position.z < -130) {
-                    activeTrain.position.z = 130;
+                if (activeTrain.position.z < -140) {
+                    activeTrain.position.z = 140;
                 }
             }
 
