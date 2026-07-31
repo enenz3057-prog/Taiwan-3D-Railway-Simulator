@@ -80,9 +80,9 @@
         scene.background = new THREE.Color(0x667788);
         scene.fog = new THREE.FogExp2(0x667788, 0.012);
 
-        // 2. 建立相機（第一人稱駕駛室視角：位於車頭內部，向前望去）
-        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.05, 1000);
-        camera.position.set(1.6, 2.3, 7.8); // 司機員視角高度
+        // 2. 建立相機（完美視角：位於車頭駕駛室內部，向前望去，並調整了近平面以避免穿模）
+        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(1.6, 2.3, 8.5); // 司機員視角高度，稍微後退一點以避免穿模
         camera.lookAt(1.6, 2.3, -10); // 向前看
 
         // 3. 建立渲染器
@@ -292,12 +292,4 @@
 
             // 主控把手
             const handleMat = new THREE.MeshStandardMaterial({ color: 0xcc3333 });
-            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.15), handleMat);
-            handle.position.set(1.9, 1.35, 5.5);
-            cabGroup.add(handle);
-
-            cabGroup.position.set(0, 0, 0);
-            return cabGroup;
-        }
-
-        scene.add(create
+            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.15),
