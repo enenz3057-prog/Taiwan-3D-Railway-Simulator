@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - 雙側交錯電桿版</title>
+    <title>台灣3D鐵路模擬器 - V型懸臂完美結合版</title>
     <style>
         body {
             background-color: #557799;
@@ -72,7 +72,7 @@
     <h1>台灣3D鐵路模擬器</h1>
     <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
     <div id="canvas-container"></div>
-    <div class="info">軌距設定：1067mm 臺鐵雙側交錯電桿版</div>
+    <div class="info">軌距設定：1067mm 臺鐵 V 型懸臂結構完美版</div>
 
     <script>
         // 1. 建立場景
@@ -193,7 +193,7 @@
             scene.add(s2);
         }
 
-        // 8. 【雙側交錯電桿與 V 型懸臂系統】
+        // 8. 【完美結合的 V 型懸臂電桿系統】
         const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.7 }); 
         const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); 
         const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); 
@@ -204,37 +204,40 @@
         for (let z = -75; z <= 75; z += poleInterval) {
             const group = new THREE.Group();
             
-            // 讓電桿在左側 (-3.5) 與右側 (3.5) 之間交錯出現
+            // 左右交錯：side = 1 在右側，side = -1 在左側
             const side = (index % 2 === 0) ? 1 : -1; 
+
+            // 以群組中心為基準，把整支電桿與懸臂建立在正確位置
+            const poleX = 3.8 * side;
 
             // 主電桿
             const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 8.0, 16), poleMat);
-            pole.position.set(3.5 * side, 4.0, 0);
+            pole.position.set(poleX, 4.0, 0);
             pole.castShadow = true;
             group.add(pole);
 
-            // 上方絕緣子
+            // 上方咖啡色絕緣子 (緊貼電桿內側)
             const topIns = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 12), insMat);
             topIns.rotation.z = Math.PI / 2;
-            topIns.position.set(3.2 * side, 5.8, 0);
+            topIns.position.set(poleX - (0.4 * side), 5.8, 0);
             group.add(topIns);
 
-            // 下方絕緣子
+            // 下方咖啡色絕緣子 (緊貼電桿內側)
             const botIns = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 12), insMat);
             botIns.rotation.z = Math.PI / 2;
-            botIns.position.set(3.2 * side, 4.6, 0);
+            botIns.position.set(poleX - (0.4 * side), 4.6, 0);
             group.add(botIns);
 
-            // 上懸臂桿 (方向隨左右側翻轉)
-            const topArm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 4.5, 8), armMat);
+            // 上懸臂桿 (從上方絕緣子往軌道上方斜伸)
+            const topArm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.8, 8), armMat);
             topArm.rotation.z = 0.35 * side;
-            topArm.position.set(1.4 * side, 6.3, 0);
+            topArm.position.set(poleX - (2.0 * side), 6.4, 0);
             group.add(topArm);
 
-            // 下懸臂桿
-            const botArm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 4.2, 8), armMat);
+            // 下懸臂桿 (從下方絕緣子往軌道上方斜伸，與上懸臂交織成 V 字型)
+            const botArm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.5, 8), armMat);
             botArm.rotation.z = -0.35 * side;
-            botArm.position.set(1.4 * side, 5.1, 0);
+            botArm.position.set(poleX - (2.0 * side), 5.2, 0);
             group.add(botArm);
 
             group.position.set(0, 0, z);
@@ -242,24 +245,26 @@
             index++;
         }
 
-        // 貫穿遠方的架空主吊線與接觸線
+        // 貫穿遠方的架空主吊線與接觸線 (雙線對應)
         const wireGeo = new THREE.CylinderGeometry(0.015, 0.015, 165, 4);
         wireGeo.rotateX(Math.PI / 2);
 
-        const mainWire = new THREE.Mesh(wireGeo, wireMat);
-        mainWire.position.set(-1.0, 6.1, 0);
-        scene.add(mainWire);
+        // 左側軌道上空電線
+        const mainWire1 = new THREE.Mesh(wireGeo, wireMat);
+        mainWire1.position.set(-1.6, 6.2, 0);
+        scene.add(mainWire1);
 
-        const contactWire = new THREE.Mesh(wireGeo, wireMat);
-        contactWire.position.set(-1.0, 4.9, 0);
-        scene.add(contactWire);
+        const contactWire1 = new THREE.Mesh(wireGeo, wireMat);
+        contactWire1.position.set(-1.6, 5.0, 0);
+        scene.add(contactWire1);
 
+        // 右側軌道上空電線
         const mainWire2 = new THREE.Mesh(wireGeo, wireMat);
-        mainWire2.position.set(1.0, 6.1, 0);
+        mainWire2.position.set(1.6, 6.2, 0);
         scene.add(mainWire2);
 
         const contactWire2 = new THREE.Mesh(wireGeo, wireMat);
-        contactWire2.position.set(1.0, 4.9, 0);
+        contactWire2.position.set(1.6, 5.0, 0);
         scene.add(contactWire2);
 
         // 9. 渲染迴圈
