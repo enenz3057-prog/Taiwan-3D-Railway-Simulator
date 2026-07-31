@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="__1kAC5hQYxQmy1DhMZvTPq0wvNsREk-6Ke8dhu5Sok" />
-    <title>鐵道基礎架設 - 中台鐵路</title>
+    <title>3D 鐵道基礎架設 - 中台鐵路</title>
     <style>
         body {
             background-color: #1a1a1a;
@@ -13,82 +13,150 @@
             text-align: center;
             margin: 0;
             padding: 20px;
+            overflow: hidden; /* 防止頁面出現捲軸 */
         }
         h1 {
             color: #ffcc00;
             font-size: 22px;
-        }
-        .track-container {
-            width: 100%;
-            max-width: 500px;
-            height: 300px;
-            background: #2b2b2b;
-            margin: 20px auto;
-            position: relative;
-            overflow: hidden;
-            border-radius: 8px;
-            border: 2px solid #444;
-        }
-        /* 道床（碎石底座） */
-        .ballast {
             position: absolute;
-            width: 70%;
-            height: 100%;
-            left: 15%;
-            background: #3d3d3d;
-            border-left: 4px dashed #222;
-            border-right: 4px dashed #222;
+            top: 10px;
+            left: 20px;
+            z-index: 10;
+            pointer-events: none; /* 讓點擊穿透到 3D 場景 */
         }
-        /* 枕木 */
-        .sleeper {
-            position: absolute;
-            width: 100%;
-            height: 12px;
-            background: #5c4033; /* 木頭色或深水泥色 */
-            left: 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
-        /* 鋼軌（左右兩條） */
-        .rail-left, .rail-right {
+        #canvas-container {
             position: absolute;
             top: 0;
-            width: 6px;
-            height: 100%;
-            background: #silver;
-            background: linear-gradient(to right, #888, #ccc, #666);
-            z-index: 2;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
         }
-        .rail-left { left: 28%; }
-        .rail-right { right: 28%; }
-
         .info {
-            margin-top: 15px;
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
             font-size: 14px;
             color: #aaa;
+            z-index: 10;
+            pointer-events: none;
         }
     </style>
+    <!-- 1. 引入 Three.js 函式庫 (使用 cdnjs) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- 引入 OrbitControls 函式庫，用於滑鼠控制視角 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
 
-    <h1>中台鐵路 - 標準軌道區段</h1>
+    <h1>中台鐵路 - 3D 標準軌道區段</h1>
     
-    <div class="track-container">
-        <!-- 碎石道床 -->
-        <div class="ballast">
-            <!-- 鋼軌 -->
-            <div class="rail-left"></div>
-            <div class="rail-right"></div>
-            
-            <!-- 枕木群（用程式或手動排列模擬） -->
-            <div class="sleeper" style="top: 10%;"></div>
-            <div class="sleeper" style="top: 30%;"></div>
-            <div class="sleeper" style="top: 50%;"></div>
-            <div class="sleeper" style="top: 70%;"></div>
-            <div class="sleeper" style="top: 90%;"></div>
-        </div>
-    </div>
+    <!-- 3D 場景將顯示在這個容器中 -->
+    <div id="canvas-container"></div>
 
-    <div class="info">軌距設定：1067mm 臺鐵特有窄軌規格</div>
+    <div class="info">軌距設定：1067mm 臺鐵特有窄軌規格 | 滑鼠左鍵旋轉、右鍵平移、滾輪縮放</div>
 
+    <script>
+        // --- 初始化 Three.js 場景 ---
+
+        // 2. 建立場景
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a); // 設置背景色與 CSS 一致
+
+        // 3. 建立相機 (PerspectiveCamera: 透視相機)
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 5, 10); // 設置相機位置 (x, y, z)
+        camera.lookAt(0, 0, 0); // 相機看向場景中心
+
+        // 4. 建立渲染器 (WebGLRenderer)
+        const renderer = new THREE.WebGLRenderer({ antialias: true }); // 開啟反鋸齒
+        renderer.setSize(window.innerWidth, window.innerHeight); // 設置渲染器大小
+        renderer.shadowMap.enabled = true; // 開啟陰影效果
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // 設置陰影柔和度
+        document.getElementById('canvas-container').appendChild(renderer.domElement); // 將 canvas 加入 DOM
+
+        // 5. 建立控制器 (OrbitControls) - 讓使用者可以用滑鼠控制視角
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // 開啟阻尼效果 (讓移動更順滑)
+        controls.dampingFactor = 0.05;
+
+        // --- 建立 3D 物件 (幾何體與材質) ---
+
+        // (A) 碎石道床 (Ballast) - 使用一個扁平的長方體
+        const ballastGeometry = new THREE.BoxGeometry(5, 0.5, 50); // 長, 寬, 高
+        const ballastMaterial = new THREE.MeshStandardMaterial({ color: 0x3d3d3d }); // 深灰色材質
+        const ballast = new THREE.Mesh(ballastGeometry, ballastMaterial);
+        ballast.position.y = -0.25; // 調整道床位置
+        ballast.receiveShadow = true; // 道床接收陰影
+        scene.add(ballast);
+
+        // (B) 鋼軌 (Rail) - 使用兩個較高的長方體
+        const railGeometry = new THREE.BoxGeometry(0.2, 0.4, 50); // 長, 寬, 高
+        const railMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 }); // 金屬銀色材質
+        const railLeft = new THREE.Mesh(railGeometry, railMaterial);
+        const railRight = new THREE.Mesh(railGeometry, railMaterial);
+        railLeft.position.set(-1.067 / 2, 0.2, 0); // 設置左鋼軌位置 (x, y, z)
+        railRight.position.set(1.067 / 2, 0.2, 0); // 設置右鋼軌位置 (x, y, z)
+        railLeft.castShadow = true; // 鋼軌產生陰影
+        railRight.castShadow = true;
+        scene.add(railLeft, railRight);
+
+        // (C) 枕木 (Sleeper) - 使用迴圈建立多個立體枕木
+        const sleeperGeometry = new THREE.BoxGeometry(2.6, 0.2, 0.5); // 長, 寬, 高 (寬度對應 1067mm)
+        const sleeperMaterial = new THREE.MeshStandardMaterial({ color: 0x5c4033 }); // 深棕色材質
+        const sleeperCount = 70; // 枕木數量
+        const sleeperSpacing = 0.7; // 枕木間距
+        for (let i = 0; i < sleeperCount; i++) {
+            const sleeper = new THREE.Mesh(sleeperGeometry, sleeperMaterial);
+            sleeper.position.set(0, -0.05, (i - (sleeperCount / 2)) * sleeperSpacing); // 調整位置，使其沿著 Z 軸排列
+            sleeper.receiveShadow = true; // 枕木接收陰影
+            sleeper.castShadow = true; // 枕木產生陰影
+            scene.add(sleeper);
+        }
+
+        // --- 建立燈光 ---
+
+        // 7. 建立環境光 (AmbientLight) - 提供整體基礎亮度
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // 顏色, 強度
+        scene.add(ambientLight);
+
+        // 8. 建立平行光 (DirectionalLight) - 模擬陽光，產生陰影
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 10, 7); // 設置光源位置
+        dirLight.castShadow = true; // 開啟此光源的陰影生成
+        // 設置陰影解析度
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        // 設置陰影產生的範圍
+        const d = 20;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        scene.add(dirLight);
+        
+        // (可選) 加入輔助線，幫助我們定位
+        // const axesHelper = new THREE.AxesHelper( 5 );
+        // scene.add( axesHelper );
+
+        // --- 建立動畫迴圈 ---
+        function animate() {
+            requestAnimationFrame(animate); // 請求瀏覽器在下一幀呼叫 animate 函數
+
+            controls.update(); // 更新控制器 (對於阻尼效果是必須的)
+
+            // 渲染場景
+            renderer.render(scene, camera);
+        }
+        animate(); // 啟動動畫迴圈
+
+        // 處理視窗大小改變
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+    </script>
 </body>
 </html>
