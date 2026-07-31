@@ -308,13 +308,68 @@
             scene.add(createCatenaryPole(z));
         }
 
-        // 10. 動態生成列車與開動功能
+        // 10. 高擬真臺鐵列車模型建構
         let activeTrain = null;
         let isMoving = false;
 
         function toggleTrainMenu() {
             const menu = document.getElementById('train-menu');
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // 建立精緻單節車廂（包含流線車頭、駕駛窗、車門與轉向架底盤）
+        function createCar(isHead, bodyColor, stripeColor, isFrontDirection) {
+            const carGroup = new THREE.Group();
+
+            const trainMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.2 });
+            const stripeMat = new THREE.MeshStandardMaterial({ color: stripeColor, roughness: 0.3 });
+            const windowMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
+            const windshieldMat = new THREE.MeshStandardMaterial({ color: 0x112233, roughness: 0.1, metalness: 0.8 });
+            const underframeMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+
+            const carLength = 18;
+
+            // 車底機械設備與轉向架（輪子）
+            const underframe = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.5, carLength - 2), underframeMat);
+            underframe.position.y = 0.25;
+            carGroup.add(underframe);
+
+            // 車體主身
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.7, 2.6, carLength), trainMat);
+            body.position.y = 1.8;
+            body.castShadow = true;
+            carGroup.add(body);
+
+            // 側邊腰線/飾帶
+            const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.74, 0.35, carLength), stripeMat);
+            stripe.position.y = 1.9;
+            carGroup.add(stripe);
+
+            // 側邊乘客車窗
+            const windows = new THREE.Mesh(new THREE.BoxGeometry(2.76, 1.0, carLength - 5), windowMat);
+            windows.position.y = 2.1;
+            carGroup.add(windows);
+
+            // 如果是車頭，加上流線駕駛艙與擋風玻璃
+            if (isHead) {
+                const noseLength = 2.5;
+                const zOffset = isFrontDirection ? (carLength / 2 + noseLength / 2) : (-carLength / 2 - noseLength / 2);
+                
+                // 流線車頭鼻錐
+                const noseGeo = new THREE.BoxGeometry(2.7, 2.4, noseLength);
+                const nose = new THREE.Mesh(noseGeo, trainMat);
+                nose.position.set(0, 1.8, zOffset);
+                carGroup.add(nose);
+
+                // 駕駛室大擋風玻璃
+                const windshield = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.9, 0.1), windshieldMat);
+                const glassZ = isFrontDirection ? (carLength / 2 + noseLength + 0.02) : (-carLength / 2 - noseLength - 0.02);
+                windshield.position.set(0, 2.2, glassZ);
+                if (!isFrontDirection) windshield.rotation.y = Math.PI;
+                carGroup.add(windshield);
+            }
+
+            return carGroup;
         }
 
         function spawnTrain(type) {
@@ -327,44 +382,33 @@
             let stripeColor = 0xffcc00; 
 
             if (type === 'EMU500') {
-                bodyColor = 0x003399; 
-                stripeColor = 0xffcc00; 
+                bodyColor = 0x003399; // 經典藍
+                stripeColor = 0xffcc00; // 黃線
             } else if (type === 'EMU900') {
-                bodyColor = 0xdddddd; 
-                stripeColor = 0x00aa88; 
+                bodyColor = 0xe8e8e8; // 現代銀白
+                stripeColor = 0x00aa88; // 墨綠/青色飾帶
             } else if (type === 'PPEMU') {
-                bodyColor = 0xee3322; 
-                stripeColor = 0xffffff;
+                bodyColor = 0xdd2222; // 自強號紅
+                stripeColor = 0xffffff; // 白線
             }
 
-            const trainMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.4 });
-            const stripeMat = new THREE.MeshStandardMaterial({ color: stripeColor });
-            const windowMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
+            // 編組：4節車廂（首尾為車頭帶駕駛艙）
+            const totalCars = 4;
+            const carSpacing = 18.5;
 
-            const carLength = 18;
-            for (let i = 0; i < 4; i++) {
-                const carGroup = new THREE.Group();
+            for (let i = 0; i < totalCars; i++) {
+                const isHead = (i === 0 || i === totalCars - 1);
+                // i === 0 是最前端車頭（面向前方），i === 3 是尾端車頭
+                const isFrontDirection = (i === 0); 
                 
-                const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.2, carLength), trainMat);
-                body.position.y = 1.6;
-                body.castShadow = true;
-                carGroup.add(body);
-
-                const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.84, 0.4, carLength), stripeMat);
-                stripe.position.y = 1.8;
-                carGroup.add(stripe);
-
-                const windows = new THREE.Mesh(new THREE.BoxGeometry(2.86, 1.2, carLength - 4), windowMat);
-                windows.position.y = 2.0;
-                carGroup.add(windows);
-
-                carGroup.position.set(-trackOffset, 0, (i - 1.5) * (carLength + 0.5));
-                activeTrain.add(carGroup);
+                const car = createCar(isHead, bodyColor, stripeColor, isFrontDirection);
+                car.position.set(-trackOffset, 0, (i - 1.5) * carSpacing);
+                activeTrain.add(car);
             }
 
             scene.add(activeTrain);
             document.getElementById('train-menu').style.display = 'none';
-            isMoving = false; // 重新生成時預設停止
+            isMoving = false; 
             document.getElementById('drive-btn').innerText = "發車開動";
         }
 
@@ -382,12 +426,10 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // 如果有發車，讓列車向前行駛
             if (activeTrain && isMoving) {
-                activeTrain.position.z -= 0.3; // 調整行駛速度
-                // 超出邊界後循環回到後方
-                if (activeTrain.position.z < -120) {
-                    activeTrain.position.z = 120;
+                activeTrain.position.z -= 0.35; 
+                if (activeTrain.position.z < -130) {
+                    activeTrain.position.z = 130;
                 }
             }
 
