@@ -26,12 +26,16 @@
             pointer-events: none;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         }
-        .join-btn {
+        .top-btns {
             position: absolute;
             top: 12px;
             right: 20px;
             z-index: 20;
-            background-color: #5865F2;
+            display: flex;
+            gap: 10px;
+        }
+        .action-btn {
+            background-color: #2ecc71;
             color: #fff;
             padding: 6px 14px;
             font-size: 12px;
@@ -43,8 +47,49 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
             transition: background-color 0.2s;
         }
+        .action-btn:hover {
+            background-color: #27ae60;
+        }
+        .join-btn {
+            background-color: #5865F2;
+        }
         .join-btn:hover {
             background-color: #4752C4;
+        }
+        /* 車輛生成選單面板 */
+        #train-menu {
+            position: absolute;
+            top: 60px;
+            right: 120px;
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid #555;
+            border-radius: 6px;
+            padding: 10px;
+            display: none;
+            z-index: 30;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            text-align: left;
+        }
+        #train-menu h3 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #ffcc00;
+        }
+        #train-menu button {
+            display: block;
+            width: 100%;
+            background: #444;
+            color: #fff;
+            border: none;
+            padding: 6px 10px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            text-align: left;
+        }
+        #train-menu button:hover {
+            background: #555;
         }
         #canvas-container {
             position: absolute;
@@ -70,7 +115,19 @@
 <body>
 
     <h1>台灣3D鐵路模擬器</h1>
-    <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
+    <div class="top-btns">
+        <button class="action-btn" id="spawn-btn" onclick="toggleTrainMenu()">生成車輛</button>
+        <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="action-btn join-btn">加入會員</a>
+    </div>
+
+    <!-- 列車選擇清單 -->
+    <div id="train-menu">
+        <h3>選擇要生成的列車</h3>
+        <button onclick="spawnTrain('EMU500')">區間車 EMU500</button>
+        <button onclick="spawnTrain('EMU900')">新自強號 / 區間車 EMU900</button>
+        <button onclick="spawnTrain('PPEMU')">推拉式自強號 (PP車)</button>
+    </div>
+
     <div id="canvas-container"></div>
     <div class="info">場景：臺鐵高架車站（歸來站視角） | 模擬引擎：Three.js</div>
 
@@ -201,10 +258,10 @@
             scene.add(createPlatformLamp(z));
         }
 
-        // 9. 精準對照照片修正的臺鐵懸臂式電線桿模組
+        // 9. 電線桿模組
         const poleMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.6 }); 
         const armMat = new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.7, roughness: 0.3 }); 
-        const insMat = new THREE.MeshStandardMaterial({ color: 0x3d1f0d, roughness: 0.4 }); // 深咖啡色絕緣子
+        const insMat = new THREE.MeshStandardMaterial({ color: 0x3d1f0d, roughness: 0.4 }); 
 
         function createCylinderBetween(p1, p2, radius, material) {
             const distance = p1.distanceTo(p2);
@@ -217,30 +274,24 @@
 
         function createCatenaryPole(zPos) {
             const group = new THREE.Group();
-            const poleX = 4.2; // 豎立在月台邊緣
-            
-            // 主白色鋼管柱（帶有箍帶環節感）
-            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 8.5, 16), poleMat);
-            pole.position.set(poleX, 4.25, 0);
+            const poleX = 6.8; 
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 9.0, 16), poleMat);
+            pole.position.set(poleX, 4.5, 0);
             pole.castShadow = true;
             group.add(pole);
 
-            // 1. 上方水平橫臂（從柱頂延伸向軌道上方）
-            const pTopMast = new THREE.Vector3(poleX - 0.2, 7.3, 0);
-            const pTopTip = new THREE.Vector3(0.5, 7.3, 0);
+            const pTopMast = new THREE.Vector3(poleX - 0.2, 7.8, 0);
+            const pTopTip = new THREE.Vector3(1.6, 7.8, 0);
             group.add(createCylinderBetween(pTopMast, pTopTip, 0.04, armMat));
 
-            // 2. 照片中最明顯的「大斜拉支架」（從柱子中上方斜向上連接到橫臂前端）
-            const pMidMast = new THREE.Vector3(poleX - 0.2, 5.2, 0);
+            const pMidMast = new THREE.Vector3(poleX - 0.2, 5.8, 0);
             group.add(createCylinderBetween(pMidMast, pTopTip, 0.035, armMat));
 
-            // 3. 懸臂與橫向絕緣子串（模擬照片中橫跨在電線支架中間的咖啡色絕緣子）
-            const pInsStart = new THREE.Vector3(poleX - 1.8, 5.8, 0);
-            const pInsEnd = new THREE.Vector3(poleX - 2.8, 6.4, 0);
-            
-            group.add(createCylinderBetween(new THREE.Vector3(poleX - 0.2, 4.5, 0), pInsStart, 0.03, armMat));
-            group.add(createCylinderBetween(pInsStart, pInsEnd, 0.07, insMat)); // 咖啡色絕緣子本體
-            group.add(createCylinderBetween(pInsEnd, new THREE.Vector3(0.8, 6.8, 0), 0.03, armMat));
+            const pInsStart = new THREE.Vector3(poleX - 2.2, 6.4, 0);
+            const pInsEnd = new THREE.Vector3(poleX - 3.5, 7.0, 0);
+            group.add(createCylinderBetween(new THREE.Vector3(poleX - 0.2, 5.0, 0), pInsStart, 0.03, armMat));
+            group.add(createCylinderBetween(pInsStart, pInsEnd, 0.07, insMat)); 
+            group.add(createCylinderBetween(pInsEnd, new THREE.Vector3(1.8, 7.4, 0), 0.03, armMat));
 
             group.position.set(0, 0, zPos);
             return group;
@@ -250,7 +301,69 @@
             scene.add(createCatenaryPole(z));
         }
 
-        // 10. 動畫迴圈
+        // 10. 動態生成列車功能
+        let activeTrain = null;
+
+        function toggleTrainMenu() {
+            const menu = document.getElementById('train-menu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function spawnTrain(type) {
+            // 如果場景中已經有列車先移除
+            if (activeTrain) {
+                scene.remove(activeTrain);
+            }
+
+            activeTrain = new THREE.Group();
+            let bodyColor = 0x0055aa; // 預設藍色
+            let stripeColor = 0xffffff;
+
+            if (type === 'EMU500') {
+                bodyColor = 0x003399; // 經典藍色區間車
+                stripeColor = 0xffcc00; // 黃線
+            } else if (type === 'EMU900') {
+                bodyColor = 0xdddddd; // 銀色車體
+                stripeColor = 0x00aa88; // 綠色飾帶
+            } else if (type === 'PPEMU') {
+                bodyColor = 0xee3322; // 自強號紅色
+                stripeColor = 0xffffff;
+            }
+
+            const trainMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.4 });
+            const stripeMat = new THREE.MeshStandardMaterial({ color: stripeColor });
+            const windowMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
+
+            // 建立幾節車廂
+            const carLength = 18;
+            for (let i = 0; i < 4; i++) {
+                const carGroup = new THREE.Group();
+                
+                // 車體主身
+                const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.2, carLength), trainMat);
+                body.position.y = 1.6;
+                body.castShadow = true;
+                carGroup.add(body);
+
+                // 側邊飾帶
+                const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.84, 0.4, carLength), stripeMat);
+                stripe.position.y = 1.8;
+                carGroup.add(stripe);
+
+                // 車窗
+                const windows = new THREE.Mesh(new THREE.BoxGeometry(2.86, 1.2, carLength - 4), windowMat);
+                windows.position.y = 2.0;
+                carGroup.add(windows);
+
+                carGroup.position.set(-trackOffset, 0, (i - 1.5) * (carLength + 0.5));
+                activeTrain.add(carGroup);
+            }
+
+            scene.add(activeTrain);
+            document.getElementById('train-menu').style.display = 'none';
+        }
+
+        // 11. 動畫迴圈
         function animate() {
             requestAnimationFrame(animate);
             renderer.render(scene, camera);
