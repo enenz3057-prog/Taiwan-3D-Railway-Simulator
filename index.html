@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="__1kAC5hQYxQmy1DhMZvTPq0wvNsREk-6Ke8dhu5Sok" />
-    <title>台灣3D鐵路模擬器 - 修正電桿版</title>
+    <title>台灣3D鐵路模擬器 - 經典門型電桿版</title>
     <style>
         body {
             background-color: #557799;
@@ -73,7 +73,7 @@
     <h1>台灣3D鐵路模擬器</h1>
     <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
     <div id="canvas-container"></div>
-    <div class="info">軌距設定：1067mm 臺鐵電車線結構成型版</div>
+    <div class="info">軌距設定：1067mm 臺鐵雙線門型電桿實景版</div>
 
     <script>
         // 1. 建立場景
@@ -194,35 +194,35 @@
             scene.add(s2);
         }
 
-        // 8. 【嚴格對齊的標準台鐵電車線桿與懸臂】
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.7 });
-        const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.3 });
+        // 8. 【左右對稱、整齊美觀的標準門型電桿與橫樑】
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.7 }); // 水泥柱
+        const beamMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.7, roughness: 0.3 }); // 金屬橫樑
         const wireMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
 
         const poleInterval = 15; 
         for (let z = -75; z <= 75; z += poleInterval) {
-            const group = new THREE.Group();
+            const poleGroup = new THREE.Group();
 
-            // 右側主水泥電桿
-            const pole = new THREE.Mesh(new THREE.BoxGeometry(0.4, 7.5, 0.4), poleMat);
-            pole.position.set(4.5, 3.75, 0);
-            pole.castShadow = true;
-            group.add(pole);
+            // 左側水泥柱
+            const leftPole = new THREE.Mesh(new THREE.BoxGeometry(0.4, 7.5, 0.4), poleMat);
+            leftPole.position.set(-4.5, 3.75, 0);
+            leftPole.castShadow = true;
+            poleGroup.add(leftPole);
 
-            // 水平懸臂（向左延伸）
-            const horiz = new THREE.Mesh(new THREE.BoxGeometry(9.0, 0.15, 0.15), armMat);
-            horiz.position.set(0, 6.0, 0);
-            horiz.castSession = true;
-            group.add(horiz);
+            // 右側水泥柱
+            const rightPole = new THREE.Mesh(new THREE.BoxGeometry(0.4, 7.5, 0.4), poleMat);
+            rightPole.position.set(4.5, 3.75, 0);
+            rightPole.castShadow = true;
+            poleGroup.add(rightPole);
 
-            // 斜拉支撐桿（連接電桿高處與水平懸臂）
-            const diag = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.12, 0.12), armMat);
-            diag.rotation.z = Math.PI / 5;
-            diag.position.set(2.2, 5.2, 0);
-            group.add(diag);
+            // 橫跨兩側上方的水平大樑（門型結構）
+            const crossBeam = new THREE.Mesh(new THREE.BoxGeometry(9.4, 0.25, 0.25), beamMat);
+            crossBeam.position.set(0, 7.3, 0);
+            crossBeam.castShadow = true;
+            poleGroup.add(crossBeam);
 
-            group.position.set(0, 0, z);
-            scene.add(group);
+            poleGroup.position.set(0, 0, z);
+            scene.add(poleGroup);
         }
 
         // 貫穿遠方的架空電車線
