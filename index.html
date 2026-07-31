@@ -50,6 +50,12 @@
         .action-btn:hover {
             background-color: #27ae60;
         }
+        .drive-btn {
+            background-color: #e67e22;
+        }
+        .drive-btn:hover {
+            background-color: #d35400;
+        }
         .join-btn {
             background-color: #5865F2;
         }
@@ -60,7 +66,7 @@
         #train-menu {
             position: absolute;
             top: 60px;
-            right: 120px;
+            right: 180px;
             background: rgba(30, 30, 30, 0.9);
             border: 1px solid #555;
             border-radius: 6px;
@@ -117,6 +123,7 @@
     <h1>台灣3D鐵路模擬器</h1>
     <div class="top-btns">
         <button class="action-btn" id="spawn-btn" onclick="toggleTrainMenu()">生成車輛</button>
+        <button class="action-btn drive-btn" id="drive-btn" onclick="toggleDrive()">發車開動</button>
         <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="action-btn join-btn">加入會員</a>
     </div>
 
@@ -301,8 +308,9 @@
             scene.add(createCatenaryPole(z));
         }
 
-        // 10. 動態生成列車功能
+        // 10. 動態生成列車與開動功能
         let activeTrain = null;
+        let isMoving = false;
 
         function toggleTrainMenu() {
             const menu = document.getElementById('train-menu');
@@ -310,23 +318,22 @@
         }
 
         function spawnTrain(type) {
-            // 如果場景中已經有列車先移除
             if (activeTrain) {
                 scene.remove(activeTrain);
             }
 
             activeTrain = new THREE.Group();
-            let bodyColor = 0x0055aa; // 預設藍色
-            let stripeColor = 0xffffff;
+            let bodyColor = 0x003399; 
+            let stripeColor = 0xffcc00; 
 
             if (type === 'EMU500') {
-                bodyColor = 0x003399; // 經典藍色區間車
-                stripeColor = 0xffcc00; // 黃線
+                bodyColor = 0x003399; 
+                stripeColor = 0xffcc00; 
             } else if (type === 'EMU900') {
-                bodyColor = 0xdddddd; // 銀色車體
-                stripeColor = 0x00aa88; // 綠色飾帶
+                bodyColor = 0xdddddd; 
+                stripeColor = 0x00aa88; 
             } else if (type === 'PPEMU') {
-                bodyColor = 0xee3322; // 自強號紅色
+                bodyColor = 0xee3322; 
                 stripeColor = 0xffffff;
             }
 
@@ -334,23 +341,19 @@
             const stripeMat = new THREE.MeshStandardMaterial({ color: stripeColor });
             const windowMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
 
-            // 建立幾節車廂
             const carLength = 18;
             for (let i = 0; i < 4; i++) {
                 const carGroup = new THREE.Group();
                 
-                // 車體主身
                 const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.2, carLength), trainMat);
                 body.position.y = 1.6;
                 body.castShadow = true;
                 carGroup.add(body);
 
-                // 側邊飾帶
                 const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.84, 0.4, carLength), stripeMat);
                 stripe.position.y = 1.8;
                 carGroup.add(stripe);
 
-                // 車窗
                 const windows = new THREE.Mesh(new THREE.BoxGeometry(2.86, 1.2, carLength - 4), windowMat);
                 windows.position.y = 2.0;
                 carGroup.add(windows);
@@ -361,11 +364,33 @@
 
             scene.add(activeTrain);
             document.getElementById('train-menu').style.display = 'none';
+            isMoving = false; // 重新生成時預設停止
+            document.getElementById('drive-btn').innerText = "發車開動";
+        }
+
+        function toggleDrive() {
+            if (!activeTrain) {
+                alert("請先點擊「生成車輛」選擇列車！");
+                return;
+            }
+            isMoving = !isMoving;
+            const btn = document.getElementById('drive-btn');
+            btn.innerText = isMoving ? "煞車停靠" : "發車開動";
         }
 
         // 11. 動畫迴圈
         function animate() {
             requestAnimationFrame(animate);
+
+            // 如果有發車，讓列車向前行駛
+            if (activeTrain && isMoving) {
+                activeTrain.position.z -= 0.3; // 調整行駛速度
+                // 超出邊界後循環回到後方
+                if (activeTrain.position.z < -120) {
+                    activeTrain.position.z = 120;
+                }
+            }
+
             renderer.render(scene, camera);
         }
         animate();
