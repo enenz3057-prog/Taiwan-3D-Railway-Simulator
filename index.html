@@ -77,10 +77,10 @@
     <script>
         // 1. 建立場景
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x4a7a9d); // 更真實的晴空藍
+        scene.background = new THREE.Color(0x4a7a9d); 
         scene.fog = new THREE.FogExp2(0x4a7a9d, 0.008); 
 
-        // 2. 建立相機（完美對齊照片中月台上的視角）
+        // 2. 建立相機
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(2.2, 1.7, 8.0); 
         camera.lookAt(2.2, 1.7, -20); 
@@ -153,34 +153,31 @@
         }
 
         // 6. 高架車站月台與黃色導盲磚
-        const platformMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.8 }); // 淺灰色水泥月台面
+        const platformMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.8 }); 
         const platform = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.8, 140), platformMat);
         platform.position.set(4.5, -0.4, 0);
         platform.castShadow = true; platform.receiveShadow = true;
         scene.add(platform);
 
-        // 黃色導盲磚列
         const tileMat = new THREE.MeshStandardMaterial({ color: 0xd4a017, roughness: 0.6 });
         const tactileTile = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.82, 140), tileMat);
         tactileTile.position.set(2.05, -0.38, 0);
         scene.add(tactileTile);
 
-        // 月台外側白色護欄牆
         const wallMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.9 });
         const platformWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.4, 140), wallMat);
         platformWall.position.set(7.1, 0.3, 0);
         platformWall.castShadow = true;
         scene.add(platformWall);
 
-        // 7. 照片中的歸來車站綠色站名牌
+        // 7. 歸來車站綠色站名牌
         const signGroup = new THREE.Group();
         const postMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
         const post1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.08), postMat); post1.position.set(-0.6, 0.5, 0);
         const post2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.08), postMat); post2.position.set(0.6, 0.5, 0);
         
-        // 製作綠白相間站名牌板子
         const boardGeo = new THREE.BoxGeometry(1.4, 0.8, 0.05);
-        const boardMat = new THREE.MeshStandardMaterial({ color: 0x006633 }); // 臺鐵特有綠色
+        const boardMat = new THREE.MeshStandardMaterial({ color: 0x006633 }); 
         const signBoard = new THREE.Mesh(boardGeo, boardMat);
         signBoard.position.set(0, 1.2, 0);
         signGroup.add(post1, post2, signBoard);
@@ -188,17 +185,14 @@
         signGroup.rotation.y = -0.3;
         scene.add(signGroup);
 
-        // 8. 照片中的月台燈柱
+        // 8. 月台燈柱
         function createPlatformLamp(zPos) {
             const lampGroup = new THREE.Group();
             const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.5, 12), postMat);
             pole.position.y = 1.75;
-            
-            // 紅色燈罩基座與燈頭
             const capMat = new THREE.MeshStandardMaterial({ color: 0xcc2222 });
             const cap = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.2, 16), capMat);
             cap.position.y = 3.5;
-            
             lampGroup.add(pole, cap);
             lampGroup.position.set(3.2, 0, zPos);
             return lampGroup;
@@ -207,14 +201,14 @@
             scene.add(createPlatformLamp(z));
         }
 
-        // 9. 完全對照照片的精緻懸臂式電線桿模組
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.7 }); 
-        const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); 
-        const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); // 咖啡色絕緣子
+        // 9. 精準對照照片修正的臺鐵懸臂式電線桿模組
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.6 }); 
+        const armMat = new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.7, roughness: 0.3 }); 
+        const insMat = new THREE.MeshStandardMaterial({ color: 0x3d1f0d, roughness: 0.4 }); // 深咖啡色絕緣子
 
         function createCylinderBetween(p1, p2, radius, material) {
             const distance = p1.distanceTo(p2);
-            const geometry = new THREE.CylinderGeometry(radius, radius, distance, 8);
+            const geometry = new THREE.CylinderGeometry(radius, radius, distance, 10);
             const mesh = new THREE.Mesh(geometry, material);
             mesh.position.copy(new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5));
             mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(p2, p1).normalize());
@@ -223,41 +217,35 @@
 
         function createCatenaryPole(zPos) {
             const group = new THREE.Group();
-            const poleX = 4.2; // 立在月台右側邊緣
-            const wireTargetX = 1.6; 
-
-            // 主白色鋼管柱（帶有擬真高度）
-            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 8.5, 16), poleMat);
+            const poleX = 4.2; // 豎立在月台邊緣
+            
+            // 主白色鋼管柱（帶有箍帶環節感）
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 8.5, 16), poleMat);
             pole.position.set(poleX, 4.25, 0);
             pole.castShadow = true;
             group.add(pole);
 
-            // 上方橫臂
-            const pTop = new THREE.Vector3(poleX - 0.2, 7.2, 0);   
-            const pMid = new THREE.Vector3(poleX - 0.2, 5.0, 0);   
-            const pEnd = new THREE.Vector3(wireTargetX, 7.2, 0);       
-            group.add(createCylinderBetween(pTop, pEnd, 0.045, armMat));
+            // 1. 上方水平橫臂（從柱頂延伸向軌道上方）
+            const pTopMast = new THREE.Vector3(poleX - 0.2, 7.3, 0);
+            const pTopTip = new THREE.Vector3(0.5, 7.3, 0);
+            group.add(createCylinderBetween(pTopMast, pTopTip, 0.04, armMat));
 
-            // 斜拉固定支架
-            group.add(createCylinderBetween(new THREE.Vector3(poleX - 0.2, 6.5, 0), new THREE.Vector3(poleX - 1.8, 7.2, 0), 0.03, armMat));
+            // 2. 照片中最明顯的「大斜拉支架」（從柱子中上方斜向上連接到橫臂前端）
+            const pMidMast = new THREE.Vector3(poleX - 0.2, 5.2, 0);
+            group.add(createCylinderBetween(pMidMast, pTopTip, 0.035, armMat));
 
-            // 咖啡色絕緣子與懸臂組合
-            const pInsStart = new THREE.Vector3(poleX - 1.4, 5.7, 0);
-            const pInsEnd = new THREE.Vector3(poleX - 2.1, 6.1, 0);
-            const pSlantEnd = new THREE.Vector3(wireTargetX - 0.1, 6.8, 0);
-
-            group.add(createCylinderBetween(pMid, pInsStart, 0.035, armMat));
-            group.add(createCylinderBetween(pInsStart, pInsEnd, 0.065, insMat)); // 咖啡色絕緣子
-            group.add(createCylinderBetween(pInsEnd, pSlantEnd, 0.035, armMat));
-
-            // 垂直吊線支架
-            group.add(createCylinderBetween(pEnd, new THREE.Vector3(wireTargetX, 5.5, 0), 0.025, armMat));
+            // 3. 懸臂與橫向絕緣子串（模擬照片中橫跨在電線支架中間的咖啡色絕緣子）
+            const pInsStart = new THREE.Vector3(poleX - 1.8, 5.8, 0);
+            const pInsEnd = new THREE.Vector3(poleX - 2.8, 6.4, 0);
+            
+            group.add(createCylinderBetween(new THREE.Vector3(poleX - 0.2, 4.5, 0), pInsStart, 0.03, armMat));
+            group.add(createCylinderBetween(pInsStart, pInsEnd, 0.07, insMat)); // 咖啡色絕緣子本體
+            group.add(createCylinderBetween(pInsEnd, new THREE.Vector3(0.8, 6.8, 0), 0.03, armMat));
 
             group.position.set(0, 0, zPos);
             return group;
         }
 
-        // 在右側依序生成電線桿
         for (let z = -100; z <= 100; z += 18) {
             scene.add(createCatenaryPole(z));
         }
@@ -269,7 +257,6 @@
         }
         animate();
 
-        // 視窗自動適應
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
