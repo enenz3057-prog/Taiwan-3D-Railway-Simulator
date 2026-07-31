@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - 標準水平斜撐懸臂版</title>
+    <title>台灣3D鐵路模擬器 - 臺鐵標準懸臂完全對齊版</title>
     <style>
         body {
             background-color: #557799;
@@ -72,7 +72,7 @@
     <h1>台灣3D鐵路模擬器</h1>
     <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
     <div id="canvas-container"></div>
-    <div class="info">軌距設定：1067mm 臺鐵標準懸臂結構版</div>
+    <div class="info">軌距設定：1067mm 臺鐵標準懸臂完全對齊版</div>
 
     <script>
         // 1. 建立場景
@@ -193,7 +193,7 @@
             scene.add(s2);
         }
 
-        // 8. 【依最新照片修正：上水平、下斜托的標準懸臂系統】
+        // 8. 【完美修正方向與對稱的臺鐵標準懸臂系統】
         const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.7 }); 
         const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); 
         const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); 
@@ -214,9 +214,10 @@
         for (let z = -75; z <= 75; z += poleInterval) {
             const group = new THREE.Group();
             
+            // side = 1 代表右側電桿（往左伸），side = -1 代表左側電桿（往右伸）
             const side = (index % 2 === 0) ? 1 : -1; 
-            const poleX = 3.8 * side;
-            const targetWireX = 1.6 * side;
+            const poleX = 4.2 * side;
+            const wireTargetX = 1.6 * side;
 
             // 主電桿
             const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 8.0, 16), poleMat);
@@ -224,25 +225,27 @@
             pole.castShadow = true;
             group.add(pole);
 
-            // 上絕緣子
+            // 上絕緣子 (靠近電桿內側)
             const topIns = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.5, 12), insMat);
-            topIns.position.set(poleX - (0.3 * side), 6.2, 0);
+            topIns.position.set(poleX - (0.4 * side), 6.2, 0);
             group.add(topIns);
 
-            // 下絕緣子
+            // 下絕緣子 (靠近電桿內側)
             const botIns = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.5, 12), insMat);
-            botIns.position.set(poleX - (0.3 * side), 4.8, 0);
+            botIns.position.set(poleX - (0.4 * side), 4.8, 0);
             group.add(botIns);
 
-            // 座標點定義
-            const pTopIns = new THREE.Vector3(poleX - (0.3 * side), 6.2, 0);
-            const pBotIns = new THREE.Vector3(poleX - (0.3 * side), 4.8, 0);
-            const pTopEnd = new THREE.Vector3(targetWireX, 6.2, 0); // 上懸臂水平延伸
-            const pBotConnect = new THREE.Vector3(targetWireX * 0.6, 5.6, 0); // 下懸臂斜向托起接至上懸臂下方
+            // 座標點精準計算
+            const pTopIns = new THREE.Vector3(poleX - (0.4 * side), 6.2, 0);
+            const pBotIns = new THREE.Vector3(poleX - (0.4 * side), 4.8, 0);
+            
+            // 上懸臂水平延伸至軌道上方
+            const pTopEnd = new THREE.Vector3(wireTargetX, 6.2, 0);
+            // 下懸臂斜向上方托起，接至上懸臂大約 2/3 處
+            const pBotConnect = new THREE.Vector3(poleX - (2.2 * side), 5.7, 0);
 
-            // 上懸臂（水平伸出）
+            // 建立懸臂桿
             const topArm = createCylinderBetween(pTopIns, pTopEnd, 0.05, armMat);
-            // 下懸臂（從下方絕緣子斜向上方托起）
             const botArm = createCylinderBetween(pBotIns, pBotConnect, 0.05, armMat);
             
             group.add(topArm);
