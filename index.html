@@ -1,230 +1,27 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="google-site-verification" content="__1kAC5hQYxQmy1DhMZvTPq0wvNsREk-6Ke8dhu5Sok" />
-    <title>台灣3D鐵路模擬器</title>
-    <style>
-        body {
-            background-color: #557799; /* 模擬照片中多雲的天空背景 */
-            color: #fff;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-        h1 {
-            color: #ffcc00;
-            font-size: 22px;
-            position: absolute;
-            top: 10px;
-            left: 20px;
-            z-index: 10;
-            margin: 0;
-            line-height: 40px;
-            pointer-events: none;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-        }
-        .join-btn {
-            position: absolute;
-            top: 12px;
-            right: 20px;
-            z-index: 20;
-            background-color: #5865F2;
-            color: #fff;
-            padding: 6px 14px;
-            font-size: 12px;
-            font-weight: bold;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-            transition: background-color 0.2s;
-        }
-        .join-btn:hover {
-            background-color: #4752C4;
-        }
-        #canvas-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-        }
-        .info {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            font-size: 14px;
-            color: #ddd;
-            z-index: 10;
-            pointer-events: none;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-        }
-    </style>
-    <!-- 引入 Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-</head>
-<body>
+# 首先，請確保您已經安裝了 OpenCV：
+# pip install opencv-python
 
-    <h1>台灣3D鐵路模擬器</h1>
-    <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
-    <div id="canvas-container"></div>
-    <div class="info">軌距設定：1067mm 臺鐵雙線實景還原版</div>
+import cv2
 
-    <script>
-        // 1. 建立場景 (採用明亮天色與淡淡的霧氣)
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x667788);
-        scene.fog = new THREE.FogExp2(0x667788, 0.015);
+# 定義圖片檔案的路徑 (假設圖片檔名為 image_5.png)
+image_path = 'image_5.png'
 
-        // 2. 建立相機 (模擬站在兩軌之間的完美第一人稱視角)
-        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 1.6, 5); // 站在軌道中央的高度
-        camera.lookAt(0, 1.2, -15);     // 看向前方延伸的雙線鐵道
+# 載入圖片
+# cv2.imread() 函數會讀取圖片，並將其作為一個 NumPy 陣列返回
+img = cv2.imread(image_path)
 
-        // 3. 建立渲染器
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
+# 檢查圖片是否成功載入
+if img is not None:
+    # 顯示圖片視窗
+    # cv2.imshow() 函數會開啟一個視窗顯示圖片
+    cv2.imshow('Railway Track Image', img)
 
-        // 4. 自然光影 (模擬戶外天光)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        scene.add(ambientLight);
+    # 等待使用者按下任意鍵
+    # cv2.waitKey(0) 會暫停程式執行，直到鍵盤事件發生
+    print("按任意鍵關閉圖片視窗...")
+    cv2.waitKey(0)
 
-        const sunLight = new THREE.DirectionalLight(0xffffee, 1.2);
-        sunLight.position.set(10, 20, 10);
-        sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 2048;
-        sunLight.shadow.mapSize.height = 2048;
-        sunLight.shadow.bias = -0.0005;
-        scene.add(sunLight);
-
-        // 5. 【完全立體碎石道床】
-        const stoneGeo = new THREE.DodecahedronGeometry(0.15, 0);
-        const stoneMats = [
-            new THREE.MeshStandardMaterial({ color: 0x6e6a65, roughness: 0.8 }),
-            new THREE.MeshStandardMaterial({ color: 0x524e49, roughness: 0.85 }),
-            new THREE.MeshStandardMaterial({ color: 0x827d76, roughness: 0.75 }),
-            new THREE.MeshStandardMaterial({ color: 0x3d3a36, roughness: 0.9 })
-        ];
-
-        const lengthRows = 220;
-        const widthCols = 24; // 涵蓋雙線寬度
-        
-        for (let r = 0; r < lengthRows; r++) {
-            const zPos = (r - lengthRows / 2) * 0.45;
-            for (let c = 0; c < widthCols; c++) {
-                const xPos = (c - widthCols / 2) * 0.28;
-                if (Math.abs(xPos) < 3.8) {
-                    const mat = stoneMats[Math.floor(Math.random() * stoneMats.length)];
-                    const stone = new THREE.Mesh(stoneGeo, mat);
-                    const yPos = -0.35 + (Math.random() * 0.08);
-                    
-                    stone.position.set(xPos + (Math.random()-0.5)*0.08, yPos, zPos + (Math.random()-0.5)*0.08);
-                    stone.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-                    
-                    const scale = 0.6 + Math.random() * 0.7;
-                    stone.scale.set(scale, scale * 0.6, scale);
-                    
-                    stone.castShadow = true;
-                    stone.receiveShadow = true;
-                    scene.add(stone);
-                }
-            }
-        }
-
-        // 6. 【台鐵擬真鐵鏽色金屬鋼軌】
-        const railMat = new THREE.MeshStandardMaterial({ 
-            color: 0x8c5b3e,       // 帶有古銅鐵鏽色澤
-            metalness: 0.85,       
-            roughness: 0.35,       
-            emissive: 0x221105     
-        });
-
-        function createRail() {
-            const railGroup = new THREE.Group();
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 100), railMat);
-            head.position.y = 0.31;
-            head.castShadow = true;
-            railGroup.add(head);
-
-            const web = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 100), railMat);
-            web.position.y = 0.16;
-            web.castShadow = true;
-            railGroup.add(web);
-
-            const base = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 100), railMat);
-            base.position.y = 0.04;
-            base.castShadow = true;
-            railGroup.add(base);
-
-            return railGroup;
-        }
-
-        // 建立雙線鐵道 (左線與右線，軌距 1067mm = 1.067)
-        const trackOffset = 1.6; // 兩條軌道之間的中心距
-        
-        // 左線雙軌
-        const leftTrackLeft = createRail();
-        leftTrackLeft.position.x = -trackOffset - 1.067/2;
-        scene.add(leftTrackLeft);
-        
-        const leftTrackRight = createRail();
-        leftTrackRight.position.x = -trackOffset + 1.067/2;
-        scene.add(leftTrackRight);
-
-        // 右線雙軌
-        const rightTrackLeft = createRail();
-        rightTrackLeft.position.x = trackOffset - 1.067/2;
-        scene.add(rightTrackLeft);
-        
-        const rightTrackRight = createRail();
-        rightTrackRight.position.x = trackOffset + 1.067/2;
-        scene.add(rightTrackRight);
-
-        // 7. 【台鐵水泥枕木群】
-        const sleeperGeo = new THREE.BoxGeometry(2.4, 0.18, 0.45);
-        const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.7 }); // 灰色水泥枕木
-        
-        const sleeperCount = 100;
-        const sleeperSpacing = 0.8;
-        
-        for (let i = 0; i < sleeperCount; i++) {
-            const zPos = (i - sleeperCount / 2) * sleeperSpacing;
-            
-            // 左線枕木
-            const sleeperLeft = new THREE.Mesh(sleeperGeo, sleeperMat);
-            sleeperLeft.position.set(-trackOffset, -0.02, zPos);
-            sleeperLeft.castShadow = true;
-            sleeperLeft.receiveShadow = true;
-            scene.add(sleeperLeft);
-
-            // 右線枕木
-            const sleeperRight = new THREE.Mesh(sleeperGeo, sleeperMat);
-            sleeperRight.position.set(trackOffset, -0.02, zPos);
-            sleeperRight.castShadow = true;
-            sleeperRight.receiveShadow = true;
-            scene.add(sleeperRight);
-        }
-
-        // 8. 渲染迴圈
-        function animate() {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
-</body>
-</html>
+    # 關閉所有開啟的 OpenCV 視窗
+    cv2.destroyAllWindows()
+else:
+    print(f"無法載入圖片，請確認檔案路徑 '{image_path}' 是否正確。")
