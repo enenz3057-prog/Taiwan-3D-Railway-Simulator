@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - 實景精準懸臂版</title>
+    <title>台灣3D鐵路模擬器 - V型懸臂實景版</title>
     <style>
         body {
             background-color: #557799;
@@ -72,7 +72,7 @@
     <h1>台灣3D鐵路模擬器</h1>
     <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
     <div id="canvas-container"></div>
-    <div class="info">軌距設定：1067mm 臺鐵電車線實景特寫版</div>
+    <div class="info">軌距設定：1067mm 臺鐵 V 型懸臂電桿實景版</div>
 
     <script>
         // 1. 建立場景
@@ -80,7 +80,7 @@
         scene.background = new THREE.Color(0x667788);
         scene.fog = new THREE.FogExp2(0x667788, 0.012);
 
-        // 2. 建立相機 (配合照片視角：站在軌道中央向遠方望去)
+        // 2. 建立相機
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 1.3, 4);
         camera.lookAt(0, 1.1, -30);
@@ -193,66 +193,61 @@
             scene.add(s2);
         }
 
-        // 8. 【完全對照照片精準還原的台鐵電車線支柱系統】
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.7 }); // 水泥柱
-        const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); // 金屬臂
-        const insMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 }); // 黑色絕緣子
+        // 8. 【根據示意圖精準還原的 V 型懸臂電桿組】
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.7 }); // 圓形水泥電桿
+        const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); // 懸臂金屬桿
+        const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); // 咖啡色絕緣礙子
         const wireMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
 
         const poleInterval = 15; 
         for (let z = -75; z <= 75; z += poleInterval) {
             const group = new THREE.Group();
 
-            // 右側主水泥電桿 (高聳粗大)
-            const pole = new THREE.Mesh(new THREE.BoxGeometry(0.45, 8.2, 0.45), poleMat);
-            pole.position.set(4.5, 4.1, 0);
+            // 主電桿 (圓柱體)
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 8.0, 16), poleMat);
+            pole.position.set(3.5, 4.0, 0);
             pole.castShadow = true;
             group.add(pole);
 
-            // 1. 上方水平拉桿 (連接電桿頂端與上方吊線)
-            const topArm = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.08, 0.08), armMat);
-            topArm.position.set(1.9, 6.7, 0);
-            group.add(topArm);
-
-            // 頂端水平絕緣子 (靠近電桿處)
-            const topIns = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.7, 8), insMat);
+            // 上方咖啡色絕緣子
+            const topIns = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.8, 12), insMat);
             topIns.rotation.z = Math.PI / 2;
-            topIns.position.set(4.1, 6.7, 0);
+            topIns.position.set(3.0, 6.2, 0);
             group.add(topIns);
 
-            // 2. 下方斜拉支撐臂 (從電桿中高處斜向下連接到橫臂)
-            // 角度與長度完美對應照片中的斜度
-            const diagRod = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.08, 0.08), armMat);
-            diagRod.rotation.z = -0.42; // 精準弧度
-            diagRod.position.set(2.4, 5.7, 0);
-            group.add(diagRod);
+            // 下方咖啡色絕緣子
+            const botIns = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.8, 12), insMat);
+            botIns.rotation.z = Math.PI / 2;
+            botIns.position.set(3.0, 4.8, 0);
+            group.add(botIns);
 
-            // 中段斜拉絕緣子
-            const diagIns = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.7, 8), insMat);
-            diagIns.rotation.z = -0.42;
-            diagIns.position.set(3.9, 6.0, 0);
-            group.add(diagIns);
+            // 上懸臂 (從上方絕緣子向左上方延伸)
+            const topArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 4.5, 8), armMat);
+            topArm.rotation.z = 0.35;
+            topArm.position.set(1.2, 6.7, 0);
+            group.add(topArm);
 
-            // 3. 下方水平橫臂 (支撐雙線電車線橫向結構)
-            const bottomArm = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.08, 0.08), armMat);
-            bottomArm.position.set(1.8, 5.0, 0);
-            group.add(bottomArm);
+            // 下懸臂 (從下方絕緣子向左上方斜向交叉延伸)
+            const botArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 4.2, 8), armMat);
+            botArm.rotation.z = -0.35;
+            botArm.position.set(1.2, 5.3, 0);
+            group.add(botArm);
 
             group.position.set(0, 0, z);
             scene.add(group);
         }
 
-        // 貫穿遠方的架空電車線
+        // 貫穿遠方的架空主吊線與接觸線
         const wireGeo = new THREE.CylinderGeometry(0.015, 0.015, 165, 4);
         wireGeo.rotateX(Math.PI / 2);
 
-        const wireLeft = new THREE.Mesh(wireGeo, wireMat);
-        wireLeft.position.set(-1.6, 5.0, 0);
-        scene.add(wireLeft);
+        const mainWire = new THREE.Mesh(wireGeo, wireMat);
+        mainWire.position.set(-1.0, 6.5, 0);
+        scene.add(mainWire);
 
-        const wireRight = new THREE.Mesh(wireGeo, wireMat);
-        wireRight.position.set(1.6, 5.0, 0);
-        scene.add(wireRight);
+        const contactWire = new THREE.Mesh(wireGeo, wireMat);
+        contactWire.position.set(-1.0, 5.2, 0);
+        scene.add(contactWire);
 
         // 9. 渲染迴圈
         function animate() {
