@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - 臺鐵標準斜張懸臂模組化版</title>
+    <title>台灣3D鐵路模擬器 - 臺鐵標準懸臂與EMU500列車完整版</title>
     <style>
         body {
             background-color: #557799;
@@ -72,7 +72,7 @@
     <h1>台灣3D鐵路模擬器</h1>
     <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="join-btn">加入會員</a>
     <div id="canvas-container"></div>
-    <div class="info">軌距設定：1067mm 臺鐵標準斜張懸臂模組化版</div>
+    <div class="info">軌距設定：1067mm 臺鐵標準斜張懸臂與 EMU500 列車</div>
 
     <script>
         // 1. 建立場景
@@ -82,8 +82,8 @@
 
         // 2. 建立相機
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 1.3, 4);
-        camera.lookAt(0, 1.1, -30);
+        camera.position.set(2.5, 1.8, 8);
+        camera.lookAt(1.6, 1.2, -10);
 
         // 3. 建立渲染器
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -193,7 +193,7 @@
             scene.add(s2);
         }
 
-        // 8. 【導入：臺鐵標準斜張懸臂模組化系統】
+        // 8. 臺鐵標準斜張懸臂系統
         const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.7 }); 
         const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 }); 
         const insMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16, roughness: 0.4 }); 
@@ -209,35 +209,29 @@
             return mesh;
         }
 
-        // 封裝單支電桿與懸臂的生成函式
         function createCatenaryPole(zPos, isLeftSide) {
             const group = new THREE.Group();
             const side = isLeftSide ? 1 : -1; 
             const poleX = 4.2 * side;
             const wireTargetX = 1.6 * side;
 
-            // 主電桿
             const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 8.0, 16), poleMat);
             pole.position.set(poleX, 4.0, 0);
             pole.castShadow = true;
             group.add(pole);
 
-            // 結構點位定義
             const pPoleTop = new THREE.Vector3(poleX - (0.2 * side), 6.8, 0);   
             const pPoleMid = new THREE.Vector3(poleX - (0.2 * side), 4.8, 0);   
             const pHorizontalEnd = new THREE.Vector3(wireTargetX, 6.8, 0);       
 
-            // 1. 頂部水平橫桿
             const topArm = createCylinderBetween(pPoleTop, pHorizontalEnd, 0.045, armMat);
             group.add(topArm);
 
-            // 2. 上方斜撐小拉桿
             const pTopSlantStart = new THREE.Vector3(poleX - (0.2 * side), 6.1, 0);
             const pTopSlantEnd = new THREE.Vector3(poleX - (1.8 * side), 6.8, 0);
             const topSlantArm = createCylinderBetween(pTopSlantStart, pTopSlantEnd, 0.03, armMat);
             group.add(topSlantArm);
 
-            // 3. 下方主斜張懸臂與絕緣子
             const pInsStart = new THREE.Vector3(poleX - (1.4 * side), 5.5, 0);
             const pInsEnd = new THREE.Vector3(poleX - (2.1 * side), 5.9, 0);
             const pSlantEnd = new THREE.Vector3(wireTargetX - (0.1 * side), 6.4, 0);
@@ -250,7 +244,6 @@
             group.add(insulator);
             group.add(slantPart2);
 
-            // 4. 接觸線懸挂吊桿
             const pContactDrop = new THREE.Vector3(wireTargetX, 5.2, 0);
             const dropArm = createCylinderBetween(pHorizontalEnd, pContactDrop, 0.025, armMat);
             group.add(dropArm);
@@ -259,37 +252,79 @@
             return group;
         }
 
-        // 迴圈批次生成左右交錯電桿
         const poleInterval = 15; 
         let index = 0;
         for (let z = -75; z <= 75; z += poleInterval) {
             const isLeftSide = (index % 2 === 0);
-            const poleGroup = createCatenaryPole(z, isLeftSide);
-            scene.add(poleGroup);
+            scene.add(createCatenaryPole(z, isLeftSide));
             index++;
         }
 
-        // 貫穿遠方的架空主吊線與接觸線 (雙線對應)
+        // 架空電車線
         const wireGeo = new THREE.CylinderGeometry(0.015, 0.015, 165, 4);
         wireGeo.rotateX(Math.PI / 2);
 
-        const mainWire1 = new THREE.Mesh(wireGeo, wireMat);
-        mainWire1.position.set(-1.6, 6.8, 0);
-        scene.add(mainWire1);
+        [-1.6, 1.6].forEach(x => {
+            const mw = new THREE.Mesh(wireGeo, wireMat);
+            mw.position.set(x, 6.8, 0);
+            scene.add(mw);
 
-        const contactWire1 = new THREE.Mesh(wireGeo, wireMat);
-        contactWire1.position.set(-1.6, 5.2, 0);
-        scene.add(contactWire1);
+            const cw = new THREE.Mesh(wireGeo, wireMat);
+            cw.position.set(x, 5.2, 0);
+            scene.add(cw);
+        });
 
-        const mainWire2 = new THREE.Mesh(wireGeo, wireMat);
-        mainWire2.position.set(1.6, 6.8, 0);
-        scene.add(mainWire2);
+        // 9. 經典 EMU500 電聯車車廂
+        function createEMU500Car() {
+            const carGroup = new THREE.Group();
 
-        const contactWire2 = new THREE.Mesh(wireGeo, wireMat);
-        contactWire2.position.set(1.6, 5.2, 0);
-        scene.add(contactWire2);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.3 });
+            const blueFrontMat = new THREE.MeshStandardMaterial({ color: 0x1a4b8c, roughness: 0.4 });
 
-        // 9. 渲染迴圈
+            // 車體主結構
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.4, 18), bodyMat);
+            body.position.y = 1.8;
+            body.castShadow = true;
+            carGroup.add(body);
+
+            // 車頭經典藍色面板
+            const frontFace = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.4, 0.2), blueFrontMat);
+            frontFace.position.set(0, 1.8, 9.05);
+            carGroup.add(frontFace);
+
+            // 轉向架與車輪
+            const bogieMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+            function createBogie(zPos) {
+                const bogieGroup = new THREE.Group();
+                const frame = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.4, 2.4), bogieMat);
+                frame.position.y = 0.4;
+                bogieGroup.add(frame);
+
+                const wheelGeo = new THREE.CylinderGeometry(0.43, 0.43, 0.2, 16);
+                wheelGeo.rotateZ(Math.PI / 2);
+                
+                [-1.0, 1.0].forEach(x => {
+                    [-0.8, 0.8].forEach(z => {
+                        const wheel = new THREE.Mesh(wheelGeo, bogieMat);
+                        wheel.position.set(x, 0.43, z);
+                        bogieGroup.add(wheel);
+                    });
+                });
+                bogieGroup.position.z = zPos;
+                return bogieGroup;
+            }
+
+            carGroup.add(createBogie(-5.5));
+            carGroup.add(createBogie(5.5));
+
+            carGroup.position.set(1.6, 0.3, 0); // 放置於右側軌道
+            return carGroup;
+        }
+
+        const emuCar = createEMU500Car();
+        scene.add(emuCar);
+
+        // 10. 渲染迴圈
         function animate() {
             requestAnimationFrame(animate);
             renderer.render(scene, camera);
