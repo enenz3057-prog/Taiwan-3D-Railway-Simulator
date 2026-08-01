@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - 臺鐵歸來車站</title>
+    <title>台灣3D鐵路模擬器 - 臺鐵歸來車站 (車內視角與移動)</title>
     <style>
         body {
             background-color: #557799;
@@ -13,19 +13,6 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-        }
-        h1 {
-            color: #ffcc00;
-            font-size: 18px;
-            position: absolute;
-            top: 10px;
-            left: 15px;
-            z-index: 10;
-            margin: 0;
-            line-height: 30px;
-            pointer-events: none;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-            display: none; /* 手機版隱藏大標題避免擋按鈕 */
         }
         .top-btns {
             position: absolute;
@@ -54,13 +41,38 @@
         .action-btn:hover {
             background-color: #27ae60;
         }
-        .drive-btn {
-            background-color: #e67e22;
+        .drive-btn { background-color: #e67e22; }
+        .board-btn { background-color: #3498db; }
+        .outside-btn { background-color: #9b59b6; }
+        .join-btn { background-color: #5865F2; }
+
+        /* 行走與移動控制虛擬方向鍵（車內或月台步行時顯示） */
+        #walk-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 25;
+            display: none;
+            grid-template-columns: repeat(3, 45px);
+            grid-template-rows: repeat(2, 45px);
+            gap: 5px;
         }
-        .join-btn {
-            background-color: #5865F2;
+        .walk-btn {
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: 1px solid #aaa;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
         }
-        /* 車輛生成選單面板 */
+        .walk-btn:active { background: rgba(255,255,255,0.4); }
+        .btn-up { grid-column: 2; grid-row: 1; }
+        .btn-left { grid-column: 1; grid-row: 2; }
+        .btn-down { grid-column: 2; grid-row: 2; }
+        .btn-right { grid-column: 3; grid-row: 2; }
+
+        /* 車庫選單 */
         #train-menu {
             position: absolute;
             top: 55px;
@@ -77,48 +89,14 @@
             max-height: 60vh;
             overflow-y: auto;
         }
-        #train-menu h3 {
-            margin: 0 0 4px 0;
-            font-size: 13px;
-            color: #ffcc00;
-        }
-        #train-menu h4 {
-            margin: 6px 0 2px 0;
-            font-size: 11px;
-            color: #2ecc71;
-            border-bottom: 1px solid #555;
-            padding-bottom: 2px;
-        }
+        #train-menu h3 { margin: 0 0 4px 0; font-size: 13px; color: #ffcc00; }
+        #train-menu h4 { margin: 6px 0 2px 0; font-size: 11px; color: #2ecc71; border-bottom: 1px solid #555; padding-bottom: 2px; }
         #train-menu button {
-            display: block;
-            width: 100%;
-            background: #444;
-            color: #fff;
-            border: none;
-            padding: 6px;
-            margin-bottom: 3px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            text-align: left;
+            display: block; width: 100%; background: #444; color: #fff; border: none; padding: 6px; margin-bottom: 3px; border-radius: 4px; cursor: pointer; font-size: 11px; text-align: left;
         }
-        #canvas-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-        }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; }
         .info {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
-            font-size: 11px;
-            color: #ddd;
-            z-index: 10;
-            pointer-events: none;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            position: absolute; bottom: 10px; left: 10px; right: 10px; font-size: 11px; color: #ddd; z-index: 10; pointer-events: none; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
     </style>
     <!-- 引入 Three.js -->
@@ -128,8 +106,17 @@
 
     <div class="top-btns">
         <button class="action-btn" onclick="toggleTrainMenu()">台鐵全車庫</button>
-        <button class="action-btn drive-btn" id="drive-btn" onclick="toggleDrive()">發車開動</button>
-        <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="action-btn join-btn">加入會員</a>
+        <button class="action-btn drive-btn" id="drive-btn" onclick="enterCabin()">駕駛室</button>
+        <button class="action-btn board-btn" onclick="enterPassengerCar()">上車(客車)</button>
+        <button class="action-btn outside-btn" onclick="exitToOutside()">站台外部</button>
+    </div>
+
+    <!-- 行走虛擬按鍵 -->
+    <div id="walk-controls">
+        <button class="walk-btn btn-up" ontouchstart="startMove('FORWARD')" ontouchend="stopMove()" onmousedown="startMove('FORWARD')" onmouseup="stopMove()">▲</button>
+        <button class="walk-btn btn-left" ontouchstart="startMove('LEFT')" ontouchend="stopMove()" onmousedown="startMove('LEFT')" onmouseup="stopMove()">◀</button>
+        <button class="walk-btn btn-down" ontouchstart="startMove('BACKWARD')" ontouchend="stopMove()" onmousedown="startMove('BACKWARD')" onmouseup="stopMove()">▼</button>
+        <button class="walk-btn btn-right" ontouchstart="startMove('RIGHT')" ontouchend="stopMove()" onmousedown="startMove('RIGHT')" onmouseup="stopMove()">▶</button>
     </div>
 
     <!-- 車庫選單 -->
@@ -162,32 +149,22 @@
     </div>
 
     <div id="canvas-container"></div>
-    <div class="info">場景：臺鐵歸來車站（含平交道警報聲）</div>
+    <div class="info" id="info-text">場景：臺鐵歸來車站 | 點擊上方按鈕切換視角與移動</div>
 
     <script>
-        // 音訊初始化防護
-        let audioCtx = null;
-        let crossingInterval = null;
-        let isCrossingActive = false;
+        let audioCtx = null, crossingInterval = null, isCrossingActive = false;
 
         function initCrossingAudio() {
             try {
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
-            } catch(e) {
-                console.log("Audio not supported");
-            }
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            } catch(e) {}
         }
 
         function playCrossingSound() {
             initCrossingAudio();
             if (isCrossingActive || !audioCtx) return;
             isCrossingActive = true;
-
             let highPitch = true;
             crossingInterval = setInterval(() => {
                 if (!audioCtx) return;
@@ -198,20 +175,15 @@
                     osc.type = 'sine';
                     gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.3);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
                     highPitch = !highPitch;
                 } catch(e) {}
             }, 500);
         }
 
         function stopCrossingSound() {
-            if (crossingInterval) {
-                clearInterval(crossingInterval);
-                crossingInterval = null;
-            }
+            if (crossingInterval) { clearInterval(crossingInterval); crossingInterval = null; }
             isCrossingActive = false;
         }
 
@@ -220,41 +192,22 @@
         scene.background = new THREE.Color(0x507f9c); 
         scene.fog = new THREE.FogExp2(0x507f9c, 0.007); 
 
-        // 2. 建立相機
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(2.5, 1.8, 8.5); 
         camera.lookAt(2.2, 1.6, -20); 
 
-        // 3. 建立渲染器
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true; 
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        // 4. 光源
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
-        scene.add(ambientLight);
-
+        scene.add(new THREE.AmbientLight(0xffffff, 0.85));
         const sunLight = new THREE.DirectionalLight(0xfffaed, 1.3);
         sunLight.position.set(20, 35, 20);
         sunLight.castShadow = true;
         scene.add(sunLight);
 
-        // 5. 軌道與石碴
-        const stoneGeo = new THREE.DodecahedronGeometry(0.13, 0);
-        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x6e6a65, roughness: 0.8 });
-        for (let r = 0; r < 300; r++) {
-            const zPos = (r - 150) * 0.8;
-            for (let c = 0; c < 15; c++) {
-                const xPos = (c - 7.5) * 0.3;
-                if (Math.abs(xPos) < 4.5) {
-                    const stone = new THREE.Mesh(stoneGeo, stoneMat);
-                    stone.position.set(xPos, -0.34, zPos);
-                    scene.add(stone);
-                }
-            }
-        }
-
+        // 軌道
         const railMat = new THREE.MeshStandardMaterial({ color: 0x996644, metalness: 0.9, roughness: 0.25 });
         function createRail() {
             const group = new THREE.Group();
@@ -270,12 +223,11 @@
         scene.add(createRail()).position.x = trackOffset - 0.53;
         scene.add(createRail()).position.x = trackOffset + 0.53;
 
-        // 6. 平交道 (前方 100 公尺)
+        // 平交道與月台
         const crossingZ = -100;
         const crossingGroup = new THREE.Group();
-        const postMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
         [-3.2, 3.2].forEach(xP => {
-            const cPost = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 5.5, 16), postMat);
+            const cPost = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 5.5, 16), new THREE.MeshStandardMaterial({ color: 0x333333 }));
             cPost.position.set(xP, 2.75, 0);
             crossingGroup.add(cPost);
         });
@@ -285,21 +237,16 @@
         crossingGroup.position.set(0, 0, crossingZ);
         scene.add(crossingGroup);
 
-        // 7. 月台與站名牌
         const platform = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.8, 160), new THREE.MeshStandardMaterial({ color: 0xdddddd }));
         platform.position.set(5.3, -0.4, 0);
         scene.add(platform);
 
-        const signGroup = new THREE.Group();
-        const board = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.8, 0.05), new THREE.MeshStandardMaterial({ color: 0x006633 }));
-        board.position.set(0, 1.2, 0);
-        signGroup.add(board);
-        signGroup.position.set(3.9, 0, -6);
-        scene.add(signGroup);
-
-        // 8. 列車模組
+        // 列車與視角管理
         let activeTrain = null;
-        let isMoving = false;
+        let viewMode = 'OUTSIDE'; // 'OUTSIDE', 'CABIN', 'PASSENGER'
+        let moveDirection = null;
+        let trainZ = 0;
+        let isTrainMoving = false;
 
         function toggleTrainMenu() {
             const menu = document.getElementById('train-menu');
@@ -311,12 +258,13 @@
             const trainMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.25, metalness: 0.3 });
             const stripeMat = new THREE.MeshStandardMaterial({ color: stripeColor, roughness: 0.3 });
             const windowMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.05 });
-            const underframeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+            const interiorMat = new THREE.MeshStandardMaterial({ color: 0xddcc99, roughness: 0.8 });
 
             const carLength = 18;
-            const underframe = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.45, carLength - 3), underframeMat);
-            underframe.position.y = 0.22;
-            carGroup.add(underframe);
+            // 內部地板（供客車內行走）
+            const floor = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, carLength - 1), interiorMat);
+            floor.position.y = 0.6;
+            carGroup.add(floor);
 
             const body = new THREE.Mesh(new THREE.BoxGeometry(2.75, 2.5, carLength), trainMat);
             body.position.y = 1.75;
@@ -368,6 +316,7 @@
                 case 'E500': bodyColor = 0x112233; stripeColor = 0x2ecc71; break;
             }
 
+            trainZ = 0;
             for (let i = 0; i < 4; i++) {
                 const isHead = (i === 0 || i === 3);
                 const car = createTrainCar(isHead, bodyColor, stripeColor, i === 0);
@@ -377,36 +326,61 @@
 
             scene.add(activeTrain);
             document.getElementById('train-menu').style.display = 'none';
-            isMoving = false; 
-            document.getElementById('drive-btn').innerText = "發車開動";
-            stopCrossingSound();
+            exitToOutside();
+            playCrossingSound();
+            isTrainMoving = true;
         }
 
-        function toggleDrive() {
-            if (!activeTrain) {
-                alert("請先點擊「台鐵全車庫」選擇列車！");
-                return;
-            }
-            isMoving = !isMoving;
-            const btn = document.getElementById('drive-btn');
-            btn.innerText = isMoving ? "煞車停靠" : "發車開動";
-
-            if (isMoving) {
-                playCrossingSound();
-            } else {
-                stopCrossingSound();
-            }
+        function enterCabin() {
+            if (!activeTrain) { alert("請先選擇車輛！"); return; }
+            viewMode = 'CABIN';
+            document.getElementById('walk-controls').style.display = 'grid';
+            document.getElementById('info-text').innerText = "【駕駛室視角】使用方向鍵在駕駛室內移動";
         }
 
-        // 9. 動畫迴圈
+        function enterPassengerCar() {
+            if (!activeTrain) { alert("請先選擇車輛！"); return; }
+            viewMode = 'PASSENGER';
+            document.getElementById('walk-controls').style.display = 'grid';
+            document.getElementById('info-text').innerText = "【客車內視角】使用方向鍵在車廂走道行走";
+        }
+
+        function exitToOutside() {
+            viewMode = 'OUTSIDE';
+            document.getElementById('walk-controls').style.display = 'none';
+            camera.position.set(2.5, 1.8, 8.5);
+            camera.lookAt(2.2, 1.6, -20);
+            document.getElementById('info-text').innerText = "場景：臺鐵歸來車站 (外部視角)";
+        }
+
+        function startMove(dir) { moveDirection = dir; }
+        function stopMove() { moveDirection = null; }
+
+        // 動畫迴圈
         function animate() {
             requestAnimationFrame(animate);
-            if (activeTrain && isMoving) {
-                activeTrain.position.z -= 0.35; 
-                if (activeTrain.position.z < -160) {
-                    activeTrain.position.z = 140;
-                }
+
+            if (activeTrain && isTrainMoving) {
+                trainZ -= 0.35;
+                activeTrain.position.z = trainZ;
+                if (trainZ < -160) trainZ = 140;
             }
+
+            // 處理車內或駕駛室的行走
+            if (viewMode === 'CABIN' && activeTrain) {
+                camera.position.set(-trackOffset, 1.7, trainZ + 25);
+                if (moveDirection === 'FORWARD') camera.position.z -= 0.1;
+                if (moveDirection === 'BACKWARD') camera.position.z += 0.1;
+                camera.lookAt(-trackOffset, 1.7, camera.position.z - 10);
+            } else if (viewMode === 'PASSENGER' && activeTrain) {
+                camera.position.set(-trackOffset, 1.2, trainZ);
+                if (moveDirection === 'FORWARD') camera.position.z -= 0.15;
+                if (moveDirection === 'BACKWARD') camera.position.z += 0.15;
+                if (moveDirection === 'LEFT') camera.position.x -= 0.05;
+                if (moveDirection === 'RIGHT') camera.position.x += 0.05;
+                camera.lookAt(camera.position.x, 1.2, camera.position.z - 10);
+            }
+
             renderer.render(scene, camera);
         }
         animate();
