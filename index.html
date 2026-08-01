@@ -22,13 +22,13 @@
             z-index: 20;
             display: flex;
             justify-content: space-between;
-            gap: 5px;
+            gap: 4px;
         }
         .action-btn {
             background-color: #2ecc71;
             color: #fff;
-            padding: 8px 10px;
-            font-size: 11px;
+            padding: 8px 6px;
+            font-size: 10px;
             font-weight: bold;
             border: none;
             border-radius: 4px;
@@ -37,6 +37,7 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
             flex: 1;
             text-align: center;
+            line-height: 14px;
         }
         .action-btn:hover {
             background-color: #27ae60;
@@ -46,7 +47,7 @@
         .outside-btn { background-color: #9b59b6; }
         .join-btn { background-color: #5865F2; }
 
-        /* 行走與移動控制虛擬方向鍵（車內或月台步行時顯示） */
+        /* 行走與移動控制虛擬方向鍵 */
         #walk-controls {
             position: absolute;
             bottom: 20px;
@@ -105,10 +106,11 @@
 <body>
 
     <div class="top-btns">
-        <button class="action-btn" onclick="toggleTrainMenu()">台鐵全車庫</button>
-        <button class="action-btn drive-btn" id="drive-btn" onclick="enterCabin()">駕駛室</button>
-        <button class="action-btn board-btn" onclick="enterPassengerCar()">上車(客車)</button>
+        <button class="action-btn" onclick="toggleTrainMenu()">台鐵車庫</button>
+        <button class="action-btn drive-btn" onclick="enterCabin()">駕駛室</button>
+        <button class="action-btn board-btn" onclick="enterPassengerCar()">上車</button>
         <button class="action-btn outside-btn" onclick="exitToOutside()">站台外部</button>
+        <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="action-btn join-btn">加入會員</a>
     </div>
 
     <!-- 行走虛擬按鍵 -->
@@ -187,7 +189,6 @@
             isCrossingActive = false;
         }
 
-        // 1. 建立場景
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x507f9c); 
         scene.fog = new THREE.FogExp2(0x507f9c, 0.007); 
@@ -207,7 +208,6 @@
         sunLight.castShadow = true;
         scene.add(sunLight);
 
-        // 軌道
         const railMat = new THREE.MeshStandardMaterial({ color: 0x996644, metalness: 0.9, roughness: 0.25 });
         function createRail() {
             const group = new THREE.Group();
@@ -223,7 +223,6 @@
         scene.add(createRail()).position.x = trackOffset - 0.53;
         scene.add(createRail()).position.x = trackOffset + 0.53;
 
-        // 平交道與月台
         const crossingZ = -100;
         const crossingGroup = new THREE.Group();
         [-3.2, 3.2].forEach(xP => {
@@ -241,9 +240,8 @@
         platform.position.set(5.3, -0.4, 0);
         scene.add(platform);
 
-        // 列車與視角管理
         let activeTrain = null;
-        let viewMode = 'OUTSIDE'; // 'OUTSIDE', 'CABIN', 'PASSENGER'
+        let viewMode = 'OUTSIDE'; 
         let moveDirection = null;
         let trainZ = 0;
         let isTrainMoving = false;
@@ -261,7 +259,6 @@
             const interiorMat = new THREE.MeshStandardMaterial({ color: 0xddcc99, roughness: 0.8 });
 
             const carLength = 18;
-            // 內部地板（供客車內行走）
             const floor = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, carLength - 1), interiorMat);
             floor.position.y = 0.6;
             carGroup.add(floor);
@@ -356,7 +353,6 @@
         function startMove(dir) { moveDirection = dir; }
         function stopMove() { moveDirection = null; }
 
-        // 動畫迴圈
         function animate() {
             requestAnimationFrame(animate);
 
@@ -366,7 +362,6 @@
                 if (trainZ < -160) trainZ = 140;
             }
 
-            // 處理車內或駕駛室的行走
             if (viewMode === 'CABIN' && activeTrain) {
                 camera.position.set(-trackOffset, 1.7, trainZ + 25);
                 if (moveDirection === 'FORWARD') camera.position.z -= 0.1;
