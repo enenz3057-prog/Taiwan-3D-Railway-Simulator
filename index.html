@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - 臺鐵歸來車站 (終極擬真版)</title>
+    <title>台灣3D鐵路模擬器 - 臺鐵歸來車站 (手動駕駛版)</title>
     <style>
         body {
             background-color: #111;
@@ -45,8 +45,8 @@
         .outside-btn { background-color: #9b59b6; }
         .join-btn { background-color: #5865F2; }
 
-        /* 行走虛擬按鍵 */
-        #walk-controls {
+        /* 手動駕駛 / 行走控制虛擬按鍵 */
+        #controls-panel {
             position: absolute;
             bottom: 25px;
             left: 25px;
@@ -56,7 +56,7 @@
             grid-template-rows: repeat(2, 50px);
             gap: 6px;
         }
-        .walk-btn {
+        .ctrl-btn {
             background: rgba(0, 0, 0, 0.8);
             color: white;
             border: 2px solid rgba(255, 255, 255, 0.7);
@@ -66,7 +66,7 @@
             cursor: pointer;
             outline: none;
         }
-        .walk-btn:active { background: rgba(46, 204, 113, 0.9); }
+        .ctrl-btn:active { background: rgba(46, 204, 113, 0.9); }
         .btn-up { grid-column: 2; grid-row: 1; }
         .btn-left { grid-column: 1; grid-row: 2; }
         .btn-down { grid-column: 2; grid-row: 2; }
@@ -113,29 +113,29 @@
         <a href="https://discord.gg/wzK5PtsHt" target="_blank" class="action-btn join-btn">加入會員</a>
     </div>
 
-    <!-- 行走虛擬按鍵 -->
-    <div id="walk-controls">
-        <button class="walk-btn btn-up" ontouchstart="setMove('UP', true)" ontouchend="setMove('UP', false)" onmousedown="setMove('UP', true)" onmouseup="setMove('UP', false)">▲</button>
-        <button class="walk-btn btn-left" ontouchstart="setMove('LEFT', true)" ontouchend="setMove('LEFT', false)" onmousedown="setMove('LEFT', true)" onmouseup="setMove('LEFT', false)">◀</button>
-        <button class="walk-btn btn-down" ontouchstart="setMove('DOWN', true)" ontouchend="setMove('DOWN', false)" onmousedown="setMove('DOWN', true)" onmouseup="setMove('DOWN', false)">▼</button>
-        <button class="walk-btn btn-right" ontouchstart="setMove('RIGHT', true)" ontouchend="setMove('RIGHT', false)" onmousedown="setMove('RIGHT', true)" onmouseup="setMove('RIGHT', false)">▶</button>
+    <!-- 手動控制虛擬按鍵 -->
+    <div id="controls-panel">
+        <button class="ctrl-btn btn-up" ontouchstart="setControl('UP', true)" ontouchend="setControl('UP', false)" onmousedown="setControl('UP', true)" onmouseup="setControl('UP', false)">▲</button>
+        <button class="ctrl-btn btn-left" ontouchstart="setControl('LEFT', true)" ontouchend="setControl('LEFT', false)" onmousedown="setControl('LEFT', true)" onmouseup="setControl('LEFT', false)">◀</button>
+        <button class="ctrl-btn btn-down" ontouchstart="setControl('DOWN', true)" ontouchend="setControl('DOWN', false)" onmousedown="setControl('DOWN', true)" onmouseup="setControl('DOWN', false)">▼</button>
+        <button class="ctrl-btn btn-right" ontouchstart="setControl('RIGHT', true)" ontouchend="setControl('RIGHT', false)" onmousedown="setControl('RIGHT', true)" onmouseup="setControl('RIGHT', false)">▶</button>
     </div>
 
     <!-- 車庫選單 -->
     <div id="train-menu">
         <h3>臺鐵全車型選擇</h3>
         <h4>1. 自強號家族</h4>
-        <button onclick="spawnTrain('EMU3000')">EMU3000 新自強號 (黑白美學)</button>
-        <button onclick="spawnTrain('PP')">E1000 推拉式自強號 (經典紅)</button>
-        <button onclick="spawnTrain('TEMU1000')">TEMU1000 太魯閣號 (橘線)</button>
-        <button onclick="spawnTrain('TEMU2000')">TEMU2000 普悠瑪號 (烈日紅)</button>
+        <button onclick="spawnTrain('EMU3000')">EMU3000 新自強號</button>
+        <button onclick="spawnTrain('PP')">E1000 推拉式自強號</button>
+        <button onclick="spawnTrain('TEMU1000')">TEMU1000 太魯閣號</button>
+        <button onclick="spawnTrain('TEMU2000')">TEMU2000 普悠瑪號</button>
         <h4>2. 通勤電聯車</h4>
         <button onclick="spawnTrain('EMU900')">EMU900 新一代區間車</button>
         <button onclick="spawnTrain('EMU500')">EMU500 經典藍黃區間車</button>
     </div>
 
     <div id="canvas-container"></div>
-    <div class="info" id="info-text">場景：臺鐵歸來車站 | 請點擊「台鐵車庫」選擇列車開始</div>
+    <div class="info" id="info-text">場景：臺鐵歸來車站 | 請點擊「台鐵車庫」選擇列車，並使用 ▲▼ 鍵手動加速</div>
 
     <script>
         let audioCtx = null, crossingInterval = null, isCrossingActive = false;
@@ -170,11 +170,11 @@
 
         // 1. 場景設定
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x6fb3e2); // 晴空藍
-        scene.fog = new THREE.FogExp2(0x6fb3e2, 0.0012);
+        scene.background = new THREE.Color(0x6fb3e2);
+        scene.fog = new THREE.FogExp2(0x6fb3e2, 0.0008);
 
-        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.set(6, 3.5, 14);
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 3000);
+        camera.position.set(8, 4, 16);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -187,49 +187,45 @@
         sun.castShadow = true;
         scene.add(sun);
 
-        // 2. 地面、草皮、房屋與歸來車站
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshStandardMaterial({ color: 0x4f8a3b }));
+        // 2. 地面與草皮、歸來車站
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshStandardMaterial({ color: 0x4f8a3b }));
         ground.rotation.x = -Math.PI / 2;
         ground.position.y = -0.45;
         scene.add(ground);
 
-        // 車站月台
-        const platform = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.55, 800), new THREE.MeshStandardMaterial({ color: 0xdcdcdc }));
+        const platform = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.55, 1200), new THREE.MeshStandardMaterial({ color: 0xdcdcdc }));
         platform.position.set(4.3, -0.2, 0);
         scene.add(platform);
 
-        // 車站站房與村落
         const stationGroup = new THREE.Group();
-        const bMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5 });
-        const rMat = new THREE.MeshStandardMaterial({ color: 0x992222 });
-        const mainStation = new THREE.Mesh(new THREE.BoxGeometry(16, 6.5, 10), bMat);
+        const mainStation = new THREE.Mesh(new THREE.BoxGeometry(16, 6.5, 10), new THREE.MeshStandardMaterial({ color: 0xf5f5f5 }));
         mainStation.position.set(12, 3, -15);
-        const roof = new THREE.Mesh(new THREE.ConeGeometry(11, 3.5, 4), rMat);
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(11, 3.5, 4), new THREE.MeshStandardMaterial({ color: 0x992222 }));
         roof.position.set(12, 7.8, -15);
         roof.rotation.y = Math.PI / 4;
         stationGroup.add(mainStation, roof);
         scene.add(stationGroup);
 
-        // 3. 超長鐵軌與擬真鋼骨電線杆、高壓電車線
+        // 3. 超長鐵軌 (長度擴展至 3000 公尺)
         const trackGroup = new THREE.Group();
         const tieMat = new THREE.MeshStandardMaterial({ color: 0x4a3525 });
         const railMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9 });
 
-        for (let z = -500; z <= 500; z += 1.0) {
+        for (let z = -1500; z <= 1500; z += 1.0) {
             const tie = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.12, 0.4), tieMat);
             tie.position.set(0, -0.35, z);
             trackGroup.add(tie);
         }
         [-0.75, 0.75].forEach(x => {
-            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 1002), railMat);
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 3002), railMat);
             rail.position.set(x, -0.07, 0);
             trackGroup.add(rail);
         });
         trackGroup.position.x = -1.5;
         scene.add(trackGroup);
 
-        // 電線杆與架空電線
-        for (let z = -450; z <= 450; z += 35) {
+        // 電線杆
+        for (let z = -1400; z <= 1400; z += 35) {
             const poleGroup = new THREE.Group();
             const pMat = new THREE.MeshStandardMaterial({ color: 0x2c2c2c, metalness: 0.8 });
             const pVert = new THREE.Mesh(new THREE.BoxGeometry(0.25, 8.2, 0.25), pMat);
@@ -241,7 +237,7 @@
             scene.add(poleGroup);
         }
 
-        // 4. 擬真平交道 (前方 60 公尺)
+        // 4. 平交道 (前方 60 公尺)
         const crossingZ = -60;
         const crossingGroup = new THREE.Group();
         const postMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
@@ -250,22 +246,36 @@
             cp.position.set(xP, 2.8, 0);
             crossingGroup.add(cp);
         });
-        const barMat = new THREE.MeshStandardMaterial({ color: 0xcc2222 });
-        const bar = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.14, 0.14), barMat);
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.14, 0.14), new THREE.MeshStandardMaterial({ color: 0xcc2222 }));
         bar.position.set(0, 4.4, 0);
         crossingGroup.add(bar);
         crossingGroup.position.set(-1.5, 0, crossingZ);
         scene.add(crossingGroup);
 
-        // 5. 擬真台鐵車輛模組
+        // 5. 列車系統與手動控制變數
         let activeTrain = null;
-        let viewMode = 'OUTSIDE';
+        let viewMode = 'OUTSIDE'; // 'OUTSIDE', 'CABIN', 'PASSENGER'
         let trainZ = 0;
-        let isMoving = false;
-        let moveState = { UP: false, DOWN: false, LEFT: false, RIGHT: false };
+        let trainSpeed = 0; // 手動控制速度
+        
+        let controlState = { UP: false, DOWN: false, LEFT: false, RIGHT: false };
         let playerOffset = { x: 0, y: 0, z: 0 };
 
-        function setMove(dir, status) { moveState[dir] = status; }
+        function setControl(dir, status) { controlState[dir] = status; }
+
+        // 鍵盤控制支援 (WASD 或方向鍵)
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w') controlState.UP = true;
+            if (e.key === 'ArrowDown' || e.key === 's') controlState.DOWN = true;
+            if (e.key === 'ArrowLeft' || e.key === 'a') controlState.LEFT = true;
+            if (e.key === 'ArrowRight' || e.key === 'd') controlState.RIGHT = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w') controlState.UP = false;
+            if (e.key === 'ArrowDown' || e.key === 's') controlState.DOWN = false;
+            if (e.key === 'ArrowLeft' || e.key === 'a') controlState.LEFT = false;
+            if (e.key === 'ArrowRight' || e.key === 'd') controlState.RIGHT = false;
+        });
 
         function createCarMesh(isHead, bColor, sColor, isFront) {
             const car = new THREE.Group();
@@ -275,27 +285,22 @@
             const floorMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
             const length = 20;
 
-            // 車內地板
             const floor = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.1, length - 0.4), floorMat);
             floor.position.set(0, 0.45, 0);
             car.add(floor);
 
-            // 車身主體
             const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.6, length), bodyMat);
             body.position.set(0, 1.8, 0);
             car.add(body);
 
-            // 側腰線
             const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.84, 0.35, length), stripeMat);
             stripe.position.set(0, 1.9, 0);
             car.add(stripe);
 
-            // 車窗
             const windows = new THREE.Mesh(new THREE.BoxGeometry(2.86, 0.9, length - 4), winMat);
             windows.position.set(0, 2.2, 0);
             car.add(windows);
 
-            // 流線車頭
             if (isHead) {
                 const noseZ = isFront ? (length / 2 + 1.6) : (-length / 2 - 1.6);
                 const nose = new THREE.Mesh(new THREE.BoxGeometry(2.7, 2.3, 3.2), bodyMat);
@@ -318,6 +323,7 @@
             else if (type === 'EMU500') { bCol = 0x2980b9; sCol = 0xf39c12; }
 
             trainZ = 0;
+            trainSpeed = 0;
             for (let i = 0; i < 5; i++) {
                 const isHead = (i === 0 || i === 4);
                 const car = createCarMesh(isHead, bCol, sCol, i === 0);
@@ -329,7 +335,6 @@
             document.getElementById('train-menu').style.display = 'none';
             exitToOutside();
             playCrossingSound();
-            isMoving = true;
         }
 
         function toggleTrainMenu() {
@@ -341,44 +346,54 @@
             if (!activeTrain) { alert("請先從上方「台鐵車庫」選擇並生成列車！"); return; }
             viewMode = 'CABIN';
             playerOffset = { x: 0, y: 0, z: 0 };
-            document.getElementById('walk-controls').style.display = 'grid';
-            document.getElementById('info-text').innerText = "【駕駛室視角】已進入車長駕駛室，可使用方向鍵移動觀看風景";
+            document.getElementById('controls-panel').style.display = 'grid';
+            document.getElementById('info-text').innerText = "【駕駛室】手動駕駛中：按 ▲ 加速前進、▼ 減速/倒車";
         }
 
         function enterPassengerCar() {
             if (!activeTrain) { alert("請先從上方「台鐵車庫」選擇並生成列車！"); return; }
             viewMode = 'PASSENGER';
             playerOffset = { x: 0, y: 0, z: 0 };
-            document.getElementById('walk-controls').style.display = 'grid';
-            document.getElementById('info-text').innerText = "【客車內視角】已進入客車內部走道，可使用方向鍵移動";
+            document.getElementById('controls-panel').style.display = 'grid';
+            document.getElementById('info-text').innerText = "【客車內】已進入車廂走道，可使用方向鍵走動";
         }
 
         function exitToOutside() {
             viewMode = 'OUTSIDE';
-            document.getElementById('walk-controls').style.display = 'none';
-            camera.position.set(8, 3.5, 16);
+            document.getElementById('controls-panel').style.display = 'none';
+            camera.position.set(8, 4, 16);
             camera.lookAt(-1.5, 1, 0);
-            document.getElementById('info-text').innerText = "場景：臺鐵歸來車站 (站台外部視角)";
+            document.getElementById('info-text').innerText = "場景：臺鐵歸來車站 (外部視角) | 請點車庫生成列車";
         }
 
-        // 6. 運行主迴圈
+        // 6. 主迴圈 (手動駕駛物理與相機更新)
         function animate() {
             requestAnimationFrame(animate);
 
-            if (activeTrain && isMoving) {
-                trainZ -= 0.45;
+            // 手動加速與煞車邏輯
+            if (activeTrain) {
+                if (controlState.UP) trainSpeed -= 0.015; // 往前開
+                if (controlState.DOWN) trainSpeed += 0.015; // 往後/煞車
+                
+                // 自然阻力摩擦
+                trainSpeed *= 0.98;
+
+                // 限制最高速
+                if (trainSpeed > 0.8) trainSpeed = 0.8;
+                if (trainSpeed < -0.8) trainSpeed = -0.8;
+
+                trainZ += trainSpeed;
                 activeTrain.position.z = trainZ;
-                if (trainZ < -400) trainZ = 400;
+
+                // 內部走動微調
+                const walkSpeed = 0.1;
+                if (viewMode === 'PASSENGER' || viewMode === 'CABIN') {
+                    if (controlState.LEFT) playerOffset.x -= walkSpeed;
+                    if (controlState.RIGHT) playerOffset.x += walkSpeed;
+                }
             }
 
-            // 行走位移計算
-            const speed = 0.12;
-            if (moveState.UP) playerOffset.z -= speed;
-            if (moveState.DOWN) playerOffset.z += speed;
-            if (moveState.LEFT) playerOffset.x -= speed;
-            if (moveState.RIGHT) playerOffset.x += speed;
-
-            // 視角鏡頭精準跟隨
+            // 視角鏡頭跟隨
             if (activeTrain) {
                 if (viewMode === 'CABIN') {
                     const cabinX = -1.5;
