@@ -6,13 +6,14 @@
     <title>台灣3D鐵路模擬器 - 臺鐵歸來車站</title>
     <style>
         body {
-            background-color: #557799;
+            background-color: #3b5998;
             color: #fff;
             font-family: Arial, sans-serif;
             text-align: center;
             margin: 0;
             padding: 0;
             overflow: hidden;
+            touch-action: none;
         }
         .top-btns {
             position: absolute;
@@ -48,24 +49,25 @@
         /* 行走虛擬按鍵 */
         #walk-controls {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
+            bottom: 25px;
+            left: 25px;
             z-index: 25;
             display: none;
-            grid-template-columns: repeat(3, 45px);
-            grid-template-rows: repeat(2, 45px);
-            gap: 5px;
+            grid-template-columns: repeat(3, 50px);
+            grid-template-rows: repeat(2, 50px);
+            gap: 6px;
         }
         .walk-btn {
-            background: rgba(0,0,0,0.6);
+            background: rgba(0, 0, 0, 0.7);
             color: white;
-            border: 1px solid #aaa;
-            font-size: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            font-size: 18px;
             font-weight: bold;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
+            outline: none;
         }
-        .walk-btn:active { background: rgba(255,255,255,0.4); }
+        .walk-btn:active, .walk-btn.active { background: rgba(46, 204, 113, 0.9); }
         .btn-up { grid-column: 2; grid-row: 1; }
         .btn-left { grid-column: 1; grid-row: 2; }
         .btn-down { grid-column: 2; grid-row: 2; }
@@ -77,25 +79,26 @@
             top: 55px;
             right: 10px;
             left: 10px;
-            background: rgba(30, 30, 30, 0.95);
+            background: rgba(20, 20, 20, 0.96);
             border: 1px solid #777;
             border-radius: 6px;
-            padding: 8px;
+            padding: 10px;
             display: none;
             z-index: 30;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.7);
             text-align: left;
-            max-height: 60vh;
+            max-height: 65vh;
             overflow-y: auto;
         }
         #train-menu h3 { margin: 0 0 4px 0; font-size: 13px; color: #ffcc00; }
-        #train-menu h4 { margin: 6px 0 2px 0; font-size: 11px; color: #2ecc71; border-bottom: 1px solid #555; padding-bottom: 2px; }
+        #train-menu h4 { margin: 8px 0 3px 0; font-size: 11px; color: #2ecc71; border-bottom: 1px solid #555; padding-bottom: 2px; }
         #train-menu button {
-            display: block; width: 100%; background: #444; color: #fff; border: none; padding: 6px; margin-bottom: 3px; border-radius: 4px; cursor: pointer; font-size: 11px; text-align: left;
+            display: block; width: 100%; background: #333; color: #fff; border: none; padding: 7px; margin-bottom: 4px; border-radius: 4px; cursor: pointer; font-size: 11px; text-align: left;
         }
+        #train-menu button:hover { background: #555; }
         #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; }
         .info {
-            position: absolute; bottom: 10px; left: 10px; right: 10px; font-size: 11px; color: #ddd; z-index: 10; pointer-events: none; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            position: absolute; bottom: 10px; left: 10px; right: 10px; font-size: 11px; color: #fff; z-index: 10; pointer-events: none; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); background: rgba(0,0,0,0.4); padding: 5px; border-radius: 4px;
         }
     </style>
     <!-- 引入 Three.js -->
@@ -113,48 +116,36 @@
 
     <!-- 行走虛擬按鍵 -->
     <div id="walk-controls">
-        <button class="walk-btn btn-up" ontouchstart="startMove('FORWARD')" ontouchend="stopMove()" onmousedown="startMove('FORWARD')" onmouseup="stopMove()">▲</button>
-        <button class="walk-btn btn-left" ontouchstart="startMove('LEFT')" ontouchend="stopMove()" onmousedown="startMove('LEFT')" onmouseup="stopMove()">◀</button>
-        <button class="walk-btn btn-down" ontouchstart="startMove('BACKWARD')" ontouchend="stopMove()" onmousedown="startMove('BACKWARD')" onmouseup="stopMove()">▼</button>
-        <button class="walk-btn btn-right" ontouchstart="startMove('RIGHT')" ontouchend="stopMove()" onmousedown="startMove('RIGHT')" onmouseup="stopMove()">▶</button>
+        <button class="walk-btn btn-up" ontouchstart="setMove('UP', true)" ontouchend="setMove('UP', false)" onmousedown="setMove('UP', true)" onmouseup="setMove('UP', false)">▲</button>
+        <button class="walk-btn btn-left" ontouchstart="setMove('LEFT', true)" ontouchend="setMove('LEFT', false)" onmousedown="setMove('LEFT', true)" onmouseup="setMove('LEFT', false)">◀</button>
+        <button class="walk-btn btn-down" ontouchstart="setMove('DOWN', true)" ontouchend="setMove('DOWN', false)" onmousedown="setMove('DOWN', true)" onmouseup="setMove('DOWN', false)">▼</button>
+        <button class="walk-btn btn-right" ontouchstart="setMove('RIGHT', true)" ontouchend="setMove('RIGHT', false)" onmousedown="setMove('RIGHT', true)" onmouseup="setMove('RIGHT', false)">▶</button>
     </div>
 
     <!-- 車庫選單 -->
     <div id="train-menu">
         <h3>臺鐵全車型選擇</h3>
         <h4>1. 自強號家族</h4>
-        <button onclick="spawnTrain('EMU3000')">EMU3000 新自強號</button>
-        <button onclick="spawnTrain('PP')">E1000 推拉式自強號</button>
-        <button onclick="spawnTrain('TEMU1000')">TEMU1000 太魯閣號</button>
-        <button onclick="spawnTrain('TEMU2000')">TEMU2000 普悠瑪號</button>
-        <button onclick="spawnTrain('EMU100')">EMU100 英國貴婦</button>
-        <button onclick="spawnTrain('EMU1200')">EMU1200 紅斑馬</button>
-        <button onclick="spawnTrain('EMU300')">EMU300 義大利特快</button>
-        <button onclick="spawnTrain('DR3100')">DR3100 柴聯自強號</button>
-        <button onclick="spawnTrain('DR2800')">DR2800 白鐵柴聯車</button>
-        <button onclick="spawnTrain('DR3000')">DR3000 / DR2900 柴聯車</button>
+        <button onclick="spawnTrain('EMU3000')">EMU3000 新自強號 (特快黑白)</button>
+        <button onclick="spawnTrain('PP')">E1000 推拉式自強號 (經典紅)</button>
+        <button onclick="spawnTrain('TEMU1000')">TEMU1000 太魯閣號 (橘線)</button>
+        <button onclick="spawnTrain('TEMU2000')">TEMU2000 普悠瑪號 (紅面)</button>
 
         <h4>2. 通勤與區間電聯車</h4>
-        <button onclick="spawnTrain('EMU900')">EMU900 新一代區間車</button>
-        <button onclick="spawnTrain('EMU800')">EMU800 微笑號</button>
-        <button onclick="spawnTrain('EMU700')">EMU700 阿福號</button>
-        <button onclick="spawnTrain('EMU600')">EMU600 區間車</button>
+        <button onclick="spawnTrain('EMU900')">EMU900 新一代區間車 (綠帶)</button>
         <button onclick="spawnTrain('EMU500')">EMU500 經典藍黃區間車</button>
 
-        <h4>3. 柴油客車與機車頭</h4>
-        <button onclick="spawnTrain('DR1000')">DR1000 支線觀光柴車</button>
-        <button onclick="spawnTrain('DR2700')">DR2700 光華號 (白鐵仔)</button>
-        <button onclick="spawnTrain('R200')">R200 最新柴電機車</button>
-        <button onclick="spawnTrain('E500')">E500 最新電力機車</button>
+        <h4>3. 機車頭與柴聯</h4>
+        <button onclick="spawnTrain('R200')">R200 最新柴電機車 (深藍)</button>
     </div>
 
     <div id="canvas-container"></div>
-    <div class="info" id="info-text">場景：臺鐵歸來車站 | 請先點擊「台鐵車庫」生成列車</div>
+    <div class="info" id="info-text">場景：臺鐵歸來車站 | 請點擊「台鐵車庫」選擇列車開始</div>
 
     <script>
         let audioCtx = null, crossingInterval = null, isCrossingActive = false;
 
-        function initCrossingAudio() {
+        function initAudio() {
             try {
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -162,22 +153,22 @@
         }
 
         function playCrossingSound() {
-            initCrossingAudio();
+            initAudio();
             if (isCrossingActive || !audioCtx) return;
             isCrossingActive = true;
-            let highPitch = true;
+            let high = true;
             crossingInterval = setInterval(() => {
                 if (!audioCtx) return;
                 try {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
-                    osc.frequency.value = highPitch ? 740 : 620;
+                    osc.frequency.value = high ? 740 : 620;
                     osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
                     osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-                    highPitch = !highPitch;
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+                    high = !high;
                 } catch(e) {}
             }, 500);
         }
@@ -187,168 +178,154 @@
             isCrossingActive = false;
         }
 
-        // 1. 場景設定
+        // 1. 场景与相機
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x507f9c); 
-        scene.fog = new THREE.FogExp2(0x507f9c, 0.006); 
+        scene.background = new THREE.Color(0x6ba4d4); 
+        scene.fog = new THREE.FogExp2(0x6ba4d4, 0.004); 
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(3, 2, 10); 
-        camera.lookAt(0, 1, 0); 
+        camera.position.set(4, 2.5, 12); 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true; 
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-        const sunLight = new THREE.DirectionalLight(0xfffaed, 1.2);
-        sunLight.position.set(20, 40, 20);
-        sunLight.castShadow = true;
-        scene.add(sunLight);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+        const sun = new THREE.DirectionalLight(0xfffaed, 1.2);
+        sun.position.set(30, 50, 20);
+        sun.castShadow = true;
+        scene.add(sun);
 
-        // 2. 地面與月台
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), new THREE.MeshStandardMaterial({ color: 0x3b5323 }));
+        // 地面與月台
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0x4a7c59 }));
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.36;
+        ground.position.y = -0.4;
         scene.add(ground);
 
-        const platform = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.7, 180), new THREE.MeshStandardMaterial({ color: 0xdcdcdc, roughness: 0.8 }));
-        platform.position.set(4.8, -0.05, 0);
+        const platform = new THREE.Mesh(new THREE.BoxGeometry(5, 0.6, 200), new THREE.MeshStandardMaterial({ color: 0xcccccc }));
+        platform.position.set(4.5, -0.1, 0);
         scene.add(platform);
 
-        // 3. 鐵路軌道與擬真電線杆
-        const railMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9, roughness: 0.2 });
-        function createRailTrack() {
-            const group = new THREE.Group();
-            // 枕木
-            for (let z = -90; z <= 90; z += 1.2) {
-                const tie = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 0.4), new THREE.MeshStandardMaterial({ color: 0x5c4033 }));
-                tie.position.set(0, -0.3, z);
-                group.add(tie);
-            }
-            // 雙軌
-            [-0.7, 0.7].forEach(x => {
-                const rHead = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 184), railMat); rHead.position.set(x, 0.06, 0);
-                const rBase = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 184), railMat); rBase.position.set(x, -0.05, 0);
-                group.add(rHead, rBase);
-            });
-            return group;
+        // 2. 標準台鐵鐵路與真實電線杆
+        const trackGroup = new THREE.Group();
+        const tieMat = new THREE.MeshStandardMaterial({ color: 0x4a3525 });
+        const railMat = new THREE.MeshStandardMaterial({ color: 0x777777, metalness: 0.8 });
+        
+        for (let z = -100; z <= 100; z += 1.0) {
+            const tie = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.12, 0.4), tieMat);
+            tie.position.set(0, -0.32, z);
+            trackGroup.add(tie);
         }
-        const track = createRailTrack();
-        track.position.x = -1.5;
-        scene.add(track);
-
-        // 電線杆
-        function createPoles() {
-            const poleMat = new THREE.MeshStandardMaterial({ color: 0x4f4f4f, metalness: 0.7 });
-            for (let z = -80; z <= 80; z += 25) {
-                const poleGroup = new THREE.Group();
-                const vertical = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 7, 8), poleMat);
-                vertical.position.set(0, 3.2, 0);
-                const arm = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.15, 0.15), poleMat);
-                arm.position.set(1.2, 6.2, 0);
-                poleGroup.add(vertical, arm);
-                poleGroup.position.set(-3.5, 0, z);
-                scene.add(poleGroup);
-            }
-        }
-        createPoles();
-
-        // 4. 平交道 (前方 60 公尺)
-        const crossingZ = -60;
-        const crossingGroup = new THREE.Group();
-        const postMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-        [-2.8, 2.8].forEach(xP => {
-            const cPost = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5, 12), postMat);
-            cPost.position.set(xP, 2.5, 0);
-            crossingGroup.add(cPost);
+        [-0.75, 0.75].forEach(x => {
+            const rHead = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 202), railMat); rHead.position.set(x, -0.06, 0);
+            trackGroup.add(rHead);
         });
-        const bar = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.1, 0.1), new THREE.MeshStandardMaterial({ color: 0xcc2222 }));
-        bar.position.set(0, 3.5, 0);
+        trackGroup.position.x = -1.5;
+        scene.add(trackGroup);
+
+        // 電線杆與高壓線
+        for (let z = -90; z <= 90; z += 30) {
+            const poleGroup = new THREE.Group();
+            const pMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8 });
+            const pVert = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 7.5, 8), pMat);
+            pVert.position.set(0, 3.5, 0);
+            const pArm = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.15, 0.15), pMat);
+            pArm.position.set(1.1, 7.0, 0);
+            poleGroup.add(pVert, pArm);
+            poleGroup.position.set(-3.8, 0, z);
+            scene.add(poleGroup);
+        }
+
+        // 3. 標準平交道 (前方 50m)
+        const crossingZ = -50;
+        const crossingGroup = new THREE.Group();
+        const postMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        [-2.8, 2.8].forEach(xP => {
+            const cp = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 5.2, 12), postMat);
+            cp.position.set(xP, 2.6, 0);
+            crossingGroup.add(cp);
+        });
+        // 紅白警示柵欄
+        const barMat = new THREE.MeshStandardMaterial({ color: 0xcc2222 });
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.12, 0.12), barMat);
+        bar.position.set(0, 3.8, 0);
         crossingGroup.add(bar);
         crossingGroup.position.set(-1.5, 0, crossingZ);
         scene.add(crossingGroup);
 
-        // 5. 完整擬真列車模組
+        // 4. 車輛與視角系統
         let activeTrain = null;
         let viewMode = 'OUTSIDE'; // 'OUTSIDE', 'CABIN', 'PASSENGER'
-        let moveDirection = null;
         let trainZ = 0;
-        let isTrainMoving = false;
+        let isMoving = false;
+        
+        // 行走控制狀態
+        let moveState = { UP: false, DOWN: false, LEFT: false, RIGHT: false };
+        let playerOffset = { x: 0, y: 0, z: 0 };
 
-        function toggleTrainMenu() {
-            const menu = document.getElementById('train-menu');
-            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        function setMove(dir, status) {
+            moveState[dir] = status;
         }
 
-        function createDetailedCar(isHead, bodyColor, stripeColor, isFront) {
-            const carGroup = new THREE.Group();
-            const bMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.2, metalness: 0.3 });
-            const sMat = new THREE.MeshStandardMaterial({ color: stripeColor, roughness: 0.3 });
-            const wMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.05 });
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0xccb899 });
-            const seatMat = new THREE.MeshStandardMaterial({ color: 0x335577 });
+        function createCarMesh(isHead, bColor, sColor, isFront) {
+            const car = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: bColor, roughness: 0.2, metalness: 0.4 });
+            const stripeMat = new THREE.MeshStandardMaterial({ color: sColor, roughness: 0.3 });
+            const winMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.05 });
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0xd2b48c });
 
-            const carLength = 19;
-            
-            // 客車內地板與簡單座位（上車時可見）
-            const floor = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, carLength - 1), floorMat);
-            floor.position.set(0, 0.55, 0);
-            carGroup.add(floor);
+            const length = 18;
 
-            for(let zPos = -6; zPos <= 6; zPos += 3) {
-                const seatL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), seatMat);
-                seatL.position.set(-0.6, 0.9, zPos);
-                const seatR = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), seatMat);
-                seatR.position.set(0.6, 0.9, zPos);
-                carGroup.add(seatL, seatR);
-            }
+            // 內部地板（車內/客車視角看得到）
+            const floor = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, length - 0.5), floorMat);
+            floor.position.set(0, 0.5, 0);
+            car.add(floor);
 
-            // 車身主體
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.4, carLength), bMat);
+            // 車身
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.7, 2.4, length), bodyMat);
             body.position.set(0, 1.7, 0);
-            carGroup.add(body);
+            car.add(body);
 
-            // 車側腰線
-            const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.64, 0.3, carLength), sMat);
-            stripe.position.set(0, 1.7, 0);
-            carGroup.add(stripe);
+            // 腰線
+            const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.74, 0.3, length), stripeMat);
+            stripe.position.set(0, 1.8, 0);
+            car.add(stripe);
 
             // 車窗
-            const windows = new THREE.Mesh(new THREE.BoxGeometry(2.66, 0.8, carLength - 4), wMat);
-            windows.position.set(0, 1.95, 0);
-            carGroup.add(windows);
+            const windows = new THREE.Mesh(new THREE.BoxGeometry(2.76, 0.8, length - 4), winMat);
+            windows.position.set(0, 2.05, 0);
+            car.add(windows);
 
-            // 車頭流線造型與駕駛室
+            // 流線車頭
             if (isHead) {
-                const noseZ = isFront ? (carLength / 2 + 1.5) : (-carLength / 2 - 1.5);
-                const nose = new THREE.Mesh(new THREE.BoxGeometry(2.58, 2.1, 3), bMat);
+                const noseZ = isFront ? (length / 2 + 1.2) : (-length / 2 - 1.2);
+                const nose = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.1, 2.4), bodyMat);
                 nose.position.set(0, 1.6, noseZ);
-                nose.rotation.x = isFront ? -0.15 : 0.15;
-                carGroup.add(nose);
+                nose.rotation.x = isFront ? -0.2 : 0.2;
+                car.add(nose);
             }
 
-            return carGroup;
+            return car;
         }
 
         function spawnTrain(type) {
             if (activeTrain) scene.remove(activeTrain);
             activeTrain = new THREE.Group();
-            let bColor = 0xf5f5f5, sColor = 0x111111;
+            let bCol = 0xf5f5f5, sCol = 0x111111;
 
-            if(type === 'PP') { bColor = 0xcc2222; sColor = 0xffffff; }
-            else if(type === 'TEMU1000') { bColor = 0xf0f0f0; sColor = 0xee7700; }
-            else if(type === 'TEMU2000') { bColor = 0xdd1122; sColor = 0xffffff; }
-            else if(type === 'EMU900') { bColor = 0xe5e8ec; sColor = 0x008866; }
-            else if(type === 'EMU500') { bColor = 0x003399; sColor = 0xffcc00; }
-            else if(type === 'R200') { bColor = 0x1b4f72; sColor = 0xf1c40f; }
+            if (type === 'PP') { bCol = 0xc0392b; sCol = 0xffffff; }
+            else if (type === 'TEMU1000') { bCol = 0xecf0f1; sCol = 0xd35400; }
+            else if (type === 'TEMU2000') { bCol = 0xb03a2e; sCol = 0xf1c40f; }
+            else if (type === 'EMU900') { bCol = 0xeaeded; sCol = 0x16a085; }
+            else if (type === 'EMU500') { bCol = 0x2980b9; sCol = 0xf39c12; }
+            else if (type === 'R200') { bCol = 0x1b4f72; sCol = 0xf1c40f; }
 
             trainZ = 0;
             for (let i = 0; i < 4; i++) {
                 const isHead = (i === 0 || i === 3);
-                const car = createDetailedCar(isHead, bColor, sColor, i === 0);
-                car.position.set(-1.5, 0, (i - 1.5) * 19.5);
+                const car = createCarMesh(isHead, bCol, sCol, i === 0);
+                car.position.set(-1.5, 0, (i - 1.5) * 18.5);
                 activeTrain.add(car);
             }
 
@@ -356,59 +333,72 @@
             document.getElementById('train-menu').style.display = 'none';
             exitToOutside();
             playCrossingSound();
-            isTrainMoving = true;
+            isMoving = true;
         }
 
-        // 6. 視角切換功能
+        function toggleTrainMenu() {
+            const menu = document.getElementById('train-menu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        }
+
         function enterCabin() {
-            if (!activeTrain) { alert("請先從車庫生成列車！"); return; }
+            if (!activeTrain) { alert("請先從「台鐵車庫」生成列車！"); return; }
             viewMode = 'CABIN';
+            playerOffset = { x: 0, y: 0, z: 0 };
             document.getElementById('walk-controls').style.display = 'grid';
-            document.getElementById('info-text').innerText = "【駕駛室視角】已進入車頭駕駛室，可使用方向鍵移動";
+            document.getElementById('info-text').innerText = "【駕駛室視角】已進入車頭，可用左下角方向鍵控制移動與看風景";
         }
 
         function enterPassengerCar() {
-            if (!activeTrain) { alert("請先從車庫生成列車！"); return; }
+            if (!activeTrain) { alert("請先從「台鐵車庫」生成列車！"); return; }
             viewMode = 'PASSENGER';
+            playerOffset = { x: 0, y: 0, z: 0 };
             document.getElementById('walk-controls').style.display = 'grid';
-            document.getElementById('info-text').innerText = "【客車內視角】已進入車廂內部，可使用方向鍵走動";
+            document.getElementById('info-text').innerText = "【客車內視角】已進入第二車廂走道，可用方向鍵走動";
         }
 
         function exitToOutside() {
             viewMode = 'OUTSIDE';
             document.getElementById('walk-controls').style.display = 'none';
-            camera.position.set(3, 2, 10);
+            camera.position.set(4, 2.5, 12);
             camera.lookAt(-1.5, 1, 0);
-            document.getElementById('info-text').innerText = "場景：臺鐵歸來車站 (外部視角)";
+            document.getElementById('info-text').innerText = "場景：臺鐵歸來車站 (站台外部視角)";
         }
 
-        function startMove(dir) { moveDirection = dir; }
-        function stopMove() { moveDirection = null; }
-
-        // 7. 動畫主迴圈
+        // 5. 主迴圈
         function animate() {
             requestAnimationFrame(animate);
 
-            if (activeTrain && isTrainMoving) {
-                trainZ -= 0.3;
+            // 火車前進
+            if (activeTrain && isMoving) {
+                trainZ -= 0.35;
                 activeTrain.position.z = trainZ;
-                if (trainZ < -120) trainZ = 100;
+                if (trainZ < -130) trainZ = 110;
             }
 
-            // 駕駛室或客車內移動鏡頭對齊
+            // 行走位移計算
+            const speed = 0.08;
+            if (moveState.UP) playerOffset.z -= speed;
+            if (moveState.DOWN) playerOffset.z += speed;
+            if (moveState.LEFT) playerOffset.x -= speed;
+            if (moveState.RIGHT) playerOffset.x += speed;
+
+            // 視角鏡頭跟隨
             if (activeTrain) {
                 if (viewMode === 'CABIN') {
-                    camera.position.set(-1.5, 1.7, trainZ + 10);
-                    if (moveDirection === 'FORWARD') camera.position.z -= 0.1;
-                    if (moveDirection === 'BACKWARD') camera.position.z += 0.1;
-                    camera.lookAt(-1.5, 1.7, camera.position.z - 15);
+                    // 車頭駕駛室位置 (朝前方看出去)
+                    const baseCabinX = -1.5;
+                    const baseCabinY = 1.7;
+                    const baseCabinZ = trainZ + 9;
+                    camera.position.set(baseCabinX + playerOffset.x, baseCabinY + playerOffset.y, baseCabinZ + playerOffset.z);
+                    camera.lookAt(baseCabinX + playerOffset.x, baseCabinY + playerOffset.y, baseCabinZ + playerOffset.z - 20);
                 } else if (viewMode === 'PASSENGER') {
-                    camera.position.set(-1.5, 1.2, trainZ);
-                    if (moveDirection === 'FORWARD') camera.position.z -= 0.12;
-                    if (moveDirection === 'BACKWARD') camera.position.z += 0.12;
-                    if (moveDirection === 'LEFT') camera.position.x -= 0.05;
-                    if (moveDirection === 'RIGHT') camera.position.x += 0.05;
-                    camera.lookAt(camera.position.x, 1.2, camera.position.z - 15);
+                    // 客車車廂內部走道
+                    const baseCarX = -1.5;
+                    const baseCarY = 1.2;
+                    const baseCarZ = trainZ;
+                    camera.position.set(baseCarX + playerOffset.x, baseCarY + playerOffset.y, baseCarZ + playerOffset.z);
+                    camera.lookAt(baseCarX + playerOffset.x, baseCarY + playerOffset.y, baseCarZ + playerOffset.z - 15);
                 }
             }
 
