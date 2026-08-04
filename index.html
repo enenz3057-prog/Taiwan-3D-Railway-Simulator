@@ -12,7 +12,7 @@
         }
         body {
             font-family: "Microsoft JhengHei", Arial, sans-serif;
-            background-color: #111;
+            background-color: #0b1329;
             color: #fff;
             overflow: hidden;
             height: 100vh;
@@ -20,16 +20,18 @@
             flex-direction: column;
         }
         header {
-            background: rgba(20, 20, 20, 0.9);
-            padding: 1rem;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            padding: 0.8rem 1rem;
             text-align: center;
-            border-bottom: 2px solid #333;
+            border-bottom: 3px solid #ffcc00;
             z-index: 10;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
         header h1 {
-            font-size: 1.8rem;
-            color: #4ade80;
+            font-size: 1.6rem;
+            color: #ffcc00;
             letter-spacing: 2px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
         }
         #canvas-container {
             flex: 1;
@@ -41,62 +43,81 @@
             width: 100%;
             height: 100%;
         }
-        .ui-panel {
+        /* 仿真台鐵駕駛台控制面板 UI */
+        .cab-dashboard {
             position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px 25px;
-            border-radius: 12px;
-            border: 1px solid #444;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to top, #1a1a1a, #2d2d2d);
+            border-top: 4px solid #444;
+            padding: 15px 20px;
             display: flex;
-            gap: 20px;
+            justify-content: space-around;
             align-items: center;
             z-index: 10;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.8);
         }
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .control-group label {
-            font-size: 0.85rem;
-            color: #aaa;
-            margin-bottom: 5px;
-        }
-        .speed-display {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #38bdf8;
-            font-family: monospace;
-        }
-        button {
-            background: #2563eb;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        button:hover {
-            background: #1d4ed8;
-        }
-        button:active {
-            transform: scale(0.95);
-        }
-        .instructions {
-            position: absolute;
-            top: 80px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px 15px;
+        .dash-box {
+            background: #111;
+            border: 2px solid #555;
             border-radius: 8px;
-            font-size: 0.85rem;
-            color: #ccc;
+            padding: 10px 20px;
+            text-align: center;
+            min-width: 130px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        }
+        .dash-label {
+            font-size: 0.75rem;
+            color: #aaa;
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+        }
+        .dash-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #00ffcc;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 8px rgba(0,255,204,0.6);
+        }
+        .control-panel {
+            display: flex;
+            gap: 12px;
+        }
+        .handle-btn {
+            background: linear-gradient(to bottom, #d9534f, #c9302c);
+            color: white;
+            border: 2px solid #ac2925;
+            padding: 12px 22px;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.1s;
+        }
+        .handle-btn.power {
+            background: linear-gradient(to bottom, #5cb85c, #4cae4c);
+            border-color: #398439;
+        }
+        .handle-btn.neutral {
+            background: linear-gradient(to bottom, #f0ad4e, #eea236);
+            border-color: #d58512;
+        }
+        .handle-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .hud-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 12px 18px;
+            border-radius: 8px;
+            border-left: 4px solid #ffcc00;
+            font-size: 0.9rem;
+            color: #eee;
             z-index: 10;
             pointer-events: none;
         }
@@ -108,143 +129,152 @@
         <h1>台灣3D鐵路模擬器</h1>
     </header>
 
-    <div class="instructions">
-        💡 操作提示：使用下方控制面板加速、減速或煞車，體驗駕駛台鐵列車行駛於高架軌道的視角！
+    <div class="hud-info">
+        🚄 駕駛視角：前方接近林邊高架車站<br>
+        🕹️ 操作：點擊下方「牽引」加速，「制動」煞車減速
     </div>
 
     <div id="canvas-container">
-        <!-- 3D 渲染畫布 -->
         <canvas id="simCanvas"></canvas>
     </div>
 
-    <div class="ui-panel">
-        <div class="control-group">
-            <label>目前速度</label>
-            <div class="speed-display"><span id="speedVal">0</span> km/h</div>
+    <div class="cab-dashboard">
+        <div class="dash-box">
+            <div class="dash-label">目前速度</div>
+            <div class="dash-value"><span id="speedVal">0</span> <span style="font-size:1rem;">km/h</span></div>
         </div>
-        <button onclick="accelerate()">加速 (+)</button>
-        <button onclick="brake()">煞車 (-)</button>
-        <button onclick="resetSpeed()" style="background: #475569;">歸零</button>
+        <div class="control-panel">
+            <button class="handle-btn power" onclick="throttleUp()">牽引 (加速)</button>
+            <button class="handle-btn neutral" onclick="coasting()">惰行</button>
+            <button class="handle-btn" onclick="applyBrake()">制動 (煞車)</button>
+        </div>
     </div>
 
-    <!-- 載入 Three.js 3D 引擎庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // 初始化 3D 場景
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb); // 天空藍
-        scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
+        scene.background = new THREE.Color(0x7ec0ee); // 明亮晴空藍
+        scene.fog = new THREE.FogExp2(0x7ec0ee, 0.012);
 
-        const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
-        camera.position.set(0, 3, 5);
+        const camera = new THREE.PerspectiveCamera(65, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(0, 2.2, 4); // 模擬駕駛座前方視角
 
         const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('simCanvas'), antialias: true });
         renderer.setSize(container.clientWidth, container.clientHeight);
-        renderer.shadowMap.enabled = true;
 
-        // 環境光源
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        // 光源
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
         scene.add(ambientLight);
 
-        const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        sunLight.position.set(20, 40, 20);
-        sunLight.castShadow = true;
+        const sunLight = new THREE.DirectionalLight(0xfffaed, 0.9);
+        sunLight.position.set(30, 50, 20);
         scene.add(sunLight);
 
-        // 建立高架軌道與週遭環境
-        const trackLength = 400;
-        
-        // 地面/高架橋基座
-        const bridgeGeo = new THREE.BoxGeometry(6, 1, trackLength);
-        const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-        const bridge = new THREE.Mesh(bridgeGeo, bridgeMat);
-        bridge.position.set(0, -0.5, -trackLength / 2);
-        scene.add(bridge);
-
-        // 雙軌與枕木
-        const railMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-        const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
+        // 建立高架鐵道環境 (仿高屏鐵路高架化風格：高架橋墩、雙軌、電車線懸臂)
+        const trackLength = 800;
         const trackGroup = new THREE.Group();
+
+        // 橋面基座 (高架板)
+        const bridgeGeo = new THREE.BoxGeometry(8, 0.8, trackLength);
+        const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.8 });
+        const bridge = new THREE.Mesh(bridgeGeo, bridgeMat);
+        bridge.position.set(0, -0.4, -trackLength / 2);
+        trackGroup.add(bridge);
+
+        // 橋墩
+        for (let z = -20; z > -trackLength; z -= 40) {
+            const pierGeo = new THREE.BoxGeometry(2, 15, 2);
+            const pierMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+            const pier = new THREE.Mesh(pierGeo, pierMat);
+            pier.position.set(0, -8, z);
+            trackGroup.add(pier);
+        }
+
+        // 枕木與雙軌
+        const railMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 });
+        const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
 
         for (let z = 0; z > -trackLength; z -= 2) {
             // 枕木
-            const sleeperGeo = new THREE.BoxGeometry(3.2, 0.1, 0.6);
-            const sleeper = new THREE.Mesh(sleeperGeo, sleeperMat);
-            sleeper.position.set(0, 0.05, z);
+            const sleeper = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.15, 0.6), sleeperMat);
+            sleeper.position.set(0, 0.08, z);
             trackGroup.add(sleeper);
         }
 
-        // 鐵軌本體
-        const leftRailGeo = new THREE.BoxGeometry(0.2, 0.3, trackLength);
-        const leftRail = new THREE.Mesh(leftRailGeo, railMat);
-        leftRail.position.set(-1.1, 0.2, -trackLength / 2);
-        trackGroup.add(leftRail);
+        // 左右鐵軌 (雙軌)
+        // 左軌道組
+        const leftRail1 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.25, trackLength), railMat);
+        leftRail1.position.set(-1.1, 0.25, -trackLength / 2);
+        trackGroup.add(leftRail1);
+        const leftRail2 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.25, trackLength), railMat);
+        leftRail2.position.set(-0.5, 0.25, -trackLength / 2);
+        trackGroup.add(leftRail2);
 
-        const rightRailGeo = new THREE.BoxGeometry(0.2, 0.3, trackLength);
-        const rightRail = new THREE.Mesh(rightRailGeo, railMat);
-        rightRail.position.set(1.1, 0.2, -trackLength / 2);
-        trackGroup.add(rightRail);
+        // 右軌道組
+        const rightRail1 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.25, trackLength), railMat);
+        rightRail1.position.set(0.5, 0.25, -trackLength / 2);
+        trackGroup.add(rightRail1);
+        const rightRail2 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.25, trackLength), railMat);
+        rightRail2.position.set(1.1, 0.25, -trackLength / 2);
+        trackGroup.add(rightRail2);
+
+        // 電車線門架與電桿 (高架鐵路特色)
+        for (let z = 0; z > -trackLength; z -= 35) {
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+            // 側柱
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 9), poleMat);
+            pole.position.set(4.5, 4.5, z);
+            trackGroup.add(pole);
+
+            // 橫樑
+            const beam = new THREE.Mesh(new THREE.BoxGeometry(9, 0.2, 0.2), poleMat);
+            beam.position.set(0, 8.8, z);
+            trackGroup.add(beam);
+        }
 
         scene.add(trackGroup);
 
-        // 電車線桿 (仿造高架化車站月台風格)
-        for (let z = 0; z > -trackLength; z -= 30) {
-            const poleGeo = new THREE.CylinderGeometry(0.15, 0.15, 8);
-            const poleMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
-            const pole = new THREE.Mesh(poleGeo, poleMat);
-            pole.position.set(3.5, 4, z);
-            scene.add(pole);
+        // 模擬物理變數
+        let speed = 0;
+        let distance = 0;
 
-            // 橫臂
-            const armGeo = new THREE.BoxGeometry(7, 0.15, 0.15);
-            const arm = new THREE.Mesh(armGeo, poleMat);
-            arm.position.set(0, 7.8, z);
-            scene.add(arm);
+        function throttleUp() {
+            speed = Math.min(speed + 10, 110); // 台鐵區間車/自強號常見速限
         }
 
-        // 模擬狀態變數
-        let trainSpeed = 0;
-        let zPosition = 0;
-
-        function accelerate() {
-            trainSpeed = Math.min(trainSpeed + 15, 130);
+        function coasting() {
+            // 惰行微幅減速
+            speed = Math.max(speed - 2, 0);
         }
 
-        function brake() {
-            trainSpeed = Math.max(trainSpeed - 20, 0);
+        function applyBrake() {
+            speed = Math.max(speed - 18, 0);
         }
 
-        function resetSpeed() {
-            trainSpeed = 0;
-        }
-
-        // 動畫循環渲染
+        // 動畫主迴圈
         function animate() {
             requestAnimationFrame(animate);
 
-            // 根據速度推進位置
-            if (trainSpeed > 0) {
-                zPosition += (trainSpeed / 3600); // 簡單的速度換算
-                if (zPosition > trackLength / 2) {
-                    zPosition = 0; // 循環跑道
+            if (speed > 0) {
+                // 距離推進
+                distance += (speed / 3600) * 1.5;
+                if (distance > trackLength / 2) {
+                    distance = 0; // 循環跑道
                 }
-                camera.position.z = 5 - (zPosition * 10);
+                camera.position.z = 4 - (distance * 12);
+                
+                // 模擬列車行進時的高架軌道規律上下晃動感
+                camera.position.y = 2.2 + Math.sin(Date.now() * 0.015 * (speed / 40)) * 0.025;
             }
 
-            // 些微的行進晃動感
-            if (trainSpeed > 0) {
-                camera.position.y = 3 + Math.sin(Date.now() * 0.01) * 0.03 * (trainSpeed / 100);
-            }
-
-            document.getElementById('speedVal').innerText = Math.round(trainSpeed);
+            document.getElementById('speedVal').innerText = Math.round(speed);
 
             renderer.render(scene, camera);
         }
 
         animate();
 
-        // 視窗縮放適應
         window.addEventListener('resize', () => {
             camera.aspect = container.clientWidth / container.clientHeight;
             camera.updateProjectionMatrix();
