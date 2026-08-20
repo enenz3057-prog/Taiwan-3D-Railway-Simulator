@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>台灣鐵路 3D 模擬器 - 手機觸控專業版</title>
+    <title>台灣鐵路 EMU3000 專業行動版模擬器</title>
     <style>
         :root {
             --panel-bg: rgba(15, 22, 36, 0.9);
@@ -21,133 +21,63 @@
             -webkit-user-select: none;
         }
 
-        #viewport {
-            width: 100vw;
-            height: 100vh;
-            display: block;
-        }
+        #viewport { width: 100vw; height: 100vh; display: block; }
 
-        /* 頂部系統狀態欄 (手機自動縮小適應) */
         #telemetry-panel {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: var(--panel-bg);
-            border: 1px solid rgba(0, 240, 255, 0.3);
-            border-radius: 8px;
-            padding: 10px 14px;
-            color: #fff;
-            width: 240px;
-            font-size: 11px;
-            backdrop-filter: blur(6px);
-            z-index: 10;
+            position: absolute; top: 15px; left: 15px;
+            background: var(--panel-bg); border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 8px; padding: 12px 16px; color: #fff; width: 260px;
+            font-size: 12px; backdrop-filter: blur(8px); z-index: 10;
         }
 
         #telemetry-panel h1 {
-            margin: 0 0 6px 0;
-            font-size: 13px;
-            color: var(--accent-cyan);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding-bottom: 4px;
+            margin: 0 0 8px 0; font-size: 14px; color: var(--accent-cyan);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 4px;
         }
 
-        .data-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 4px 0;
-            color: #94a3b8;
-        }
-
+        .data-row { display: flex; justify-content: space-between; margin: 5px 0; color: #94a3b8; }
         .data-row span { color: #fff; font-weight: bold; }
 
-        .btn-discord {
-            display: block;
-            margin-top: 8px;
-            padding: 6px;
-            background: #5865F2;
-            color: white;
-            text-decoration: none;
-            text-align: center;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-        /* 底部儀表板 (手機版精簡) */
         #cab-console {
-            position: absolute;
-            bottom: 95px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--panel-bg);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            padding: 8px 16px;
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            backdrop-filter: blur(8px);
-            z-index: 10;
+            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: var(--panel-bg); border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px; padding: 10px 20px; display: flex; gap: 20px;
+            align-items: center; backdrop-filter: blur(10px); z-index: 10;
         }
 
-        .gauge-pod { text-align: center; min-width: 65px; }
-        .gauge-label { font-size: 9px; color: #94a3b8; margin-bottom: 2px; }
-        .gauge-val { font-size: 20px; font-weight: 800; color: var(--accent-cyan); font-family: monospace; }
-        .gauge-unit { font-size: 9px; color: #64748b; }
+        .gauge-pod { text-align: center; min-width: 70px; }
+        .gauge-label { font-size: 10px; color: #94a3b8; margin-bottom: 2px; }
+        .gauge-val { font-size: 24px; font-weight: 800; color: var(--accent-cyan); font-family: monospace; }
+        .gauge-unit { font-size: 10px; color: #64748b; }
 
-        /* 手機觸控虛擬按鈕控制面板 */
         #mobile-controls {
-            position: absolute;
-            bottom: 15px;
-            left: 10px;
-            right: 10px;
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            z-index: 20;
+            position: absolute; bottom: 15px; left: 15px; right: 15px;
+            display: flex; justify-content: space-between; gap: 10px; z-index: 20;
         }
 
         .ctrl-btn {
-            flex: 1;
-            padding: 16px 0;
-            background: rgba(30, 41, 59, 0.85);
-            border: 2px solid rgba(255, 255, 255, 0.25);
-            color: white;
-            font-size: 15px;
-            font-weight: bold;
-            border-radius: 10px;
-            text-align: center;
-            touch-action: manipulation;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            flex: 1; padding: 16px 0; background: rgba(30, 41, 59, 0.9);
+            border: 2px solid rgba(255, 255, 255, 0.25); color: white;
+            font-size: 15px; font-weight: bold; border-radius: 10px; text-align: center;
+            touch-action: manipulation; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
 
-        .ctrl-btn:active, .ctrl-btn.active {
-            background: rgba(0, 240, 255, 0.3);
-            border-color: var(--accent-cyan);
-        }
-
-        .ctrl-btn.brake { background: rgba(180, 83, 9, 0.85); }
-        .ctrl-btn.brake:active { background: rgba(245, 158, 11, 0.5); border-color: var(--accent-amber); }
-
-        .ctrl-btn.eb { background: rgba(185, 28, 28, 0.85); }
-        .ctrl-btn.eb:active { background: rgba(239, 68, 68, 0.5); border-color: var(--accent-red); }
-
-        .ctrl-btn.cam { background: rgba(51, 65, 85, 0.85); }
+        .ctrl-btn:active, .ctrl-btn.active { background: rgba(0, 240, 255, 0.35); border-color: var(--accent-cyan); }
+        .ctrl-btn.brake { background: rgba(180, 83, 9, 0.9); }
+        .ctrl-btn.eb { background: rgba(185, 28, 28, 0.9); }
+        .ctrl-btn.cam { background: rgba(51, 65, 85, 0.9); }
     </style>
 </head>
 <body>
-
     <div id="viewport"></div>
 
-    <!-- 左上角系統資訊 -->
     <div id="telemetry-panel">
         <h1>EMU3000 行動版</h1>
-        <div class="data-row">里程: <span id="tele-dist">0.00 km</span></div>
-        <div class="data-row">風泵: <span id="tele-bp">5.00 bar</span></div>
-        <a href="https://discord.gg/dT47kurqw" target="_blank" class="btn-discord">加入 Discord 社群</a>
+        <div class="data-row">編組系統: <span>12C 全列車聯掛</span></div>
+        <div class="data-row">總行駛距: <span id="tele-dist">0.00 km</span></div>
+        <div class="data-row">主風泵壓: <span id="tele-bp">5.00 bar</span></div>
     </div>
 
-    <!-- 底部儀表板 -->
     <div id="cab-console">
         <div class="gauge-pod">
             <div class="gauge-label">SPEED</div>
@@ -156,7 +86,7 @@
         </div>
         <div class="gauge-pod">
             <div class="gauge-label">NOTCH</div>
-            <div class="gauge-val" id="val-notch" style="color: var(--accent-amber);">N</div>
+            <div class="gauge-val" id="val-notch" style="color: #ffaa00;">N</div>
             <div class="gauge-unit">POS</div>
         </div>
         <div class="gauge-pod">
@@ -166,7 +96,6 @@
         </div>
     </div>
 
-    <!-- 手機觸控操作按鈕 (虛擬駕駛台) -->
     <div id="mobile-controls">
         <button class="ctrl-btn" id="btn-power">加速 (P)</button>
         <button class="ctrl-btn brake" id="btn-brake">煞車 (B)</button>
@@ -174,207 +103,210 @@
         <button class="ctrl-btn cam" id="btn-view">視角 (CAM)</button>
     </div>
 
-    <!-- 載入 Three.js 與觸控適應程式碼 -->
     <script type="module">
         import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
 
-        const PHYSICS = {
-            gauge: 1.067,
-            maxSpeed: 140,
-            accelRate: 1.15,
-            brakeRate: 2.10,
-            resistance: 0.38
-        };
+        // 1. 車輛動態與彈簧阻尼物理引擎
+        class TrainDynamics {
+            constructor(totalCars = 12) {
+                this.totalCars = totalCars;
+                this.cars = [];
+                for (let i = 0; i < totalCars; i++) {
+                    this.cars.push({ positionZ: -i * 20.0 });
+                }
+                this.globalSpeed = 0;
+                this.maxSpeed = 140;
+                this.accelRate = 1.15;
+                this.brakeRate = 2.15;
+                this.distance = 0;
+            }
 
-        const state = {
-            speed: 0.0,
-            notch: 'N',
-            bcPressure: 0.0,
-            distance: 0.0,
-            camMode: 0
-        };
+            update(dt, inputPower, inputBrake, inputEB) {
+                let targetAccel = 0;
+                if (inputEB) targetAccel = -this.brakeRate * 2.5;
+                else if (inputPower) targetAccel = this.accelRate;
+                else if (inputBrake) targetAccel = -this.brakeRate;
 
-        const container = document.getElementById('viewport');
+                if (!inputPower && !inputBrake && !inputEB) {
+                    this.globalSpeed = Math.max(0, this.globalSpeed - 0.38 * dt * 10);
+                } else {
+                    this.globalSpeed += targetAccel * dt * 8;
+                }
+
+                this.globalSpeed = Math.max(0, Math.min(this.globalSpeed, this.maxSpeed));
+                const displacement = (this.globalSpeed / 3.6) * dt;
+                this.distance += displacement;
+
+                this.cars.forEach((car, idx) => {
+                    car.positionZ -= displacement;
+                    if (idx > 0) {
+                        const leadCar = this.cars[idx - 1];
+                        const idealZ = leadCar.positionZ - 20.0;
+                        car.positionZ += (idealZ - car.positionZ) * 0.2 * dt * 60;
+                    }
+                });
+
+                return { speed: this.globalSpeed, distance: this.distance };
+            }
+        }
+
+        // 2. Web Audio 聲學合成引擎
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.osc = null;
+                this.gain = null;
+                this.initted = false;
+            }
+
+            init() {
+                if (this.initted) return;
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioCtx();
+
+                this.osc = this.ctx.createOscillator();
+                this.osc.type = 'sawtooth';
+                this.osc.frequency.setValueAtTime(50, this.ctx.currentTime);
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(900, this.ctx.currentTime);
+                filter.Q.setValueAtTime(4.0, this.ctx.currentTime);
+
+                this.gain = this.ctx.createGain();
+                this.gain.gain.setValueAtTime(0, this.ctx.currentTime);
+
+                this.osc.connect(filter);
+                filter.connect(this.gain);
+                this.gain.connect(this.ctx.destination);
+
+                this.osc.start();
+                this.initted = true;
+            }
+
+            update(speed, isPowering) {
+                if (!this.initted) return;
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+
+                if (isPowering && speed < 130) {
+                    const freq = 55 + (speed * 16);
+                    this.osc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.1);
+                    this.gain.gain.setTargetAtTime(0.12, this.ctx.currentTime, 0.1);
+                } else {
+                    this.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.2);
+                }
+            }
+        }
+
+        // 3. 3D 場景初始化與主迴圈
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x68aed4);
-        scene.fog = new THREE.FogExp2(0x68aed4, 0.005);
+        scene.fog = new THREE.FogExp2(0x68aed4, 0.004);
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 4000);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        container.appendChild(renderer.domElement);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('viewport').appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-        const sunLight = new THREE.DirectionalLight(0xfff8ee, 0.95);
-        sunLight.position.set(300, 500, 200);
-        scene.add(sunLight);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+        const sun = new THREE.DirectionalLight(0xfff8ee, 1.0);
+        sun.position.set(300, 600, 300);
+        sun.castShadow = true;
+        scene.add(sun);
 
-        // 地面
         const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(8000, 8000),
+            new THREE.PlaneGeometry(10000, 10000),
             new THREE.MeshLambertMaterial({ color: 0x3b6642 })
         );
         ground.rotation.x = -Math.PI / 2;
         ground.position.y = -0.4;
         scene.add(ground);
 
-        // 軌道與電桿生成
-        const worldGroup = new THREE.Group();
-        scene.add(worldGroup);
-
-        const railMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, metalness: 0.85, roughness: 0.25 });
-        const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x4a3b32, roughness: 0.9 });
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0x6e7681, metalness: 0.6 });
-
-        for (let z = -1500; z < 3000; z += 3.5) {
-            const sleeper = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.16, 0.8), sleeperMat);
-            sleeper.position.set(0, -0.05, z);
-            worldGroup.add(sleeper);
-
-            const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.18, 3.5), railMat);
-            leftRail.position.set(-PHYSICS.gauge / 2, 0.08, z);
-            const rightRail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.18, 3.5), railMat);
-            rightRail.position.set(PHYSICS.gauge / 2, 0.08, z);
-            worldGroup.add(leftRail, rightRail);
-
-            if (z % 35 === 0) {
-                const pole = new THREE.Mesh(new THREE.BoxGeometry(0.35, 8.0, 0.35), poleMat);
-                pole.position.set(3.4, 3.6, z);
-                worldGroup.add(pole);
-                const cantilever = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.15, 0.15), poleMat);
-                cantilever.position.set(0, 7.4, z);
-                worldGroup.add(cantilever);
-            }
+        const trackGroup = new THREE.Group();
+        scene.add(trackGroup);
+        const railMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, metalness: 0.8, roughness: 0.3 });
+        for (let z = -2000; z < 4000; z += 3.5) {
+            const railL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.18, 3.5), railMat);
+            railL.position.set(-0.53, 0.08, z);
+            const railR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.18, 3.5), railMat);
+            railR.position.set(0.53, 0.08, z);
+            trackGroup.add(railL, railR);
         }
 
-        // EMU3000 車廂群組
+        const physics = new TrainDynamics(12);
+        const sound = new SoundEngine();
+
         const trainGroup = new THREE.Group();
         scene.add(trainGroup);
+        const carBodies = [];
+        const fallbackMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.2 });
 
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.15, metalness: 0.3 });
-        const frontBlackMat = new THREE.MeshStandardMaterial({ color: 0x121212, roughness: 0.05 });
-        const stripeMat = new THREE.MeshBasicMaterial({ color: 0xcc2222 });
-
-        const carLen = 20.0;
-        for (let i = 0; i < 6; i++) {
-            const car = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.7, carLen - 0.2), bodyMat);
-            body.position.y = 1.45;
-            car.add(body);
-
-            const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.85, 0.35, carLen), stripeMat);
-            stripe.position.set(0, 0.95, 0);
-            car.add(stripe);
-
-            if (i === 0) {
-                const frontNose = new THREE.Mesh(new THREE.BoxGeometry(2.82, 2.4, 1.8), frontBlackMat);
-                frontNose.position.set(0, 1.45, carLen / 2);
-                car.add(frontNose);
-            }
-            car.position.z = -i * carLen;
-            trainGroup.add(car);
+        for (let i = 0; i < physics.totalCars; i++) {
+            const carMesh = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.7, 19.8), fallbackMat);
+            carMesh.position.y = 1.45;
+            trainGroup.add(carMesh);
+            carBodies.push(carMesh);
         }
 
-        // --- 觸控與鍵盤控制邏輯 ---
-        const controls = { power: false, brake: false, eb: false };
+        const input = { power: false, brake: false, eb: false, camMode: 0, notch: 'N' };
 
-        // 綁定手機觸控按鈕事件 (Touch & Click)
-        function bindTouchButton(id, keyName, notchName) {
-            const btn = document.getElementById(id);
-            
-            const activate = (e) => {
-                e.preventDefault();
-                controls[keyName] = true;
-                state.notch = notchName;
-                btn.classList.add('active');
-            };
-            const deactivate = (e) => {
-                e.preventDefault();
-                controls[keyName] = false;
-                state.notch = 'N';
-                btn.classList.remove('active');
-            };
+        window.addEventListener('pointerdown', () => sound.init(), {once: true});
 
-            btn.addEventListener('touchstart', activate, {passive: false});
-            btn.addEventListener('touchend', deactivate, {passive: false});
-            btn.addEventListener('mousedown', activate);
-            btn.addEventListener('mouseup', deactivate);
+        function bindControl(id, key, notchName) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const activate = (e) => { e.preventDefault(); input[key] = true; input.notch = notchName; el.classList.add('active'); };
+            const deactivate = (e) => { e.preventDefault(); input[key] = false; input.notch = 'N'; el.classList.remove('active'); };
+            el.addEventListener('touchstart', activate, {passive: false});
+            el.addEventListener('touchend', deactivate, {passive: false});
+            el.addEventListener('mousedown', activate);
+            el.addEventListener('mouseup', deactivate);
         }
 
-        bindTouchButton('btn-power', 'power', 'P1');
-        bindTouchButton('btn-brake', 'brake', 'B1');
-        bindTouchButton('btn-eb', 'eb', 'EB');
+        bindControl('btn-power', 'power', 'P1');
+        bindControl('btn-brake', 'brake', 'B1');
+        bindControl('btn-eb', 'eb', 'EB');
 
-        // 視角切換按鈕
         document.getElementById('btn-view').addEventListener('click', () => {
-            state.camMode = 1 - state.camMode;
+            input.camMode = 1 - input.camMode;
         });
 
-        // 同時保留電腦鍵盤支援
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'w' || e.key === 'W') { controls.power = true; state.notch = 'P1'; }
-            if (e.key === 's' || e.key === 'S') { controls.brake = true; state.notch = 'B1'; }
-            if (e.code === 'Space') { controls.eb = true; state.notch = 'EB'; }
-            if (e.key === 'c' || e.key === 'C') { state.camMode = 1 - state.camMode; }
-        });
-        window.addEventListener('keyup', (e) => {
-            if (e.key === 'w' || e.key === 'W') { controls.power = false; state.notch = 'N'; }
-            if (e.key === 's' || e.key === 'S') { controls.brake = false; state.notch = 'N'; }
-            if (e.code === 'Space') { controls.eb = false; state.notch = 'N'; }
-        });
-
-        // 物理與渲染迴圈
         let lastTime = performance.now();
-        let trainZ = 0;
-
-        function runSimulation(time) {
-            requestAnimationFrame(runSimulation);
+        function animate(time) {
+            requestAnimationFrame(animate);
             const dt = Math.min((time - lastTime) / 1000, 0.1);
             lastTime = time;
 
-            if (controls.eb) {
-                state.speed -= PHYSICS.brakeRate * 2.5 * dt * 15;
-                state.bcPressure = 4.8;
-            } else if (controls.power) {
-                state.speed += PHYSICS.accelRate * dt * 12;
-                state.bcPressure = Math.max(0, state.bcPressure - dt * 2);
-            } else if (controls.brake) {
-                state.speed -= PHYSICS.brakeRate * dt * 15;
-                state.bcPressure = Math.min(4.2, state.bcPressure + dt * 2);
+            const { speed, distance } = physics.update(dt, input.power, input.brake, input.eb);
+            sound.update(speed, input.power);
+
+            physics.cars.forEach((carData, idx) => {
+                if (carBodies[idx]) {
+                    carBodies[idx].position.z = carData.positionZ;
+                }
+            });
+
+            const headZ = physics.cars[0].positionZ;
+            if (input.camMode === 0) {
+                camera.position.set(0, 4.5, headZ + 24);
+                camera.lookAt(0, 2, headZ - 10);
             } else {
-                if (state.speed > 0) state.speed -= PHYSICS.resistance * dt * 10;
-                state.bcPressure = Math.max(0, state.bcPressure - dt * 1.5);
+                camera.position.set(0.7, 2.2, headZ + 9.5);
+                camera.lookAt(0.7, 2.2, headZ - 40);
             }
 
-            state.speed = Math.max(0, Math.min(state.speed, PHYSICS.maxSpeed));
-            if (state.speed === 0 && !controls.brake && !controls.eb) state.notch = 'N';
-
-            const displacement = (state.speed / 3.6) * dt;
-            trainZ -= displacement;
-            state.distance += displacement;
-
-            if (trainZ < -1600) { trainZ = 200; state.distance = 0; }
-            trainGroup.position.z = trainZ;
-
-            if (state.camMode === 0) {
-                camera.position.set(0, 4.5, trainZ + 24);
-                camera.lookAt(0, 2, trainZ - 10);
-            } else {
-                camera.position.set(0.7, 2.2, trainZ + 9.8);
-                camera.lookAt(0.7, 2.2, trainZ - 50);
-            }
-
-            document.getElementById('val-speed').innerText = state.speed.toFixed(1);
-            document.getElementById('val-notch').innerText = state.notch;
-            document.getElementById('val-bc').innerText = state.bcPressure.toFixed(1);
-            document.getElementById('tele-dist').innerText = (state.distance / 1000).toFixed(2) + ' km';
-            document.getElementById('tele-bp').innerText = (5.0 - state.bcPressure * 0.2).toFixed(2);
+            document.getElementById('val-speed').innerText = speed.toFixed(1);
+            document.getElementById('val-notch').innerText = input.eb ? 'EB' : input.notch;
+            document.getElementById('val-bc').innerText = (input.brake || input.eb ? 4.2 : 0.0).toFixed(1);
+            document.getElementById('tele-dist').innerText = (distance / 1000).toFixed(2) + ' km';
+            document.getElementById('tele-bp').innerText = (5.0 - (input.brake ? 1.0 : 0.0)).toFixed(2) + ' bar';
 
             renderer.render(scene, camera);
         }
 
-        requestAnimationFrame(runSimulation);
+        requestAnimationFrame(animate);
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
