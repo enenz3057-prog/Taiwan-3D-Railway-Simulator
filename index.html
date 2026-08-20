@@ -3,24 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>台灣鐵路 EMU3000 旗艦級專業模擬器 - 1000+ 行重度工程版</title>
+    <title>台灣鐵路 EMU3000 旗艦級專業模擬器 - 1000+ 行重度工程完整版</title>
     <style>
         :root {
-            --panel-bg: rgba(8, 12, 20, 0.95);
+            --panel-bg: rgba(6, 10, 18, 0.96);
+            --panel-border: rgba(0, 240, 255, 0.4);
             --accent-cyan: #00f0ff;
             --accent-amber: #ffaa00;
             --accent-red: #ff3344;
             --accent-green: #00ff66;
-            --border-glow: rgba(0, 240, 255, 0.35);
+            --text-main: #ffffff;
+            --text-sub: #94a3b8;
         }
 
-        * { box-sizing: border-box; }
-
-        body {
+        * {
+            box-sizing: border-box;
             margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
             overflow: hidden;
-            background-color: #030508;
-            font-family: -apple-system, BlinkMacSystemFont, 'Microsoft JhengHei', sans-serif;
+            background-color: #020408;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Microsoft JhengHei', sans-serif;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -29,23 +36,27 @@
             width: 100vw;
             height: 100vh;
             display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
         }
 
-        /* 頂部重度 TELEMETRY 儀表板面板 */
+        /* 頂部遙測面板 */
         #telemetry-panel {
             position: absolute;
             top: 15px;
             left: 15px;
             background: var(--panel-bg);
-            border: 1px solid var(--border-glow);
+            border: 1px solid var(--panel-border);
             border-radius: 12px;
             padding: 16px 20px;
-            color: #fff;
-            width: 300px;
+            color: var(--text-main);
+            width: 320px;
             font-size: 12px;
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(14px);
             z-index: 10;
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85);
         }
 
         #telemetry-panel h1 {
@@ -61,11 +72,11 @@
             display: flex;
             justify-content: space-between;
             margin: 7px 0;
-            color: #94a3b8;
+            color: var(--text-sub);
         }
 
         .data-row span {
-            color: #fff;
+            color: var(--text-main);
             font-weight: bold;
             font-family: monospace;
         }
@@ -89,6 +100,7 @@
             background: #1a1a1a;
             box-shadow: inset 0 2px 5px rgba(0,0,0,0.9);
             border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
         }
         .signal-light.active-green { background: var(--accent-green); box-shadow: 0 0 12px var(--accent-green); }
         .signal-light.active-amber { background: var(--accent-amber); box-shadow: 0 0 12px var(--accent-amber); }
@@ -113,7 +125,7 @@
         }
 
         .gauge-pod { text-align: center; min-width: 80px; }
-        .gauge-label { font-size: 10px; color: #94a3b8; margin-bottom: 4px; letter-spacing: 1px; }
+        .gauge-label { font-size: 10px; color: var(--text-sub); margin-bottom: 4px; letter-spacing: 1px; }
         .gauge-val { font-size: 28px; font-weight: 900; color: var(--accent-cyan); font-family: monospace; }
         .gauge-unit { font-size: 10px; color: #64748b; }
 
@@ -202,7 +214,74 @@
         import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
 
         /* ==========================================================================
-         * 模組一：車輛動態與多節車廂彈簧阻尼物理引擎 (Train Dynamics Physics Engine)
+         * 模組一：台鐵完整路線站場與地標資料庫管理系統 (Station Database Manager)
+         * ========================================================================== */
+        class RailwayStationDatabase {
+            constructor() {
+                this.stations = [
+                    { code: "1001", name: "台北機廠啟程點", positionZ: 0, platformLength: 350, speedLimit: 130 },
+                    { code: "1002", name: "南港特快信號所", positionZ: 3500, platformLength: 300, speedLimit: 140 },
+                    { code: "1003", name: "七堵調車場北", positionZ: 8200, platformLength: 300, speedLimit: 110 },
+                    { code: "1004", name: "基隆新站終點", positionZ: 14500, platformLength: 400, speedLimit: 90 },
+                    { code: "2001", name: "樹林特甲月台", positionZ: 19000, platformLength: 350, speedLimit: 130 },
+                    { code: "2002", name: "板橋地下交汇", positionZ: 24500, platformLength: 350, speedLimit: 120 },
+                    { code: "2003", name: "桃園高架站", positionZ: 31000, platformLength: 300, speedLimit: 140 },
+                    { code: "2004", name: "中壢轉轍站", positionZ: 37500, platformLength: 300, speedLimit: 110 },
+                    { code: "3001", name: "新竹科學園區站", positionZ: 45000, platformLength: 350, speedLimit: 140 },
+                    { code: "3002", name: "苗栗山線交界", positionZ: 53000, platformLength: 300, speedLimit: 130 }
+                ];
+            }
+
+            getStationByDistance(distance) {
+                for (let i = 0; i < this.stations.length; i++) {
+                    if (Math.abs(this.stations[i].positionZ - distance) < 150) {
+                        return this.stations[i];
+                    }
+                }
+                return null;
+            }
+
+            getNearestStation(distance) {
+                let nearest = this.stations[0];
+                let minDst = Math.abs(distance - nearest.positionZ);
+                for (let i = 1; i < this.stations.length; i++) {
+                    let dst = Math.abs(distance - this.stations[i].positionZ);
+                    if (dst < minDst) {
+                        minDst = dst;
+                        nearest = this.stations[i];
+                    }
+                }
+                return { station: nearest, distance: minDst };
+            }
+        }
+
+        /* ==========================================================================
+         * 模組二：鐵路路線坡度與速限剖面控制器 (Track Profile & Gradient Engine)
+         * ========================================================================== */
+        class TrackProfileEngine {
+            constructor() {
+                this.gradients = [
+                    { startZ: 0, endZ: 5000, grade: 0.0 },     // 平坦段
+                    { startZ: 5000, endZ: 12000, grade: 12.5 },  // 上坡道 12.5‰
+                    { startZ: 12000, endZ: 20000, grade: -8.0 }, // 下坡道 -8.0‰
+                    { startZ: 20000, endZ: 35000, grade: 5.2 },  // 緩坡
+                    { startZ: 35000, endZ: 60000, grade: 0.0 }   // 長直線平原
+                ];
+            }
+
+            getGradientAt(z) {
+                for (let i = 0; i < this.gradients.length; i++) {
+                    const g = this.gradients[i];
+                    if (z >= g.startZ && z < g.endZ) {
+                        return g.grade;
+                    }
+                }
+                return 0.0;
+            }
+        }
+
+        /* ==========================================================================
+         * 模組三：多節車廂彈簧阻尼物理與 Davis 公式動力引擎 (Train Dynamics Physics Engine)
          * ========================================================================== */
         class TrainDynamicsEngine {
             constructor(totalCars = 12) {
@@ -213,23 +292,35 @@
                         id: i,
                         positionZ: -i * 20.0,
                         velocity: 0,
-                        springOffset: 0
+                        springOffset: 0,
+                        pitchAngle: 0
                     });
                 }
                 this.speed = 0.0; // km/h
                 this.maxSpeed = 140.0;
-                this.accelRate = 1.12;
-                this.brakeRate = 2.20;
-                this.resistance = 0.35;
+                this.accelRate = 1.15;
+                this.brakeRate = 2.30;
                 this.distance = 0.0;
                 this.bpPressure = 5.0;
                 this.bcPressure = 0.0;
+                this.profileEngine = new TrackProfileEngine();
+            }
+
+            calculateDavisResistance(speedKmh) {
+                // Davis 鐵路阻力公式: R = A + B*v + C*v^2
+                const A = 1.25;
+                const B = 0.03;
+                const C = 0.0005;
+                return A + (B * speedKmh) + (C * speedKmh * speedKmh);
             }
 
             update(dt, inputPower, inputBrake, inputEB) {
                 let targetAccel = 0;
+                const currentGrade = this.profileEngine.getGradientAt(this.distance);
+                const gradeResistance = currentGrade * 0.098; // 坡度附加阻力
+
                 if (inputEB) {
-                    targetAccel = -this.brakeRate * 3.2;
+                    targetAccel = -this.brakeRate * 3.5;
                     this.bcPressure = 4.8;
                 } else if (inputPower) {
                     targetAccel = this.accelRate;
@@ -238,7 +329,8 @@
                     targetAccel = -this.brakeRate;
                     this.bcPressure = Math.min(4.2, this.bcPressure + dt * 2.0);
                 } else {
-                    targetAccel = -this.resistance;
+                    const davisRes = this.calculateDavisResistance(this.speed);
+                    targetAccel = -(davisRes + gradeResistance) * 0.1;
                     this.bcPressure = Math.max(0, this.bcPressure - dt * 1.5);
                 }
 
@@ -252,13 +344,13 @@
                 const displacement = (this.speed / 3.6) * dt;
                 this.distance += displacement;
 
-                // 彈簧阻尼多車廂連掛遞延運算
+                // 多車廂彈簧阻尼遞延運算
                 this.cars.forEach((car, idx) => {
                     car.positionZ -= displacement;
                     if (idx > 0) {
                         const lead = this.cars[idx - 1];
                         const targetZ = lead.positionZ - 20.0;
-                        car.positionZ += (targetZ - car.positionZ) * 0.22 * dt * 60;
+                        car.positionZ += (targetZ - car.positionZ) * 0.24 * dt * 60;
                     }
                 });
 
@@ -267,19 +359,21 @@
                     speed: this.speed,
                     distance: this.distance,
                     bp: this.bpPressure,
-                    bc: this.bcPressure
+                    bc: this.bcPressure,
+                    grade: currentGrade
                 };
             }
         }
 
         /* ==========================================================================
-         * 模組二：Web Audio 聲學合成與轉轍器音效引擎 (Pro Sound Synthesis Engine)
+         * 模組四：Web Audio API 複合聲學合成與轉轍器音效引擎 (Pro Sound Synthesis Engine)
          * ========================================================================== */
         class ProSoundEngine {
             constructor() {
                 this.ctx = null;
                 this.inverterOsc = null;
                 this.inverterGain = null;
+                this.railNoiseNode = null;
                 this.initialized = false;
             }
 
@@ -288,6 +382,7 @@
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 this.ctx = new AudioContext();
 
+                // 日立 IGBT 變頻音模擬
                 this.inverterOsc = this.ctx.createOscillator();
                 this.inverterOsc.type = 'sawtooth';
                 this.inverterOsc.frequency.setValueAtTime(60, this.ctx.currentTime);
@@ -313,9 +408,9 @@
                 if (this.ctx.state === 'suspended') this.ctx.resume();
 
                 if (isPowering && speed < 130) {
-                    const freq = 65 + (speed * 17) + (Math.sin(performance.now() * 0.015) * 15);
+                    const freq = 65 + (speed * 18) + (Math.sin(performance.now() * 0.015) * 15);
                     this.inverterOsc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.1);
-                    this.inverterGain.gain.setTargetAtTime(0.14, this.ctx.currentTime, 0.1);
+                    this.inverterGain.gain.setTargetAtTime(0.15, this.ctx.currentTime, 0.1);
                 } else {
                     this.inverterGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.2);
                 }
@@ -323,7 +418,7 @@
         }
 
         /* ==========================================================================
-         * 模組三：3D 景物建構與場景指揮中心 (Main 3D Scene Controller)
+         * 模組五：3D 景物建構與場景指揮中心 (Main 3D Scene Controller)
          * ========================================================================== */
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x68aed4);
@@ -343,7 +438,7 @@
         scene.add(sunLight);
 
         const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(12000, 12000),
+            new THREE.PlaneGeometry(15000, 15000),
             new THREE.MeshLambertMaterial({ color: 0x3b6642 })
         );
         ground.rotation.x = -Math.PI / 2;
@@ -357,7 +452,8 @@
         const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x4a3b32, roughness: 0.9 });
         const poleMat = new THREE.MeshStandardMaterial({ color: 0x6e7681, metalness: 0.6 });
 
-        for (let z = -2500; z < 5000; z += 3.5) {
+        // 生成長達 15 公里的鐵路路網與電車線架構
+        for (let z = -2500; z < 15000; z += 3.5) {
             const sleeper = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.16, 0.8), sleeperMat);
             sleeper.position.set(0, -0.05, z);
             worldGroup.add(sleeper);
@@ -378,6 +474,7 @@
             }
         }
 
+        const stationDb = new RailwayStationDatabase();
         const physics = new TrainDynamicsEngine(12);
         const sound = new ProSoundEngine();
 
@@ -387,75 +484,4 @@
         const carMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.18, metalness: 0.25 });
 
         for (let i = 0; i < physics.totalCars; i++) {
-            const car = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.7, 19.8), carMat);
-            car.position.y = 1.45;
-            trainGroup.add(car);
-            carMeshes.push(car);
-        }
-
-        const inputState = { power: false, brake: false, eb: false, camMode: 0, notch: 'N' };
-
-        window.addEventListener('pointerdown', () => sound.init(), {once: true});
-
-        function registerControl(btnId, keyName, notchName) {
-            const btn = document.getElementById(btnId);
-            if (!btn) return;
-            const activate = (e) => { e.preventDefault(); inputState[keyName] = true; inputState.notch = notchName; btn.classList.add('active'); };
-            const deactivate = (e) => { e.preventDefault(); inputState[keyName] = false; inputState.notch = 'N'; btn.classList.remove('active'); };
-            btn.addEventListener('touchstart', activate, {passive: false});
-            btn.addEventListener('touchend', deactivate, {passive: false});
-            btn.addEventListener('mousedown', activate);
-            btn.addEventListener('mouseup', deactivate);
-        }
-
-        registerControl('btn-power', 'power', 'P1');
-        registerControl('btn-brake', 'brake', 'B1');
-        registerControl('btn-eb', 'eb', 'EB');
-
-        document.getElementById('btn-view').addEventListener('click', () => {
-            inputState.camMode = 1 - inputState.camMode;
-        });
-
-        let lastTime = performance.now();
-        function runSimulation(time) {
-            requestAnimationFrame(runSimulation);
-            const dt = Math.min((time - lastTime) / 1000, 0.1);
-            lastTime = time;
-
-            const telemetry = physics.update(dt, inputState.power, inputState.brake, inputState.eb);
-            sound.update(telemetry.speed, inputState.power);
-
-            physics.cars.forEach((carData, idx) => {
-                if (carMeshes[idx]) {
-                    carMeshes[idx].position.z = carData.positionZ;
-                }
-            });
-
-            const headZ = physics.cars[0].positionZ;
-            if (inputState.camMode === 0) {
-                camera.position.set(0, 4.5, headZ + 25);
-                camera.lookAt(0, 2, headZ - 12);
-            } else {
-                camera.position.set(0.7, 2.2, headZ + 9.5);
-                camera.lookAt(0.7, 2.2, headZ - 45);
-            }
-
-            document.getElementById('val-speed').innerText = telemetry.speed.toFixed(1);
-            document.getElementById('val-notch').innerText = inputState.eb ? 'EB' : inputState.notch;
-            document.getElementById('val-bc').innerText = telemetry.bc.toFixed(1);
-            document.getElementById('tele-dist').innerText = (telemetry.distance / 1000).toFixed(2) + ' km';
-            document.getElementById('tele-bp').innerText = telemetry.bp.toFixed(2) + ' bar';
-
-            renderer.render(scene, camera);
-        }
-
-        requestAnimationFrame(runSimulation);
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
-</body>
-</html>
+            const ca
