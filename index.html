@@ -2,220 +2,423 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>台灣 3D 鐵路模擬器 - 專業版 (TRA Pro Sim)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣鐵路 3D 模擬器 - 專業工業級 (TRA Enterprise Sim)</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
-        
-        /* 專業級儀表板與介面設計 */
-        #hud {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(15, 15, 15, 0.85); border: 2px solid #444; border-radius: 12px;
-            padding: 15px 30px; color: #fff; display: flex; gap: 40px; align-items: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+        :root {
+            --primary-color: #1a1a1a;
+            --accent-color: #00ffcc;
+            --warning-color: #ffaa00;
+            --danger-color: #ff3333;
+            --panel-bg: rgba(20, 20, 20, 0.9);
         }
-        .gauge-box { text-align: center; }
-        .gauge-title { font-size: 12px; color: #aaa; margin-bottom: 3px; letter-spacing: 1px; }
-        .gauge-value { font-size: 28px; font-weight: bold; color: #00ffcc; font-family: monospace; }
-        
-        #top-info {
-            position: absolute; top: 20px; left: 20px; color: #fff;
-            background: rgba(0,0,0,0.75); padding: 15px 20px; border-radius: 8px;
-            border-left: 4px solid #ffcc00;
-        }
-        h1 { margin: 0 0 5px 0; font-size: 18px; color: #ffcc00; }
-        p { margin: 3px 0; font-size: 13px; color: #ddd; }
-        
-        .btn-discord {
-            display: inline-block; margin-top: 10px; padding: 6px 14px;
-            background-color: #5865F2; color: white; text-decoration: none;
-            border-radius: 5px; font-size: 13px; font-weight: bold; transition: background 0.2s;
-        }
-        .btn-discord:hover { background-color: #4752C4; }
 
-        /* 號誌燈號介面 */
-        #signaling {
-            position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8);
-            padding: 10px 15px; border-radius: 8px; color: white; font-family: monospace;
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none;
         }
-        .signal-light { display: inline-block; width: 15px; height: 15px; border-radius: 50%; background: #330000; margin-left: 5px; }
-        .signal-light.green { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        /* 專業級 HUD 儀表板系統 */
+        #cockpit-hud {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 15px 30px;
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        .instrument-pod {
+            text-align: center;
+            min-width: 90px;
+        }
+
+        .pod-label {
+            font-size: 11px;
+            color: #888;
+            letter-spacing: 1.5px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .pod-value {
+            font-size: 26px;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        .pod-unit {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        /* 左上角系統狀態與導航 */
+        #system-telemetry {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--panel-bg);
+            border: 1px solid #333;
+            padding: 15px 20px;
+            border-radius: 6px;
+            color: #fff;
+            width: 280px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        #system-telemetry h2 {
+            margin: 0 0 10px 0;
+            font-size: 15px;
+            color: #ffcc00;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .telemetry-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin: 6px 0;
+            color: #ccc;
+        }
+
+        .telemetry-row span {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .btn-discord {
+            display: block;
+            margin-top: 15px;
+            padding: 8px;
+            background-color: #5865F2;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn-discord:hover {
+            background-color: #4752C4;
+        }
+
+        /* 右上角號誌與 ATP 系統 */
+        #atp-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--panel-bg);
+            border: 1px solid #333;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            text-align: right;
+        }
+
+        .atp-status {
+            font-size: 16px;
+            font-weight: bold;
+            color: #00ff00;
+            margin-top: 4px;
+        }
+
+        /* 視角切換提示 */
+        #view-mode {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(0,0,0,0.7);
+            color: #aaa;
+            padding: 8px 15px;
+            border-radius: 4px;
+            font-size: 12px;
+            border: 1px solid #444;
+        }
     </style>
 </head>
 <body>
-    <div id="top-info">
-        <h1>台灣 3D 鐵路模擬器 [專業版]</h1>
-        <p>控制方式：<b>W / S</b> 或畫面操作</p>
-        <a href="https://discord.gg/dT47kurqw" target="_blank" class="btn-discord">加入官方 Discord 社群</a>
+
+    <div id="canvas-container"></div>
+
+    <!-- 左上角系統 telemetry -->
+    <div id="system-telemetry">
+        <h2>TRA-ECS SIMULATOR v2.4</h2>
+        <div class="telemetry-row">車型編組: <span>EMU3000 (12C)</span></div>
+        <div class="telemetry-row">路線區間: <span>北迴線 (崇德-和平)</span></div>
+        <div class="telemetry-row">當前里程: <span id="mileage">0.00 km</span></div>
+        <div class="telemetry-row">氣軔管壓: <span id="bp-press">5.0 kg/cm²</span></div>
+        <a href="https://discord.gg/dT47kurqw" target="_blank" class="btn-discord">加入官方 Discord 開發社群</a>
     </div>
 
-    <div id="signaling">
-        ATS 號誌: <span id="sigText">進行 (G)</span>
-        <span class="signal-light green" id="sigLight"></span>
+    <!-- 右上角號誌面板 -->
+    <div id="atp-panel">
+        <div style="font-size: 11px; color: #888;">ATP / 列車自動保護</div>
+        <div class="atp-status" id="atp-text">NORMAL (G燈)</div>
     </div>
 
-    <!-- 擬真駕駛艙儀表板 -->
-    <div id="hud">
-        <div class="gauge-box">
-            <div class="gauge-title">目前時速 (Speed)</div>
-            <div class="gauge-value" id="speedDisplay">0.0 <span style="font-size:14px;">km/h</span></div>
+    <!-- 下方專業駕駛艙儀表板 -->
+    <div id="cockpit-hud">
+        <div class="instrument-pod">
+            <div class="pod-label">Train Speed</div>
+            <div class="pod-value" id="speed-val">0.0</div>
+            <div class="pod-unit">KM/H</div>
         </div>
-        <div class="gauge-box">
-            <div class="gauge-title">軔機壓力 (BP)</div>
-            <div class="gauge-value" style="color: #ff9900;" id="bpDisplay">5.0 <span style="font-size:14px;">kg/cm²</span></div>
+        <div class="instrument-pod">
+            <div class="pod-label">Master Controller</div>
+            <div class="pod-value" id="notch-val" style="color: #ffcc00;">N</div>
+            <div class="pod-unit">NOTCH</div>
         </div>
-        <div class="gauge-box">
-            <div class="gauge-title">動力段位 (Power)</div>
-            <div class="gauge-value" style="color: #ffffff;" id="notchDisplay">N</div>
+        <div class="instrument-pod">
+            <div class="pod-label">Motor Load</div>
+            <div class="pod-value" id="load-val" style="color: #ff5555;">0%</div>
+            <div class="pod-unit">AMPERE</div>
+        </div>
+        <div class="instrument-pod">
+            <div class="pod-label">Brake Cylinder</div>
+            <div class="pod-value" id="bc-val" style="color: #00ccff;">0.0</div>
+            <div class="pod-unit">BAR</div>
         </div>
     </div>
 
-    <!-- 載入 Three.js -->
+    <div id="view-mode">視角按鍵: [C] 切換車外/駕駛艙視角</div>
+
+    <!-- 載入 Three.js 與核心模擬邏輯 -->
     <script type="module">
         import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
 
-        // 1. 初始化核心
+        // --- 1. 系統常數與物理參數 ---
+        const CONFIG = {
+            gauge: 1.067,          // 台灣鐵路 1067mm 窄軌軌距
+            maxSpeed: 140,         // 最高速限 km/h
+            acceleration: 1.2,     // 牽引加速度 m/s²
+            deceleration: 1.8,     // 基礎軔機減速度 m/s²
+            emergencyDecel: 3.5    // 緊急氣軔減速度
+        };
+
+        let simState = {
+            speed: 0.0,            // km/h
+            targetSpeed: 0.0,
+            notch: 'N',            // N, P1, P2, P3, B1, B2, EB
+            brakeCylinder: 0.0,    // 煞車缸壓力
+            brakePipe: 5.0,        // 列車管壓
+            distance: 0.0,         // 行駛總里程 (公尺)
+            camMode: 0             // 0: 追尾視角, 1: 駕駛艙視角
+        };
+
+        // --- 2. 場景初始化 ---
+        const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x7ec0ee); // 晴空藍
-        scene.fog = new THREE.FogExp2(0x7ec0ee, 0.012);
+        scene.background = new THREE.Color(0x6bb2e0);
+        scene.fog = new THREE.FogExp2(0x6bb2e0, 0.008);
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1500);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.5, 3000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
-        document.body.appendChild(renderer.domElement);
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
 
-        // 2. 光照
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-        const dirLight = new THREE.DirectionalLight(0xfff5e6, 0.8);
-        dirLight.position.set(100, 150, 50);
+        // --- 3. 專業燈光系統 ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xfffaed, 0.9);
+        dirLight.position.set(200, 300, 150);
         dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
         scene.add(dirLight);
 
-        // 3. 環境與鐵道系統 (雙軌、枕木、V型電桿、山景)
-        const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(3000, 3000),
-            new THREE.MeshLambertMaterial({ color: 0x3b6e48 })
-        );
+        // --- 4. 程序化動態環境與鐵道生成 (Procedural Route Generation) ---
+        const worldGroup = new THREE.Group();
+        scene.add(worldGroup);
+
+        // 地面
+        const groundGeo = new THREE.PlaneGeometry(5000, 5000);
+        const groundMat = new THREE.MeshLambertMaterial({ color: 0x3d6b46 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.2;
-        scene.add(ground);
+        ground.position.y = -0.3;
+        worldGroup.add(ground);
 
-        const trackGroup = new THREE.Group();
-        const railMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8, roughness: 0.2 });
-        const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x4a3b32 });
+        // 軌道與電桿模組建構
+        const railMaterial = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, metalness: 0.8, roughness: 0.3 });
+        const sleeperMaterial = new THREE.MeshStandardMaterial({ color: 0x4a3b32, roughness: 0.9 });
+        const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x71797E, metalness: 0.5 });
 
-        for (let z = -800; z < 800; z += 4) {
+        const routeLength = 2000; // 軌道總長度
+        for (let z = -1000; z < routeLength; z += 3.5) {
             // 枕木
-            const sleeper = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.15, 0.8), sleeperMat);
-            sleeper.position.set(0, 0, z);
-            trackGroup.add(sleeper);
+            const sleeper = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.15, 0.8), sleeperMaterial);
+            sleeper.position.set(0, -0.05, z);
+            worldGroup.add(sleeper);
 
-            // 雙軌 (1067mm 窄軌)
-            const r1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.18, 4), railMat);
-            r1.position.set(-0.533, 0.1, z);
-            const r2 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.18, 4), railMat);
-            r2.position.set(0.533, 0.1, z);
-            trackGroup.add(r1, r2);
+            // 雙軌 (1067mm)
+            const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 3.5), railMaterial);
+            leftRail.position.set(-CONFIG.gauge / 2, 0.08, z);
+            const rightRail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 3.5), railMaterial);
+            rightRail.position.set(CONFIG.gauge / 2, 0.08, z);
+            worldGroup.add(leftRail, rightRail);
 
-            // V型電車線支柱
-            if (z % 40 === 0) {
-                const poleMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
-                const pole = new THREE.Mesh(new THREE.BoxGeometry(0.3, 8, 0.3), poleMat);
-                pole.position.set(3.5, 4, z);
-                const arm = new THREE.Mesh(new THREE.BoxGeometry(7, 0.2, 0.2), poleMat);
-                arm.position.set(0, 7.8, z);
-                trackGroup.add(pole, arm);
+            // 每 35 公尺建立一座台鐵標準 V 型電車線懸臂與支柱
+            if (z % 35 === 0) {
+                const pole = new THREE.Mesh(new THREE.BoxGeometry(0.35, 7.5, 0.35), poleMaterial);
+                pole.position.set(3.2, 3.5, z);
+                worldGroup.add(pole);
+
+                const cantilever = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.15, 0.15), poleMaterial);
+                cantilever.position.set(0, 7.0, z);
+                worldGroup.add(cantilever);
             }
         }
-        scene.add(trackGroup);
 
-        // 4. 多節列車建立 (模擬完整編組)
+        // --- 5. 多節聯掛列車模組 (EMU 編組) ---
         const trainGroup = new THREE.Group();
-        const carBodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.4 });
-        const frontFaceMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.1 });
-        const stripeMat = new THREE.MeshBasicMaterial({ color: 0xdd2222 });
-
-        // 建立 4 節連掛車廂
-        for (let i = 0; i < 4; i++) {
-            const carZ = i * 14;
-            const car = new THREE.Group();
-
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.6, 13.8), carBodyMat);
-            body.position.y = 1.4;
-            car.add(body);
-
-            const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.85, 0.35, 13.9), stripeMat);
-            stripe.position.set(0, 0.9, 0);
-            car.add(stripe);
-
-            // 若是第一節車廂，加上流線頭燈造型
-            if (i === 0) {
-                const front = new THREE.Mesh(new THREE.BoxGeometry(2.82, 2.3, 1.2), frontFaceMat);
-                front.position.set(0, 1.4, 6.5);
-                car.add(front);
-            }
-
-            car.position.z = carZ;
-            trainGroup.add(car);
-        }
         scene.add(trainGroup);
 
-        // 5. 物理與操控參數
-        let speed = 0; // km/h
-        let maxSpeed = 130;
-        let notch = "N"; // N, P1, P2, B1, EB
-        let brakePressure = 5.0; // kg/cm²
-        let trainZ = 0;
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f4, roughness: 0.15, metalness: 0.4 });
+        const frontFaceMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
+        const stripeMat = new THREE.MeshBasicMaterial({ color: 0xd9381e }); // 台鐵經典紅線
 
-        const keys = { w: false, s: false };
-        window.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'w') { notch = "P1"; keys.w = true; keys.s = false; }
-            if (e.key.toLowerCase() === 's') { notch = "B1"; keys.s = true; keys.w = false; }
-        });
-        window.addEventListener('keyup', (e) => {
-            if (e.key.toLowerCase() === 'w') { keys.w = false; notch = "N"; }
-            if (e.key.toLowerCase() === 's') { keys.s = false; notch = "N"; }
-        });
+        const carLength = 20.0;
+        const totalCars = 6; // 6輛編成
 
-        // 6. 專業級渲染與物理迴圈
-        function animate() {
-            requestAnimationFrame(animate);
+        for (let i = 0; i < totalCars; i++) {
+            const car = new THREE.Group();
+            
+            // 車身主體
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.7, carLength - 0.2), bodyMat);
+            body.position.y = 1.45;
+            car.add(body);
 
-            // 動態物理計算
-            if (keys.w) {
-                speed += 12 * 0.016;
-                brakePressure = Math.max(3.5, brakePressure - 0.5 * 0.016);
-            } else if (keys.s) {
-                speed -= 20 * 0.016;
-                brakePressure = Math.min(5.0, brakePressure + 1.0 * 0.016);
-            } else {
-                if (speed > 0) speed -= 4 * 0.016; // 自然滑行阻力
-                if (speed < 0) speed = 0;
+            // 車身腰線
+            const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.85, 0.35, carLength), stripeMat);
+            stripe.position.set(0, 0.95, 0);
+            car.add(stripe);
+
+            // 第一節車頭流線造型
+            if (i === 0) {
+                const frontNose = new THREE.Mesh(new THREE.BoxGeometry(2.82, 2.4, 1.8), frontFaceMat);
+                frontNose.position.set(0, 1.45, carLength / 2);
+                car.add(frontNose);
             }
 
-            speed = Math.max(0, Math.min(speed, maxSpeed));
-            if (speed === 0 && !keys.s) notch = "N";
+            car.position.z = -i * carLength;
+            trainGroup.add(car);
+        }
 
-            // 移動列車
-            const moveDist = (speed / 3.6) * 0.016;
-            trainZ -= moveDist;
+        // --- 6. 輸入控制事件聆聽 ---
+        const inputMap = { w: false, s: false, space: false };
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'w' || e.key === 'W') { inputMap.w = true; inputMap.s = false; simState.notch = 'P1'; }
+            if (e.key === 's' || e.key === 'S') { inputMap.s = true; inputMap.w = false; simState.notch = 'B1'; }
+            if (e.code === 'Space') { inputMap.space = true; simState.notch = 'EB'; }
+            if (e.key === 'c' || e.key === 'C') { simState.camMode = 1 - simState.camMode; }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'w' || e.key === 'W') { inputMap.w = false; simState.notch = 'N'; }
+            if (e.key === 's' || e.key === 'S') { inputMap.s = false; simState.notch = 'N'; }
+            if (e.code === 'Space') { inputMap.space = false; simState.notch = 'N'; }
+        });
+
+        // --- 7. 物理與渲染主迴圈 (Game Loop) ---
+        let lastTime = performance.now();
+        let trainZ = 0;
+
+        function updatePhysics(dt) {
+            // 動態牽引與阻力計算
+            if (inputMap.space) {
+                simState.speed -= CONFIG.emergencyDecel * dt * 15;
+                simState.brakeCylinder = 4.8;
+            } else if (inputMap.w) {
+                simState.speed += CONFIG.acceleration * dt * 12;
+                simState.brakeCylinder = Math.max(0, simState.brakeCylinder - dt * 2);
+            } else if (inputMap.s) {
+                simState.speed -= CONFIG.deceleration * dt * 15;
+                simState.brakeCylinder = Math.min(4.0, simState.brakeCylinder + dt * 2);
+            } else {
+                // 自然滾動阻力與空氣阻力
+                if (simState.speed > 0) {
+                    simState.speed -= 0.35 * dt * 10;
+                }
+                simState.brakeCylinder = Math.max(0, simState.brakeCylinder - dt * 1.5);
+            }
+
+            // 速度邊界限制
+            simState.speed = Math.max(0, Math.min(simState.speed, CONFIG.maxSpeed));
+            if (simState.speed === 0) simState.notch = 'N';
+
+            // 位移計算 (km/h 轉 m/s)
+            const displacement = (simState.speed / 3.6) * dt;
+            trainZ -= displacement;
+            simState.distance += displacement;
+
+            // 迴圈重置軌道模擬無限延伸
+            if (trainZ < -1200) {
+                trainZ = 100;
+                simState.distance = 0;
+            }
+
             trainGroup.position.z = trainZ;
 
-            // 專業動態追尾視角 (模擬車外跟隨或側邊運镜)
-            camera.position.set(4, 5, trainZ + 20);
-            camera.lookAt(0, 2, trainZ - 10);
+            // 相機動態軌跡跟隨
+            if (simState.camMode === 0) {
+                // 車外追尾視角
+                camera.position.set(0, 4.2, trainZ + 22);
+                camera.lookAt(0, 2, trainZ - 10);
+            } else {
+                // 駕駛艙第一人稱視角
+                camera.position.set(0.7, 2.2, trainZ + 9.5);
+                camera.lookAt(0.7, 2.2, trainZ - 50);
+            }
+        }
 
-            // 更新專業介面數值
-            document.getElementById('speedDisplay').innerHTML = `${speed.toFixed(1)} <span style="font-size:14px;">km/h</span>`;
-            document.getElementById('bpDisplay').innerHTML = `${brakePressure.toFixed(1)} <span style="font-size:14px;">kg/cm²</span>`;
-            document.getElementById('notchDisplay').innerText = notch;
+        function updateUI() {
+            document.getElementById('speed-val').innerText = simState.speed.toFixed(1);
+            document.getElementById('notch-val').innerText = simState.notch;
+            document.getElementById('load-val').innerText = inputMap.w ? '85%' : '0%';
+            document.getElementById('bc-val').innerText = simState.brakeCylinder.toFixed(1);
+            document.getElementById('mileage').innerText = (simState.distance / 1000).toFixed(2) + ' km';
+            document.getElementById('bp-press').innerText = (5.0 - simState.brakeCylinder * 0.25).toFixed(1) + ' kg/cm²';
+        }
+
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+
+            const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
+            lastTime = currentTime;
+
+            updatePhysics(dt);
+            updateUI();
 
             renderer.render(scene, camera);
         }
 
-        animate();
+        requestAnimationFrame(animate);
 
-        // 視窗自動調整
+        // --- 8. 視窗響應防呆處理 ---
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
