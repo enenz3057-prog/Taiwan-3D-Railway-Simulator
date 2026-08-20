@@ -2,486 +2,312 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>台灣鐵路 EMU3000 旗艦級專業模擬器 - 1000+ 行重度工程完整版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMU3000-Enterprise-Simulator OS</title>
     <style>
         :root {
-            --panel-bg: rgba(6, 10, 18, 0.96);
-            --panel-border: rgba(0, 240, 255, 0.4);
-            --accent-cyan: #00f0ff;
-            --accent-amber: #ffaa00;
-            --accent-red: #ff3344;
-            --accent-green: #00ff66;
-            --text-main: #ffffff;
-            --text-sub: #94a3b8;
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
         }
-
-        * {
-            box-sizing: border-box;
+        body {
             margin: 0;
-            padding: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 { margin: 0; font-size: 1.8rem; color: #38bdf8; }
+        .subtitle { color: #94a3b8; font-size: 0.9rem; }
+
+        .container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #020408;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Microsoft JhengHei', sans-serif;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        #viewport {
-            width: 100vw;
-            height: 100vh;
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-
-        /* 頂部遙測面板 */
-        #telemetry-panel {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            background: var(--panel-bg);
-            border: 1px solid var(--panel-border);
+        .panel {
+            background-color: var(--panel-bg);
             border-radius: 12px;
-            padding: 16px 20px;
-            color: var(--text-main);
-            width: 320px;
-            font-size: 12px;
-            backdrop-filter: blur(14px);
-            z-index: 10;
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
         }
 
-        #telemetry-panel h1 {
-            margin: 0 0 10px 0;
-            font-size: 15px;
-            color: var(--accent-cyan);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-            padding-bottom: 6px;
-            letter-spacing: 1.5px;
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
-        .data-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 7px 0;
-            color: var(--text-sub);
+        .gauge-card {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
         }
-
-        .data-row span {
-            color: var(--text-main);
+        .gauge-value {
+            font-size: 2.5rem;
             font-weight: bold;
             font-family: monospace;
         }
+        .gauge-label {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-top: 5px;
+        }
 
-        /* 號誌燈箱模組 */
-        #signal-aspect-box {
-            margin-top: 12px;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.6);
+        .atc-status {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: #0f172a;
+            padding: 15px;
             border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 20px;
         }
-
-        .signal-light {
-            width: 20px;
-            height: 20px;
+        .aspect-light {
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            background: #1a1a1a;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.9);
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.3s ease;
-        }
-        .signal-light.active-green { background: var(--accent-green); box-shadow: 0 0 12px var(--accent-green); }
-        .signal-light.active-amber { background: var(--accent-amber); box-shadow: 0 0 12px var(--accent-amber); }
-        .signal-light.active-red { background: var(--accent-red); box-shadow: 0 0 12px var(--accent-red); }
-
-        /* 底部駕駛台儀表板 */
-        #cab-console {
-            position: absolute;
-            bottom: 115px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--panel-bg);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            border-radius: 16px;
-            padding: 14px 28px;
+            background: #334155;
             display: flex;
-            gap: 28px;
             align-items: center;
-            backdrop-filter: blur(14px);
-            z-index: 10;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85);
-        }
-
-        .gauge-pod { text-align: center; min-width: 80px; }
-        .gauge-label { font-size: 10px; color: var(--text-sub); margin-bottom: 4px; letter-spacing: 1px; }
-        .gauge-val { font-size: 28px; font-weight: 900; color: var(--accent-cyan); font-family: monospace; }
-        .gauge-unit { font-size: 10px; color: #64748b; }
-
-        /* 手機觸控操作控制面板 */
-        #mobile-controls {
-            position: absolute;
-            bottom: 15px;
-            left: 15px;
-            right: 15px;
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            z-index: 20;
-        }
-
-        .ctrl-btn {
-            flex: 1;
-            padding: 20px 0;
-            background: rgba(30, 41, 59, 0.95);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            font-size: 16px;
+            justify-content: center;
             font-weight: bold;
-            border-radius: 14px;
-            text-align: center;
-            touch-action: manipulation;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.7);
-            transition: transform 0.08s ease, background 0.08s ease;
+            font-size: 1.1rem;
         }
+        .aspect-light.active-g { background: var(--accent-green); box-shadow: 0 0 15px var(--accent-green); }
+        .aspect-light.active-y { background: var(--accent-yellow); box-shadow: 0 0 15px var(--accent-yellow); color: #000; }
+        .aspect-light.active-r { background: var(--accent-red); box-shadow: 0 0 15px var(--accent-red); }
 
-        .ctrl-btn:active, .ctrl-btn.active {
-            background: rgba(0, 240, 255, 0.45);
-            border-color: var(--accent-cyan);
-            transform: scale(0.95);
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
-        .ctrl-btn.brake { background: rgba(180, 83, 9, 0.95); }
-        .ctrl-btn.brake:active { background: rgba(245, 158, 11, 0.6); border-color: var(--accent-amber); }
-        .ctrl-btn.eb { background: rgba(185, 28, 28, 0.95); }
-        .ctrl-btn.eb:active { background: rgba(239, 68, 68, 0.6); border-color: var(--accent-red); }
-        .ctrl-btn.cam { background: rgba(51, 65, 85, 0.95); }
+        button {
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        .btn-primary { background: #38bdf8; color: #0f172a; }
+        .btn-warning { background: var(--accent-yellow); color: #0f172a; }
+        .btn-danger { background: var(--accent-red); color: #fff; }
+        .btn-success { background: var(--accent-green); color: #0f172a; }
+
+        .log-box {
+            background: #090d16;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            height: 150px;
+            overflow-y: auto;
+            color: #34d399;
+        }
     </style>
 </head>
 <body>
-    <div id="viewport"></div>
 
-    <div id="telemetry-panel">
-        <h1>EMU3000 ENTERPRISE</h1>
-        <div class="data-row">編組系統: <span>12C 全列車聯掛</span></div>
-        <div class="data-row">總行駛距: <span id="tele-dist">0.00 km</span></div>
-        <div class="data-row">主風泵壓: <span id="tele-bp">5.00 bar</span></div>
-        <div class="data-row">車內號誌: <span id="tele-atc">G (開放運行)</span></div>
-        <div id="signal-aspect-box">
-            <span style="font-size:10px; color:#aaa; font-weight:bold;">ATC 燈號:</span>
-            <div class="signal-light" id="light-red"></div>
-            <div class="signal-light" id="light-amber"></div>
-            <div class="signal-light active-green" id="light-green"></div>
+    <header>
+        <h1>EMU3000 企業級動態模擬系統</h1>
+        <div class="subtitle">Enterprise Modular Railway Simulation OS v1.0</div>
+    </header>
+
+    <div class="container">
+        <!-- 左側：駕駛艙儀表板與號誌 -->
+        <div class="panel">
+            <h3>駕駛艙儀表板 (Cab Dashboard)</h3>
+            <div class="dashboard-grid">
+                <div class="gauge-card">
+                    <div id="speedDisplay" class="gauge-value">0.0</div>
+                    <div class="gauge-label">列車速度 (km/h)</div>
+                </div>
+                <div class="gauge-card">
+                    <div id="limitDisplay" class="gauge-value" style="color: #38bdf8;">130</div>
+                    <div class="gauge-label">當前速限 (km/h)</div>
+                </div>
+            </div>
+
+            <h3>ATC 列車自動防護系統</h3>
+            <div class="atc-status">
+                <div>車內號誌:</div>
+                <div id="lightG" class="aspect-light active-g">G</div>
+                <div id="lightY" class="aspect-light">Y</div>
+                <div id="lightR" class="aspect-light">R</div>
+                <div>倒數: <span id="countdownDisplay" style="font-family: monospace; font-weight: bold;">5.0</span>s</div>
+            </div>
+
+            <h3>系統事件日誌 (Event Log)</h3>
+            <div id="logBox" class="log-box">
+                [System] 系統初始化完成，等待駕駛員點擊啟動音效與運轉...<br>
+            </div>
+        </div>
+
+        <!-- 右側：控制器與社群連線 -->
+        <div class="panel controls-panel">
+            <h3>運轉控制台</h3>
+            <button class="btn-success" id="btnStartAudio">1. 啟動音效與物理引擎</button>
+            <button class="btn-primary" id="btnPowerUp">加動力 (P Notch +)</button>
+            <button class="btn-warning" id="btnBrake">施加制動 (Brake)</button>
+            <button class="btn-danger" id="btnAck">確認警報 (ACK / ATS)</button>
+            <hr style="border-color: #334155; width: 100%;">
+            <h3>社群多機調度</h3>
+            <button class="btn-primary" id="btnCommunity">連線線上調度伺服器</button>
+            <div id="communityStatus" style="font-size: 0.85rem; color: #94a3b8;">狀態: 尚未連線</div>
         </div>
     </div>
 
-    <div id="cab-console">
-        <div class="gauge-pod">
-            <div class="gauge-label">SPEED</div>
-            <div class="gauge-val" id="val-speed">0.0</div>
-            <div class="gauge-unit">KM/H</div>
-        </div>
-        <div class="gauge-pod">
-            <div class="gauge-label">NOTCH</div>
-            <div class="gauge-val" id="val-notch" style="color: var(--accent-amber);">N</div>
-            <div class="gauge-unit">POS</div>
-        </div>
-        <div class="gauge-pod">
-            <div class="gauge-label">BRAKE</div>
-            <div class="gauge-val" id="val-bc" style="color: #38bdf8;">0.0</div>
-            <div class="gauge-unit">BAR</div>
-        </div>
-    </div>
+    <script>
+        // 核心模擬狀態
+        let state = {
+            speed: 0.0,
+            speedLimit: 130.0,
+            powerNotch: 0,
+            brakeActive: false,
+            ebTriggered: false,
+            countdown: 5.0,
+            audioStarted: false
+        };
 
-    <div id="mobile-controls">
-        <button class="ctrl-btn" id="btn-power">加速 (P)</button>
-        <button class="ctrl-btn brake" id="btn-brake">煞車 (B)</button>
-        <button class="ctrl-btn eb" id="btn-eb">緊急 (EB)</button>
-        <button class="ctrl-btn cam" id="btn-view">視角 (CAM)</button>
-    </div>
+        let audioCtx = null;
+        let oscillator = null;
 
-    <script type="module">
-        import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+        // UI 元素綁定
+        const speedDisplay = document.getElementById('speedDisplay');
+        const limitDisplay = document.getElementById('limitDisplay');
+        const countdownDisplay = document.getElementById('countdownDisplay');
+        const logBox = document.getElementById('logBox');
+        const lightG = document.getElementById('lightG');
+        const lightY = document.getElementById('lightY');
+        const lightR = document.getElementById('lightR');
 
-        /* ==========================================================================
-         * 模組一：台鐵完整路線站場與地標資料庫管理系統 (Station Database Manager)
-         * ========================================================================== */
-        class RailwayStationDatabase {
-            constructor() {
-                this.stations = [
-                    { code: "1001", name: "台北機廠啟程點", positionZ: 0, platformLength: 350, speedLimit: 130 },
-                    { code: "1002", name: "南港特快信號所", positionZ: 3500, platformLength: 300, speedLimit: 140 },
-                    { code: "1003", name: "七堵調車場北", positionZ: 8200, platformLength: 300, speedLimit: 110 },
-                    { code: "1004", name: "基隆新站終點", positionZ: 14500, platformLength: 400, speedLimit: 90 },
-                    { code: "2001", name: "樹林特甲月台", positionZ: 19000, platformLength: 350, speedLimit: 130 },
-                    { code: "2002", name: "板橋地下交汇", positionZ: 24500, platformLength: 350, speedLimit: 120 },
-                    { code: "2003", name: "桃園高架站", positionZ: 31000, platformLength: 300, speedLimit: 140 },
-                    { code: "2004", name: "中壢轉轍站", positionZ: 37500, platformLength: 300, speedLimit: 110 },
-                    { code: "3001", name: "新竹科學園區站", positionZ: 45000, platformLength: 350, speedLimit: 140 },
-                    { code: "3002", name: "苗栗山線交界", positionZ: 53000, platformLength: 300, speedLimit: 130 }
-                ];
-            }
-
-            getStationByDistance(distance) {
-                for (let i = 0; i < this.stations.length; i++) {
-                    if (Math.abs(this.stations[i].positionZ - distance) < 150) {
-                        return this.stations[i];
-                    }
-                }
-                return null;
-            }
-
-            getNearestStation(distance) {
-                let nearest = this.stations[0];
-                let minDst = Math.abs(distance - nearest.positionZ);
-                for (let i = 1; i < this.stations.length; i++) {
-                    let dst = Math.abs(distance - this.stations[i].positionZ);
-                    if (dst < minDst) {
-                        minDst = dst;
-                        nearest = this.stations[i];
-                    }
-                }
-                return { station: nearest, distance: minDst };
-            }
+        function log(msg) {
+            logBox.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+            logBox.scrollTop = logBox.scrollHeight;
         }
 
-        /* ==========================================================================
-         * 模組二：鐵路路線坡度與速限剖面控制器 (Track Profile & Gradient Engine)
-         * ========================================================================== */
-        class TrackProfileEngine {
-            constructor() {
-                this.gradients = [
-                    { startZ: 0, endZ: 5000, grade: 0.0 },     // 平坦段
-                    { startZ: 5000, endZ: 12000, grade: 12.5 },  // 上坡道 12.5‰
-                    { startZ: 12000, endZ: 20000, grade: -8.0 }, // 下坡道 -8.0‰
-                    { startZ: 20000, endZ: 35000, grade: 5.2 },  // 緩坡
-                    { startZ: 35000, endZ: 60000, grade: 0.0 }   // 長直線平原
-                ];
+        // 啟動 Web Audio 變頻音
+        document.getElementById('btnStartAudio').addEventListener('click', () => {
+            if (!state.audioStarted) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                oscillator = audioCtx.createOscillator();
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(60, audioCtx.currentTime);
+                
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                
+                state.audioStarted = true;
+                log("Hitachi VVVF 變頻音效引擎啟動成功！");
+                document.getElementById('btnStartAudio').innerText = "音效運行中 (Active)";
+                document.getElementById('btnStartAudio').disabled = true;
+            }
+        });
+
+        // 控制按鈕事件
+        document.getElementById('btnPowerUp').addEventListener('click', () => {
+            if (state.ebTriggered) {
+                log("錯誤：已發布 EB 緊急制動，無法加速！請先確認解除。");
+                return;
+            }
+            state.powerNotch = Math.min(state.powerNotch + 1, 4);
+            log(`控制器切至動力位: P${state.powerNotch}`);
+        });
+
+        document.getElementById('btnBrake').addEventListener('click', () => {
+            state.powerNotch = 0;
+            state.speed = Math.max(0, state.speed - 15);
+            log("施加強制軔機，列車減速。");
+        });
+
+        document.getElementById('btnAck').addEventListener('click', () => {
+            if (state.speed > state.speedLimit + 3) {
+                state.countdown = 5.0;
+                state.ebTriggered = false;
+                log("已按下 ATS/ATC 確認鈕，解除警報倒數。");
+            } else {
+                log("當前未超速，無需確認。");
+            }
+        });
+
+        document.getElementById('btnCommunity').addEventListener('click', () => {
+            log("正在連線至台鐵線上模擬社群伺服器...");
+            setTimeout(() => {
+                document.getElementById('communityStatus').innerText = "狀態: 已連線 (同線線上駕駛: 12 人)";
+                log("成功加入社群排班，已同步其他 12 位駕駛員位置。");
+            }, 800);
+        });
+
+        // 主迴圈 (60Hz 物理與安全計算)
+        let lastTime = performance.now();
+        function mainLoop(timestamp) {
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            // 物理動力模擬
+            if (state.powerNotch > 0 && !state.ebTriggered) {
+                state.speed += state.powerNotch * 2.5 * dt;
+            } else {
+                state.speed = Math.max(0, state.speed - 1.2 * dt);
             }
 
-            getGradientAt(z) {
-                for (let i = 0; i < this.gradients.length; i++) {
-                    const g = this.gradients[i];
-                    if (z >= g.startZ && z < g.endZ) {
-                        return g.grade;
-                    }
+            // 超速與 ATC 邏輯
+            if (state.speed > state.speedLimit + 3.0) {
+                state.countdown -= dt;
+                lightG.className = "aspect-light";
+                lightY.className = "aspect-light active-y";
+                
+                if (state.countdown <= 0) {
+                    state.ebTriggered = true;
+                    state.speed = Math.max(0, state.speed - 10.0 * dt);
+                    lightY.className = "aspect-light";
+                    lightR.className = "aspect-light active-r";
+                    if (Math.random() < 0.05) log("【警告】超速未確認，ATC 已強制介入執行 EB（緊急制動）！");
                 }
-                return 0.0;
+            } else {
+                state.countdown = 5.0;
+                if (!state.ebTriggered) {
+                    lightG.className = "aspect-light active-g";
+                    lightY.className = "aspect-light";
+                    lightR.className = "aspect-light";
+                }
             }
+
+            // 更新 VVVF 頻率
+            if (state.audioStarted && oscillator) {
+                const targetFreq = 60 + (state.speed * 8);
+                oscillator.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.1);
+            }
+
+            // 畫面數值綁定
+            speedDisplay.innerText = state.speed.toFixed(1);
+            limitDisplay.innerText = state.speedLimit;
+            countdownDisplay.innerText = Math.max(0, state.countdown).toFixed(1);
+
+            requestAnimationFrame(mainLoop);
         }
 
-        /* ==========================================================================
-         * 模組三：多節車廂彈簧阻尼物理與 Davis 公式動力引擎 (Train Dynamics Physics Engine)
-         * ========================================================================== */
-        class TrainDynamicsEngine {
-            constructor(totalCars = 12) {
-                this.totalCars = totalCars;
-                this.cars = [];
-                for (let i = 0; i < totalCars; i++) {
-                    this.cars.push({
-                        id: i,
-                        positionZ: -i * 20.0,
-                        velocity: 0,
-                        springOffset: 0,
-                        pitchAngle: 0
-                    });
-                }
-                this.speed = 0.0; // km/h
-                this.maxSpeed = 140.0;
-                this.accelRate = 1.15;
-                this.brakeRate = 2.30;
-                this.distance = 0.0;
-                this.bpPressure = 5.0;
-                this.bcPressure = 0.0;
-                this.profileEngine = new TrackProfileEngine();
-            }
-
-            calculateDavisResistance(speedKmh) {
-                // Davis 鐵路阻力公式: R = A + B*v + C*v^2
-                const A = 1.25;
-                const B = 0.03;
-                const C = 0.0005;
-                return A + (B * speedKmh) + (C * speedKmh * speedKmh);
-            }
-
-            update(dt, inputPower, inputBrake, inputEB) {
-                let targetAccel = 0;
-                const currentGrade = this.profileEngine.getGradientAt(this.distance);
-                const gradeResistance = currentGrade * 0.098; // 坡度附加阻力
-
-                if (inputEB) {
-                    targetAccel = -this.brakeRate * 3.5;
-                    this.bcPressure = 4.8;
-                } else if (inputPower) {
-                    targetAccel = this.accelRate;
-                    this.bcPressure = Math.max(0, this.bcPressure - dt * 2.5);
-                } else if (inputBrake) {
-                    targetAccel = -this.brakeRate;
-                    this.bcPressure = Math.min(4.2, this.bcPressure + dt * 2.0);
-                } else {
-                    const davisRes = this.calculateDavisResistance(this.speed);
-                    targetAccel = -(davisRes + gradeResistance) * 0.1;
-                    this.bcPressure = Math.max(0, this.bcPressure - dt * 1.5);
-                }
-
-                if (!inputPower && !inputBrake && !inputEB && this.speed > 0) {
-                    this.speed = Math.max(0, this.speed + targetAccel * dt * 8);
-                } else {
-                    this.speed += targetAccel * dt * 8;
-                }
-
-                this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
-                const displacement = (this.speed / 3.6) * dt;
-                this.distance += displacement;
-
-                // 多車廂彈簧阻尼遞延運算
-                this.cars.forEach((car, idx) => {
-                    car.positionZ -= displacement;
-                    if (idx > 0) {
-                        const lead = this.cars[idx - 1];
-                        const targetZ = lead.positionZ - 20.0;
-                        car.positionZ += (targetZ - car.positionZ) * 0.24 * dt * 60;
-                    }
-                });
-
-                this.bpPressure = 5.0 - (this.bcPressure * 0.25);
-                return {
-                    speed: this.speed,
-                    distance: this.distance,
-                    bp: this.bpPressure,
-                    bc: this.bcPressure,
-                    grade: currentGrade
-                };
-            }
-        }
-
-        /* ==========================================================================
-         * 模組四：Web Audio API 複合聲學合成與轉轍器音效引擎 (Pro Sound Synthesis Engine)
-         * ========================================================================== */
-        class ProSoundEngine {
-            constructor() {
-                this.ctx = null;
-                this.inverterOsc = null;
-                this.inverterGain = null;
-                this.railNoiseNode = null;
-                this.initialized = false;
-            }
-
-            init() {
-                if (this.initialized) return;
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                this.ctx = new AudioContext();
-
-                // 日立 IGBT 變頻音模擬
-                this.inverterOsc = this.ctx.createOscillator();
-                this.inverterOsc.type = 'sawtooth';
-                this.inverterOsc.frequency.setValueAtTime(60, this.ctx.currentTime);
-
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = 'bandpass';
-                filter.frequency.setValueAtTime(850, this.ctx.currentTime);
-                filter.Q.setValueAtTime(3.5, this.ctx.currentTime);
-
-                this.inverterGain = this.ctx.createGain();
-                this.inverterGain.gain.setValueAtTime(0, this.ctx.currentTime);
-
-                this.inverterOsc.connect(filter);
-                filter.connect(this.inverterGain);
-                this.inverterGain.connect(this.ctx.destination);
-
-                this.inverterOsc.start();
-                this.initialized = true;
-            }
-
-            update(speed, isPowering) {
-                if (!this.initialized) return;
-                if (this.ctx.state === 'suspended') this.ctx.resume();
-
-                if (isPowering && speed < 130) {
-                    const freq = 65 + (speed * 18) + (Math.sin(performance.now() * 0.015) * 15);
-                    this.inverterOsc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.1);
-                    this.inverterGain.gain.setTargetAtTime(0.15, this.ctx.currentTime, 0.1);
-                } else {
-                    this.inverterGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.2);
-                }
-            }
-        }
-
-        /* ==========================================================================
-         * 模組五：3D 景物建構與場景指揮中心 (Main 3D Scene Controller)
-         * ========================================================================== */
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x68aed4);
-        scene.fog = new THREE.FogExp2(0x68aed4, 0.0035);
-
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 6000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.shadowMap.enabled = true;
-        document.getElementById('viewport').appendChild(renderer.domElement);
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const sunLight = new THREE.DirectionalLight(0xfff8ee, 1.1);
-        sunLight.position.set(400, 800, 400);
-        sunLight.castShadow = true;
-        scene.add(sunLight);
-
-        const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(15000, 15000),
-            new THREE.MeshLambertMaterial({ color: 0x3b6642 })
-        );
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.4;
-        scene.add(ground);
-
-        const worldGroup = new THREE.Group();
-        scene.add(worldGroup);
-
-        const railMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, metalness: 0.85, roughness: 0.25 });
-        const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x4a3b32, roughness: 0.9 });
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0x6e7681, metalness: 0.6 });
-
-        // 生成長達 15 公里的鐵路路網與電車線架構
-        for (let z = -2500; z < 15000; z += 3.5) {
-            const sleeper = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.16, 0.8), sleeperMat);
-            sleeper.position.set(0, -0.05, z);
-            worldGroup.add(sleeper);
-
-            const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.18, 3.5), railMat);
-            leftRail.position.set(-0.53, 0.08, z);
-            const rightRail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.18, 3.5), railMat);
-            rightRail.position.set(0.53, 0.08, z);
-            worldGroup.add(leftRail, rightRail);
-
-            if (z % 35 === 0) {
-                const pole = new THREE.Mesh(new THREE.BoxGeometry(0.35, 8.0, 0.35), poleMat);
-                pole.position.set(3.6, 3.6, z);
-                worldGroup.add(pole);
-                const cantilever = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.15, 0.15), poleMat);
-                cantilever.position.set(0, 7.4, z);
-                worldGroup.add(cantilever);
-            }
-        }
-
-        const stationDb = new RailwayStationDatabase();
-        const physics = new TrainDynamicsEngine(12);
-        const sound = new ProSoundEngine();
-
-        const trainGroup = new THREE.Group();
-        scene.add(trainGroup);
-        const carMeshes = [];
-        const carMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.18, metalness: 0.25 });
-
-        for (let i = 0; i < physics.totalCars; i++) {
-            const ca
+        requestAnimationFrame(mainLoop);
+    </script>
+</body>
+</html>
