@@ -6,85 +6,153 @@
     <title>台灣鐵路 EMU3000 旗艦級專業模擬器 - 1000+ 行重度工程版</title>
     <style>
         :root {
-            --panel-bg: rgba(10, 15, 25, 0.92);
+            --panel-bg: rgba(8, 12, 20, 0.95);
             --accent-cyan: #00f0ff;
             --accent-amber: #ffaa00;
             --accent-red: #ff3344;
             --accent-green: #00ff66;
+            --border-glow: rgba(0, 240, 255, 0.35);
         }
+
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #05070a;
+            background-color: #030508;
             font-family: -apple-system, BlinkMacSystemFont, 'Microsoft JhengHei', sans-serif;
             user-select: none;
             -webkit-user-select: none;
         }
 
-        #viewport { width: 100vw; height: 100vh; display: block; }
+        #viewport {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
 
-        /* 左上角重度儀表板 */
+        /* 頂部重度 TELEMETRY 儀表板面板 */
         #telemetry-panel {
-            position: absolute; top: 15px; left: 15px;
-            background: var(--panel-bg); border: 1px solid rgba(0, 240, 255, 0.4);
-            border-radius: 10px; padding: 14px 18px; color: #fff; width: 280px;
-            font-size: 12px; backdrop-filter: blur(10px); z-index: 10;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: #fff;
+            width: 300px;
+            font-size: 12px;
+            backdrop-filter: blur(12px);
+            z-index: 10;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.8);
         }
 
         #telemetry-panel h1 {
-            margin: 0 0 8px 0; font-size: 14px; color: var(--accent-cyan);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding-bottom: 6px;
-            letter-spacing: 1px;
+            margin: 0 0 10px 0;
+            font-size: 15px;
+            color: var(--accent-cyan);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            padding-bottom: 6px;
+            letter-spacing: 1.5px;
         }
 
-        .data-row { display: flex; justify-content: space-between; margin: 6px 0; color: #94a3b8; }
-        .data-row span { color: #fff; font-weight: bold; font-family: monospace; }
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 7px 0;
+            color: #94a3b8;
+        }
 
-        /* 號誌燈箱面板 */
+        .data-row span {
+            color: #fff;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        /* 號誌燈箱模組 */
         #signal-aspect-box {
-            margin-top: 10px; padding: 8px; background: rgba(0,0,0,0.5);
-            border-radius: 6px; display: flex; justify-content: space-around; align-items: center;
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        .signal-light { width: 18px; height: 18px; border-radius: 50%; background: #333; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); }
-        .signal-light.active-green { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); }
-        .signal-light.active-amber { background: var(--accent-amber); box-shadow: 0 0 10px var(--accent-amber); }
-        .signal-light.active-red { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); }
 
-        /* 底部駕駛台儀表 */
+        .signal-light {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1a1a1a;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .signal-light.active-green { background: var(--accent-green); box-shadow: 0 0 12px var(--accent-green); }
+        .signal-light.active-amber { background: var(--accent-amber); box-shadow: 0 0 12px var(--accent-amber); }
+        .signal-light.active-red { background: var(--accent-red); box-shadow: 0 0 12px var(--accent-red); }
+
+        /* 底部駕駛台儀表板 */
         #cab-console {
-            position: absolute; bottom: 105px; left: 50%; transform: translateX(-50%);
-            background: var(--panel-bg); border: 1px solid rgba(255, 255, 255, 0.25);
-            border-radius: 14px; padding: 12px 24px; display: flex; gap: 24px;
-            align-items: center; backdrop-filter: blur(12px); z-index: 10;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            position: absolute;
+            bottom: 115px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 16px;
+            padding: 14px 28px;
+            display: flex;
+            gap: 28px;
+            align-items: center;
+            backdrop-filter: blur(14px);
+            z-index: 10;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85);
         }
 
-        .gauge-pod { text-align: center; min-width: 75px; }
-        .gauge-label { font-size: 10px; color: #94a3b8; margin-bottom: 3px; letter-spacing: 1px; }
-        .gauge-val { font-size: 26px; font-weight: 900; color: var(--accent-cyan); font-family: monospace; }
+        .gauge-pod { text-align: center; min-width: 80px; }
+        .gauge-label { font-size: 10px; color: #94a3b8; margin-bottom: 4px; letter-spacing: 1px; }
+        .gauge-val { font-size: 28px; font-weight: 900; color: var(--accent-cyan); font-family: monospace; }
         .gauge-unit { font-size: 10px; color: #64748b; }
 
-        /* 手機觸控操作控制器 */
+        /* 手機觸控操作控制面板 */
         #mobile-controls {
-            position: absolute; bottom: 15px; left: 15px; right: 15px;
-            display: flex; justify-content: space-between; gap: 10px; z-index: 20;
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            z-index: 20;
         }
 
         .ctrl-btn {
-            flex: 1; padding: 18px 0; background: rgba(30, 41, 59, 0.95);
-            border: 2px solid rgba(255, 255, 255, 0.3); color: white;
-            font-size: 15px; font-weight: bold; border-radius: 12px; text-align: center;
-            touch-action: manipulation; box-shadow: 0 6px 15px rgba(0,0,0,0.6);
-            transition: transform 0.1s;
+            flex: 1;
+            padding: 20px 0;
+            background: rgba(30, 41, 59, 0.95);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 14px;
+            text-align: center;
+            touch-action: manipulation;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.7);
+            transition: transform 0.08s ease, background 0.08s ease;
         }
 
-        .ctrl-btn:active, .ctrl-btn.active { background: rgba(0, 240, 255, 0.4); border-color: var(--accent-cyan); transform: scale(0.96); }
+        .ctrl-btn:active, .ctrl-btn.active {
+            background: rgba(0, 240, 255, 0.45);
+            border-color: var(--accent-cyan);
+            transform: scale(0.95);
+        }
         .ctrl-btn.brake { background: rgba(180, 83, 9, 0.95); }
-        .ctrl-btn.brake:active { background: rgba(245, 158, 11, 0.5); border-color: var(--accent-amber); }
+        .ctrl-btn.brake:active { background: rgba(245, 158, 11, 0.6); border-color: var(--accent-amber); }
         .ctrl-btn.eb { background: rgba(185, 28, 28, 0.95); }
-        .ctrl-btn.eb:active { background: rgba(239, 68, 68, 0.5); border-color: var(--accent-red); }
+        .ctrl-btn.eb:active { background: rgba(239, 68, 68, 0.6); border-color: var(--accent-red); }
         .ctrl-btn.cam { background: rgba(51, 65, 85, 0.95); }
     </style>
 </head>
@@ -98,7 +166,7 @@
         <div class="data-row">主風泵壓: <span id="tele-bp">5.00 bar</span></div>
         <div class="data-row">車內號誌: <span id="tele-atc">G (開放運行)</span></div>
         <div id="signal-aspect-box">
-            <div style="font-size:10px; color:#aaa;">ATC 燈號:</div>
+            <span style="font-size:10px; color:#aaa; font-weight:bold;">ATC 燈號:</span>
             <div class="signal-light" id="light-red"></div>
             <div class="signal-light" id="light-amber"></div>
             <div class="signal-light active-green" id="light-green"></div>
@@ -133,9 +201,9 @@
     <script type="module">
         import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
 
-        /* ==========================================================
-         * 模組一：高精度車輛物理與多節車廂阻尼動力學系統 (Train Physics Engine)
-         * ========================================================== */
+        /* ==========================================================================
+         * 模組一：車輛動態與多節車廂彈簧阻尼物理引擎 (Train Dynamics Physics Engine)
+         * ========================================================================== */
         class TrainDynamicsEngine {
             constructor(totalCars = 12) {
                 this.totalCars = totalCars;
@@ -161,7 +229,7 @@
             update(dt, inputPower, inputBrake, inputEB) {
                 let targetAccel = 0;
                 if (inputEB) {
-                    targetAccel = -this.brakeRate * 3.0;
+                    targetAccel = -this.brakeRate * 3.2;
                     this.bcPressure = 4.8;
                 } else if (inputPower) {
                     targetAccel = this.accelRate;
@@ -195,13 +263,18 @@
                 });
 
                 this.bpPressure = 5.0 - (this.bcPressure * 0.25);
-                return { speed: this.speed, distance: this.distance, bp: this.bpPressure, bc: this.bcPressure };
+                return {
+                    speed: this.speed,
+                    distance: this.distance,
+                    bp: this.bpPressure,
+                    bc: this.bcPressure
+                };
             }
         }
 
-        /* ==========================================================
-         * 模組二：Web Audio 聲學合成與鐵軌撞擊音引擎 (Sound Synthesis Engine)
-         * ========================================================== */
+        /* ==========================================================================
+         * 模組二：Web Audio 聲學合成與轉轍器音效引擎 (Pro Sound Synthesis Engine)
+         * ========================================================================== */
         class ProSoundEngine {
             constructor() {
                 this.ctx = null;
@@ -215,7 +288,6 @@
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 this.ctx = new AudioContext();
 
-                // 日立 IGBT 變頻馬達音模擬
                 this.inverterOsc = this.ctx.createOscillator();
                 this.inverterOsc.type = 'sawtooth';
                 this.inverterOsc.frequency.setValueAtTime(60, this.ctx.currentTime);
@@ -250,9 +322,9 @@
             }
         }
 
-        /* ==========================================================
+        /* ==========================================================================
          * 模組三：3D 景物建構與場景指揮中心 (Main 3D Scene Controller)
-         * ========================================================== */
+         * ========================================================================== */
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x68aed4);
         scene.fog = new THREE.FogExp2(0x68aed4, 0.0035);
@@ -264,14 +336,12 @@
         renderer.shadowMap.enabled = true;
         document.getElementById('viewport').appendChild(renderer.domElement);
 
-        // 燈光系統
         scene.add(new THREE.AmbientLight(0xffffff, 0.7));
         const sunLight = new THREE.DirectionalLight(0xfff8ee, 1.1);
         sunLight.position.set(400, 800, 400);
         sunLight.castShadow = true;
         scene.add(sunLight);
 
-        // 無限地面
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(12000, 12000),
             new THREE.MeshLambertMaterial({ color: 0x3b6642 })
@@ -280,7 +350,6 @@
         ground.position.y = -0.4;
         scene.add(ground);
 
-        // 雙軌與電桿基礎路網生成
         const worldGroup = new THREE.Group();
         scene.add(worldGroup);
 
@@ -309,11 +378,9 @@
             }
         }
 
-        // 初始化物理與音效實例
         const physics = new TrainDynamicsEngine(12);
         const sound = new ProSoundEngine();
 
-        // 建立 12 節車廂物件
         const trainGroup = new THREE.Group();
         scene.add(trainGroup);
         const carMeshes = [];
@@ -326,7 +393,6 @@
             carMeshes.push(car);
         }
 
-        // 控制輸入狀態
         const inputState = { power: false, brake: false, eb: false, camMode: 0, notch: 'N' };
 
         window.addEventListener('pointerdown', () => sound.init(), {once: true});
@@ -350,7 +416,6 @@
             inputState.camMode = 1 - inputState.camMode;
         });
 
-        // 核心渲染迴圈 (Render Loop)
         let lastTime = performance.now();
         function runSimulation(time) {
             requestAnimationFrame(runSimulation);
@@ -360,14 +425,12 @@
             const telemetry = physics.update(dt, inputState.power, inputState.brake, inputState.eb);
             sound.update(telemetry.speed, inputState.power);
 
-            // 同步車廂位置
             physics.cars.forEach((carData, idx) => {
                 if (carMeshes[idx]) {
                     carMeshes[idx].position.z = carData.positionZ;
                 }
             });
 
-            // 鏡頭跟隨
             const headZ = physics.cars[0].positionZ;
             if (inputState.camMode === 0) {
                 camera.position.set(0, 4.5, headZ + 25);
@@ -377,7 +440,6 @@
                 camera.lookAt(0.7, 2.2, headZ - 45);
             }
 
-            // 更新介面數值
             document.getElementById('val-speed').innerText = telemetry.speed.toFixed(1);
             document.getElementById('val-notch').innerText = inputState.eb ? 'EB' : inputState.notch;
             document.getElementById('val-bc').innerText = telemetry.bc.toFixed(1);
