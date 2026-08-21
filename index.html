@@ -596,3 +596,36 @@
     };
 
     appendLog("[系統核心] 第七段 視角切換、環境音效與駕駛成就模組已成功無縫整合至 index.html。");
+    // --- 第八段：台鐵線上時刻表排班、誤點秒數計算與調度中心模擬模組 ---
+    
+    const timetableDispatcher = {
+        schedule: [
+            { station: "基隆", targetTimeSec: 0, actualTimeSec: 0, status: "已發車" },
+            { station: "三坑", targetTimeSec: 90, actualTimeSec: null, status: "未到" },
+            { station: "八堵", targetTimeSec: 210, actualTimeSec: null, status: "未到" },
+            { station: "七堵", targetTimeSec: 320, actualTimeSec: null, status: "未到" },
+            { station: "百福", targetTimeSec: 450, actualTimeSec: null, status: "未到" }
+        ],
+        currentElapsedSec: 0,
+        delaySeconds: 0,
+
+        updateTimetable(dt, currentKpKm) {
+            this.currentElapsedSec += dt;
+
+            // 根據里程自動判定是否抵達各站並計算誤點
+            if (currentKpKm >= 1.3 && this.schedule[1].status === "未到") {
+                this.schedule[1].actualTimeSec = Math.round(this.currentElapsedSec);
+                let diff = this.schedule[1].actualTimeSec - this.schedule[1].targetTimeSec;
+                this.schedule[1].status = diff > 0 ? `誤點 ${diff} 秒` : `準點 / 早到 ${Math.abs(diff)} 秒`;
+                appendLog(`[調度中心] 三坑站通過紀錄：${this.schedule[1].status}`);
+            }
+            if (currentKpKm >= 3.7 && this.schedule[2].status === "未到") {
+                this.schedule[2].actualTimeSec = Math.round(this.currentElapsedSec);
+                let diff = this.schedule[2].actualTimeSec - this.schedule[2].targetTimeSec;
+                this.schedule[2].status = diff > 0 ? `誤點 ${diff} 秒` : `準點 / 早到 ${Math.abs(diff)} 秒`;
+                appendLog(`[調度中心] 八堵站通過紀錄：${this.schedule[2].status}`);
+            }
+        }
+    };
+
+    appendLog("[系統核心] 第八段 時刻表排班與調度中心模組已成功無縫整合至 index.html。");
