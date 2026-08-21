@@ -441,3 +441,40 @@
     // 將 ATC 檢查掛載進主循環中執行
     // (這段與第二段的 animate 迴圈完美對接，讓每一次畫面更新都進行號誌防護判定)
     appendLog("[系統核心] 第三段 ATC 號誌防護與閉塞區間資料庫已成功掛載至單一 index.html。");
+    // --- 第四段：Roblox 風格動態環境、天空盒與大氣光影特效模組 ---
+    
+    function initRobloxEnvironment() {
+        // 建立 Roblox 風格的動態雲朵或天空裝飾群組
+        const skyGroup = new THREE.Group();
+        scene.add(skyGroup);
+
+        // 隨機生成方塊狀的 Roblox 風格雲朵
+        const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+        for (let i = 0; i < 15; i++) {
+            const cloudGeo = new THREE.BoxGeometry(
+                Math.random() * 20 + 10, 
+                Math.random() * 4 + 2, 
+                Math.random() * 20 + 10
+            );
+            const cloud = new THREE.Mesh(cloudGeo, cloudMat);
+            cloud.position.set(
+                (Math.random() - 0.5) * 300,
+                Math.random() * 40 + 60,
+                (Math.random() - 0.5) * 500
+            );
+            skyGroup.add(cloud);
+        }
+
+        // 優化場景材質以呈現更強烈的 Roblox 塑料質感
+        scene.traverse((child) => {
+            if (child.isMesh && child.material) {
+                child.material.roughness = 0.4;
+                child.material.metalness = 0.1;
+            }
+        });
+
+        appendLog("[系統核心] 第四段 Roblox 風格動態天空與環境光影模組已成功無縫整合至 index.html。");
+    }
+
+    // 自動執行環境初始化
+    initRobloxEnvironment();
