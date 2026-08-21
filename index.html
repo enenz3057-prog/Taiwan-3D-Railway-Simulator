@@ -771,3 +771,81 @@
             }
         };
     </script>
+    <!-- ==========================================
+         模組二十六：行車調度無線電通訊模擬 (Dispatcher Radio)
+         ========================================== -->
+    <script>
+        const dispatcherRadioSystem = {
+            radioChannel: "台鐵調度總臺 CH-1",
+            connectionStatus: "連線良好 (Connected)",
+            broadcastMessage(msg) {
+                appendLog(`[行車無線電 ${this.radioChannel}] 收到調度員通告: "${msg}"`);
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組二十七：行車事故黑盒子紀錄器 (Event Recorder)
+         ========================================== -->
+    <script>
+        const eventRecorder = {
+            eventBuffer: [],
+            logEvent(eventDescription) {
+                const timestamp = new Date().toISOString();
+                this.eventBuffer.push({ time: timestamp, desc: eventDescription });
+                if (this.eventBuffer.length > 100) {
+                    this.eventBuffer.shift(); // 保持緩衝區大小
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組二十八：車廂內部二氧化碳濃度與換氣模擬 (CO2 & Ventilation)
+         ========================================== -->
+    <script>
+        const ventilationSystem = {
+            co2Ppm: 650.0,
+            freshAirDamperOpen: true,
+            updateVentilation(passengerCount, dt) {
+                // 依據車內乘客人數模擬二氧化碳濃度升降
+                this.co2Ppm += (passengerCount * 0.02 - 1.5) * dt;
+                this.co2Ppm = Math.max(400, Math.min(1500, this.co2Ppm));
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組二十九：集電弓碳滑板與電車線磨耗系統 (Pantograph Wear)
+         ========================================== -->
+    <script>
+        const pantographWearSystem = {
+            carbonStripThicknessMm: 30.0,
+            accumulatedWear: 0.0,
+            updatePantographWear(speed, dt) {
+                if (speed > 0) {
+                    this.accumulatedWear += speed * 0.000002 * dt;
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組三十：全系統緊急主斷路器跳脫防護 (MCB Trip & Scram System)
+         ========================================== -->
+    <script>
+        const scramSystem = {
+            mcbTripped: false,
+            triggerScram() {
+                this.mcbTripped = true;
+                simulator.powerNotch = 0;
+                simulator.mainVoltage = 0.0;
+                appendLog("[緊急防護警報] 主斷路器 (MCB) 已強制跳脫！牽引動力全面切斷。");
+            },
+            resetScram() {
+                this.mcbTripped = false;
+                simulator.mainVoltage = 25.0;
+                appendLog("[緊急防護復歸] 主斷路器已重新投入，主電壓恢復 25 kV。");
+            }
+        };
+    </script>
