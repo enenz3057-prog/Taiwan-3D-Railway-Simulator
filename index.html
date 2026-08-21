@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - EMU3000 專業大型運行版本 (1000行架構)</title>
+    <title>台灣3D鐵路模擬器 - Roblox 風格 3D 互動版</title>
+    <!-- 引入 Three.js 3D 引擎 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root {
             --bg-color: #030712;
@@ -34,12 +36,12 @@
             background: #000;
             border-radius: 6px;
             overflow: hidden;
-            height: 160px;
+            height: 180px;
             position: relative;
             border: 1px solid var(--panel-border);
-            box-shadow: inset 0 0 12px rgba(14, 165, 233, 0.2);
+            box-shadow: inset 0 0 12px rgba(14, 165, 233, 0.3);
         }
-        canvas { display: block; width: 100%; height: 100%; }
+        #webglCanvas { width: 100%; height: 100%; display: block; }
 
         .panel { background-color: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 6px; padding: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.4); }
 
@@ -74,13 +76,13 @@
 
     <header>
         <h1>台灣3D鐵路模擬器</h1>
-        <div class="subtitle">EMU3000 新自強號・完整大型運行架構系統</div>
+        <div class="subtitle">EMU3000 新自強號・3D 沉浸互動版</div>
     </header>
 
     <div class="layout-container">
-        <!-- 3D 視覺視窗 -->
+        <!-- 真正的 3D 渲染視窗 (Three.js) -->
         <div class="viewport-container">
-            <canvas id="mainCanvas"></canvas>
+            <div id="webglCanvas"></div>
         </div>
 
         <!-- 駕駛艙儀表板 -->
@@ -134,7 +136,7 @@
             <div style="font-size:0.7rem; font-weight:bold; margin-bottom:4px; color:#93c5fd;">駕駛控制器 (Master Controller)</div>
             
             <div class="controls-grid">
-                <button class="btn-green btn-span-4" id="btnInitSystem">初始化完整音效與物理迴圈引擎</button>
+                <button class="btn-green btn-span-4" id="btnInitSystem">初始化 3D 空間與物理迴圈引擎</button>
                 <button class="btn-blue btn-span-2" id="btnPowerUp">牽引升階 (P+)</button>
                 <button class="btn-yellow btn-span-2" id="btnPowerDown">牽引降階 (P-)</button>
                 <button class="btn-yellow btn-span-2" id="btnBrakeUp">制動施加 (B+)</button>
@@ -143,38 +145,31 @@
             </div>
 
             <div id="terminalLog" class="terminal-box">
-                [系統核心] 載入上千行大型鐵道模擬器架構完成。<br>
-                [資料庫] 已載入縱貫線北段（基隆 - 屏東全線延伸站場）拓撲資料庫。<br>
+                [系統核心] 3D 互動世界引擎初始化就緒。<br>
+                [資料庫] 已載入 3D 軌道模型與機電模組。<br>
             </div>
         </div>
     </div>
 
     <script>
-        // ==========================================
-        // 模組一：大型列車物理與阻力計算核心 (Physics Engine)
-        // ==========================================
+        // --- 核心狀態與物理引擎 ---
         const simulator = {
             speed: 0.0,
             targetLimit: 130.0,
-            powerNotch: 0, 
-            brakeNotch: 0, 
+            powerNotch: 0,
+            brakeNotch: 0,
             brakeCylinderPressure: 0.0,
             mainVoltage: 25.0,
             kpMeters: 0.0,
             gradient: 0.0,
             currentStation: "基隆",
-            atcAspect: 'G', 
+            atcAspect: 'G',
             countdown: 5.0,
             ebTriggered: false,
-            isInitialized: false,
-            trackOffset: 0,
-            massKg: 350000, // 列車總重
-            airDensity: 1.225
+            isInitialized: false
         };
 
-        // ==========================================
-        // 模組二：擴充套件 - 完整全線車站拓撲資料庫 (Topology Database)
-        // ==========================================
+        // --- 車站拓撲資料庫 ---
         const trackDatabase = [
             { name: "基隆", kp: 0.0, limit: 45, gradient: 0.0 },
             { name: "三坑", kp: 1.3, limit: 75, gradient: 5.2 },
@@ -186,34 +181,13 @@
             { name: "汐科", kp: 15.6, limit: 110, gradient: 2.5 },
             { name: "南港", kp: 17.5, limit: 120, gradient: 0.0 },
             { name: "松山", kp: 21.3, limit: 90, gradient: -2.0 },
-            { name: "臺北", kp: 27.1, limit: 80, gradient: 0.0 },
-            { name: "萬華", kp: 29.6, limit: 85, gradient: 1.5 },
-            { name: "板橋", kp: 33.5, limit: 100, gradient: 0.0 },
-            { name: "浮洲", kp: 36.2, limit: 110, gradient: -1.2 },
-            { name: "樹林", kp: 38.8, limit: 95, gradient: 2.0 },
-            { name: "南樹林", kp: 40.5, limit: 100, gradient: 0.0 },
-            { name: "山佳", kp: 43.1, limit: 90, gradient: 4.5 },
-            { name: "鶯歌", kp: 47.6, limit: 105, gradient: -2.8 },
-            { name: "桃園", kp: 57.4, limit: 90, gradient: 0.0 },
-            { name: "內壢", kp: 63.3, limit: 115, gradient: 1.1 },
-            { name: "中壢", kp: 67.3, limit: 85, gradient: 0.0 },
-            { name: "埔心", kp: 73.1, limit: 120, gradient: -3.5 },
-            { name: "楊梅", kp: 76.4, limit: 110, gradient: 3.0 },
-            { name: "富岡", kp: 83.2, limit: 120, gradient: 0.0 },
-            { name: "新富", kp: 84.8, limit: 120, gradient: 0.0 },
-            { name: "北湖", kp: 86.5, limit: 110, gradient: 1.0 },
-            { name: "湖口", kp: 89.4, limit: 100, gradient: -1.5 },
-            { name: "新豐", kp: 95.8, limit: 120, gradient: 2.2 },
-            { name: "竹北", kp: 102.1, limit: 110, gradient: 0.0 },
-            { name: "北新竹", kp: 105.6, limit: 90, gradient: 0.0 },
-            { name: "新竹", kp: 107.2, limit: 70, gradient: 0.0 }
+            { name: "臺北", kp: 27.1, limit: 80, gradient: 0.0 }
         ];
 
         function queryTrackData(kpKm) {
             let limit = 130.0;
             let stationName = "幹線區間高速巡航";
             let grad = Math.sin(kpKm / 5.0) * 5.0;
-
             for (let i = 0; i < trackDatabase.length; i++) {
                 let st = trackDatabase[i];
                 if (Math.abs(st.kp - kpKm) <= 1.0) {
@@ -226,9 +200,6 @@
             return { limit, stationName, gradient: Number(grad.toFixed(1)) };
         }
 
-        // ==========================================
-        // 模組三：終端日誌輸出與除錯系統 (Logger System)
-        // ==========================================
         function appendLog(msg) {
             const term = document.getElementById('terminalLog');
             if (!term) return;
@@ -237,156 +208,136 @@
             term.scrollTop = term.scrollHeight;
         }
 
-        // ==========================================
-        // 模組四：3D Canvas 景觀透視渲染引擎 (Graphics Engine)
-        // ==========================================
-        const canvas = document.getElementById('mainCanvas');
-        const ctx = canvas.getContext('2d');
+        // --- Three.js 3D 渲染引擎初始化 ---
+        let scene, camera, renderer, trainGroup;
+        let sleepers = [];
 
-        function renderGraphics(speed, dt) {
-            if (!canvas || !ctx) return;
-            canvas.width = canvas.clientWidth;
-            canvas.height = canvas.clientHeight;
-            const w = canvas.width;
-            const h = canvas.height;
+        function init3DEnvironment() {
+            const container = document.getElementById('webglCanvas');
+            
+            // 建立 3D 場景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x030712);
+            scene.fog = new THREE.FogExp2(0x030712, 0.025);
 
-            // 繪製天空與地面漸層背景
-            ctx.fillStyle = '#060913';
-            ctx.fillRect(0, 0, w, h / 2);
-            ctx.fillStyle = '#111827';
-            ctx.fillRect(0, h / 2, w, h / 2);
+            // 建立攝影機 (第一人稱司機員視角)
+            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 2);
 
-            // 計算軌道滾動位移
-            simulator.trackOffset = (simulator.trackOffset + (speed * 3.2) * dt) % 60;
+            // 建立渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
 
-            // 繪製鐵軌透視主線
-            ctx.strokeStyle = '#0ea5e9';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(w / 2 - 20, h / 2);
-            ctx.lineTo(w / 2 - 200, h);
-            ctx.moveTo(w / 2 + 20, h / 2);
-            ctx.lineTo(w / 2 + 200, h);
-            ctx.stroke();
+            // 環境光源
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0x0ea5e9, 1.0);
+            dirLight.position.set(10, 20, 10);
+            scene.add(dirLight);
 
-            // 繪製枕木與道渣物件
-            for (let i = 0; i < 15; i++) {
-                let yPos = h / 2 + ((i * 20 + simulator.trackOffset) % (h / 2));
-                let scale = (yPos - h / 2) / (h / 2);
-                let halfW = 20 + scale * 180;
-                
-                ctx.strokeStyle = `rgba(156, 163, 175, ${scale * 0.85})`;
-                ctx.lineWidth = 1 + scale * 2;
-                ctx.beginPath();
-                ctx.moveTo(w / 2 - halfW, yPos);
-                ctx.lineTo(w / 2 + halfW, yPos);
-                ctx.stroke();
+            // 建立 3D 地面與軌道
+            const floorGeo = new THREE.PlaneGeometry(100, 1000);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.9 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.z = -500;
+            scene.add(floor);
+
+            // 建立雙軌
+            const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8 });
+            const railGeo = new THREE.BoxGeometry(0.1, 0.1, 1000);
+            
+            const leftRail = new THREE.Mesh(railGeo, railMat);
+            leftRail.position.set(-0.75, 0.05, -500);
+            scene.add(leftRail);
+
+            const rightRail = new THREE.Mesh(railGeo, railMat);
+            rightRail.position.set(0.75, 0.05, -500);
+            scene.add(rightRail);
+
+            // 建立枕木陣列 (製造 3D 前進感)
+            const sleeperGeo = new THREE.BoxGeometry(1.8, 0.08, 0.3);
+            const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+            for (let i = 0; i < 60; i++) {
+                const sleeper = new THREE.Mesh(sleeperGeo, sleeperMat);
+                sleeper.position.set(0, 0.01, -i * 3);
+                scene.add(sleeper);
+                sleepers.push(sleeper);
             }
 
-            // 繪製遠方地平線裝飾電桿
-            ctx.strokeStyle = '#374151';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(w / 2 - 120, h / 2);
-            ctx.lineTo(w / 2 - 220, h / 2 - 20);
-            ctx.stroke();
+            // 建立前方 3D EMU3000 車頭模型示意
+            trainGroup = new THREE.Group();
+            const bodyGeo = new THREE.BoxGeometry(2.8, 2.4, 6);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5 }); // 紅白色系新自強
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.set(0, 1.2, -5);
+            trainGroup.add(body);
+            scene.add(trainGroup);
+
+            simulator.isInitialized = true;
+            document.getElementById('uiStatus').innerText = "3D 運行中";
+            appendLog("Three.js 3D 空間與物理迴圈引擎已成功啟動！");
         }
 
-        // ==========================================
-        // 模組五：Web Audio API 多軌變頻音效引擎 (Sound Engine)
-        // ==========================================
-        let audioCtx = null;
-        let oscillators = [];
-        let gainNodes = [];
-
-        function initAudioEngine() {
-            if (!simulator.isInitialized) {
-                try {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const masterGain = audioCtx.createGain();
-                    masterGain.gain.value = 0.15;
-                    masterGain.connect(audioCtx.destination);
-
-                    // 建立四組諧波振盪器模擬 VVVF 變頻聲
-                    [1.0, 2.0, 3.15, 4.75].forEach(() => {
-                        const osc = audioCtx.createOscillator();
-                        const gain = audioCtx.createGain();
-                        osc.type = 'sawtooth';
-                        osc.frequency.value = 60;
-                        gain.gain.value = 0;
-                        osc.connect(gain);
-                        gain.connect(masterGain);
-                        osc.start();
-                        oscillators.push(osc);
-                        gainNodes.push(gain);
-                    });
-
-                    simulator.isInitialized = true;
-                    const statusEl = document.getElementById('uiStatus');
-                    if (statusEl) statusEl.innerText = "運行中";
-                    appendLog("主音效合成引擎與物理迴圈已成功啟動載入。");
-                } catch (e) {
-                    appendLog("[錯誤] 音效初始化失敗: " + e.message);
-                }
-            }
-        }
-
-        // ==========================================
-        // 模組六：控制介面互動事件繫結 (Controller Listeners)
-        // ==========================================
-        const btnInit = document.getElementById('btnInitSystem');
-        if (btnInit) btnInit.addEventListener('click', initAudioEngine);
-        
-        const btnPUp = document.getElementById('btnPowerUp');
-        if (btnPUp) btnPUp.addEventListener('click', () => {
+        // --- 按鈕事件繫結 ---
+        document.getElementById('btnInitSystem').addEventListener('click', init3DEnvironment);
+        document.getElementById('btnPowerUp').addEventListener('click', () => {
             if (simulator.powerNotch < 4) simulator.powerNotch++;
-            simulator.brakeNotch = 0; 
-            appendLog(`控制器: 牽引階位升至 P${simulator.powerNotch}`);
+            simulator.brakeNotch = 0;
+            appendLog(`控制器: 牽引升至 P${simulator.powerNotch}`);
         });
-
-        const btnPDown = document.getElementById('btnPowerDown');
-        if (btnPDown) btnPDown.addEventListener('click', () => {
+        document.getElementById('btnPowerDown').addEventListener('click', () => {
             if (simulator.powerNotch > 0) simulator.powerNotch--;
-            appendLog(`控制器: 牽引階位降至 P${simulator.powerNotch}`);
+            appendLog(`控制器: 牽引降至 P${simulator.powerNotch}`);
         });
-
-        const btnBUp = document.getElementById('btnBrakeUp');
-        if (btnBUp) btnBUp.addEventListener('click', () => {
+        document.getElementById('btnBrakeUp').addEventListener('click', () => {
             if (simulator.brakeNotch < 8) simulator.brakeNotch++;
             simulator.powerNotch = 0;
-            appendLog(`控制器: 制動階位施加至 B${simulator.brakeNotch}`);
+            appendLog(`控制器: 制動施加至 B${simulator.brakeNotch}`);
         });
-
-        const btnBDown = document.getElementById('btnBrakeDown');
-        if (btnBDown) btnBDown.addEventListener('click', () => {
+        document.getElementById('btnBrakeDown').addEventListener('click', () => {
             if (simulator.brakeNotch > 0) simulator.brakeNotch--;
-            appendLog(`控制器: 制動階位緩解至 B${simulator.brakeNotch}`);
+            appendLog(`控制器: 制動緩解至 B${simulator.brakeNotch}`);
         });
-
-        const btnAck = document.getElementById('btnAck');
-        if (btnAck) btnAck.addEventListener('click', () => {
+        document.getElementById('btnAck').addEventListener('click', () => {
             simulator.countdown = 5.0;
             simulator.ebTriggered = false;
-            appendLog("ATC 警報已手動確認，系統防護正常復歸。");
+            appendLog("ATC 警報已確認，系統復歸正常。");
         });
 
-        // ==========================================
-        // 模組七：主遊戲與物理計算迴圈 (Master Game Loop)
-        // ==========================================
+        // 鍵盤操控支援
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w') {
+                if (simulator.powerNotch < 4) simulator.powerNotch++;
+                simulator.brakeNotch = 0;
+            } else if (e.key === 'ArrowDown' || e.key === 's') {
+                if (simulator.powerNotch > 0) simulator.powerNotch--;
+            } else if (e.key === 'd') {
+                if (simulator.brakeNotch < 8) simulator.brakeNotch++;
+                simulator.powerNotch = 0;
+            } else if (e.key === 'a') {
+                if (simulator.brakeNotch > 0) simulator.brakeNotch--;
+            } else if (e.key === ' ' || e.key === 'Enter') {
+                simulator.countdown = 5.0;
+                simulator.ebTriggered = false;
+            }
+        });
+
+        // --- 主物理與 3D 動畫迴圈 ---
         let lastTimestamp = performance.now();
 
         function masterLoop(timestamp) {
             const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
             lastTimestamp = timestamp;
 
-            // 1. 查詢當前里程與拓撲阻力
             const currentKpKm = simulator.kpMeters / 1000.0;
             const trackInfo = queryTrackData(currentKpKm);
             simulator.targetLimit = trackInfo.limit;
             simulator.gradient = trackInfo.gradient;
             simulator.currentStation = trackInfo.stationName;
 
-            // 2. 物理動力學與 Davis 阻力模型運算
+            // 物理動力計算
             const gradeResistance = simulator.gradient * 0.14;
             const rollingResistance = 0.4 + (simulator.speed * 0.01);
             const aerodynamicDrag = 0.0002 * Math.pow(simulator.speed, 2);
@@ -401,11 +352,10 @@
                 simulator.speed = Math.max(0, simulator.speed - (rollingResistance + aerodynamicDrag + gradeResistance) * dt);
             }
 
-            // 更新里程與氣軔缸壓力
             simulator.kpMeters += (simulator.speed / 3.6) * dt;
             simulator.brakeCylinderPressure = simulator.brakeNotch * 55.0;
 
-            // 3. ATC 號誌與超速監控防護
+            // ATC 號誌超速防護
             const badgeG = document.getElementById('badgeG');
             const badgeY = document.getElementById('badgeY');
             const badgeR = document.getElementById('badgeR');
@@ -415,7 +365,6 @@
                 simulator.atcAspect = 'Y';
                 if (badgeG) badgeG.className = "aspect-badge aspect-g";
                 if (badgeY) badgeY.className = "aspect-badge aspect-y active";
-                
                 if (simulator.countdown <= 0) {
                     simulator.ebTriggered = true;
                     simulator.atcAspect = 'R';
@@ -432,594 +381,41 @@
                 }
             }
 
-            // 4. VVVF 音效頻率動態調變
- 
-    <!-- ==========================================
-         模組八：鍵盤快捷鍵與實體控制器擴充層 (Keyboard Listener)
-         ========================================== -->
-    <script>
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
-                if (simulator.powerNotch < 4) simulator.powerNotch++;
-                simulator.brakeNotch = 0;
-                appendLog(`[鍵盤操控] 牽引階位升至 P${simulator.powerNotch}`);
-            } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-                if (simulator.powerNotch > 0) simulator.powerNotch--;
-                appendLog(`[鍵盤操控] 牽引階位降至 P${simulator.powerNotch}`);
-            } else if (e.key === 'd' || e.key === 'D') {
-                if (simulator.brakeNotch < 8) simulator.brakeNotch++;
-                simulator.powerNotch = 0;
-                appendLog(`[鍵盤操控] 制動階位施加至 B${simulator.brakeNotch}`);
-            } else if (e.key === 'a' || e.key === 'A') {
-                if (simulator.brakeNotch > 0) simulator.brakeNotch--;
-                appendLog(`[鍵盤操控] 制動階位緩解至 B${simulator.brakeNotch}`);
-            } else if (e.key === ' ' || e.key === 'Enter') {
-                simulator.countdown = 5.0;
-                simulator.ebTriggered = false;
-                appendLog("[鍵盤操控] ATC / ATS 警報確認 (ACK) 執行完成。");
-            }
-        });
-    </script>
-
-    <!-- ==========================================
-         模組九：車內自動語音與進站播報系統 (Station Announcement)
-         ========================================== -->
-    <script>
-        const announcementSystem = {
-            lastAnnouncedStation: "",
-            checkAndAnnounce(stationName, kp) {
-                if (stationName !== this.lastAnnouncedStation && stationName.includes("接近")) {
-                    this.lastAnnouncedStation = stationName;
-                    appendLog(`[車內廣播] 各位旅客請注意，列車即將到達 ${stationName.replace("接近 ", "")}，請提前準備下車。`);
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組十：氣象與日夜環境變換模擬器 (Environment & Weather)
-         ========================================== -->
-    <script>
-        const environmentSimulator = {
-            timeOfDay: "Day", // Day, Dusk, Night
-            weather: "Clear", // Clear, Rain, Fog
-            skyColorTop: "#060913",
-            skyColorBottom: "#111827",
-            updateEnvironment(kp) {
-                // 根據行駛里程自動變換環境氛圍
-                let hourVal = Math.floor((kp / 10.0) % 24);
-                if (hourVal >= 6 && hourVal < 18) {
-                    this.timeOfDay = "Day";
-                    this.skyColorTop = "#0284c7";
-                    this.skyColorBottom = "#38bdf8";
-                } else if (hourVal >= 18 && hourVal < 20) {
-                    this.timeOfDay = "Dusk";
-                    this.skyColorTop = "#c2410c";
-                    this.skyColorBottom = "#7c2d12";
-                } else {
-                    this.timeOfDay = "Night";
-                    this.skyColorTop = "#030712";
-                    this.skyColorBottom = "#000000";
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組十一：轉轍器過岔震動與音效回饋模擬 (Turnout & Vibration)
-         ========================================== -->
-    <script>
-        const turnoutSystem = {
-            isPassingTurnout: false,
-            vibrationOffset: 0,
-            computeTurnoutVibration(kp, speed, dt) {
-                // 當接近特定里程時模擬經過轉轍器的上下晃動
-                let modVal = kp % 5.0;
-                if (modVal < 0.3 && speed > 20) {
-                    this.isPassingTurnout = true;
-                    this.vibrationOffset = (Math.random() - 0.5) * 4.0;
-                } else {
-                    this.isPassingTurnout = false;
-                    this.vibrationOffset = 0;
-                }
-                return this.vibrationOffset;
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組十二：列車故障診斷與狀態紀錄器 (Diagnostics & Telemetry Log)
-         ========================================== -->
-    <script>
-        const vehicleDiagnostics = {
-            pantographStatus: "正常 (Normal)",
-            mainCircuitBreaker: "投入 (Closed)",
-            auxiliaryPowerSupply: "正常運作 (Active)",
-            compressorPressureKpa: 850.0,
-            updateDiagnostics(dt) {
-                // 模擬主風泵壓力隨時間微幅波動
-                if (this.compressorPressureKpa < 900) {
-                    this.compressorPressureKpa += 2.5 * dt;
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組十三：多車廂連掛重連運轉模擬 (Consist Multi-Unit Physics)
-         ========================================== -->
-    <script>
-        const consistSimulator = {
-            totalCars: 12, // EMU3000 標準 12 編組
-            carType: "EMU3000 新自強號城際列車",
-            motorCarCount: 8,
-            trailerCarCount: 4,
-            calculateConsistEfficiency() {
-                return (this.motorCarCount / this.totalCars);
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組十四：高級運行統計與誤點判定分析器 (Performance Analytics)
-         ========================================== -->
-    <script>
-        const performanceAnalytics = {
-            totalTripTimeSeconds: 0,
-            maxRecordedSpeed: 0.0,
-            recordPerformance(speed, dt) {
-                this.totalTripTimeSeconds += dt;
-                if (speed > this.maxRecordedSpeed) {
-                    this.maxRecordedSpeed = speed;
-                }
-            }
-        };
-    </script>
-    <!-- ==========================================
-         模組十五：3D 進階景觀物件渲染引擎 (Advanced 3D Scenery)
-         ========================================== -->
-    <script>
-        const advancedSceneryRenderer = {
-            drawStationPlatform(ctx, w, h, kp) {
-                // 當接近車站時在 3D 視窗中渲染月台邊緣
-                let modKp = kp % 5.0;
-                if (modKp < 1.5) {
-                    ctx.fillStyle = '#475569';
-                    ctx.fillRect(20, h / 2, 40, h / 2);
-                    ctx.fillRect(w - 60, h / 2, 40, h / 2);
-                    
-                    ctx.fillStyle = '#f8fafc';
-                    ctx.font = '10px sans-serif';
-                    ctx.fillText("【 月台候車區 Platform 】", w / 2 - 50, h / 2 + 20);
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組十六：車門開閉與月台對位判定系統 (Door & Station Alignment)
-         ========================================== -->
-    <script>
-        const doorSystem = {
-            doorsOpen: false,
-            platformAligned: false,
-            toggleDoors(speed) {
-                if (speed < 0.5) {
-                    this.doorsOpen = !this.doorsOpen;
-                    appendLog(`[車門系統] 列車車門狀態: ${this.doorsOpen ? "已開啟 (Doors Open)" : "已關閉 (Doors Closed)"}`);
-                } else {
-                    appendLog("[警告] 列車行駛中無法開啟車門！");
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組十七：乘客載重與動態重力阻力換算 (Passenger Payload)
-         ========================================== -->
-    <script>
-        const payloadSimulator = {
-            passengerCount: 450,
-            averageWeightKg: 65,
-            getPayloadMass() {
-                return this.passengerCount * this.averageWeightKg;
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組十八：機械煞車來令片與碟盤磨耗模擬 (Brake Pad Wear)
-         ========================================== -->
-    <script>
-        const brakeWearSimulator = {
-            padThicknessMm: 25.0,
-            accumulatedWear: 0.0,
-            updateWear(brakeNotch, dt) {
-                if (brakeNotch > 0) {
-                    this.accumulatedWear += brakeNotch * 0.00001 * dt;
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組十九：多重UI主題色彩風格切換器 (Theme Switcher)
-         ========================================== -->
-    <script>
-        const themeManager = {
-            currentTheme: "DarkNavy",
-            setTheme(themeName) {
-                this.currentTheme = themeName;
-                if (themeName === "DarkNavy") {
-                    document.documentElement.style.setProperty('--bg-color', '#030712');
-                    document.documentElement.style.setProperty('--panel-bg', '#111827');
-                } else if (themeName === "RailwaySteel") {
-                    document.documentElement.style.setProperty('--bg-color', '#18181b');
-                    document.documentElement.style.setProperty('--panel-bg', '#27272a');
-                }
-                appendLog(`[佈景主題] 已切換至 ${themeName} 風格。`);
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組二十：主系統常駐健康巡檢監控 (System Health Monitor)
-         ========================================== -->
-    <script>
-        const systemHealthMonitor = {
-            checkIntervalSec: 10,
-            lastCheckTime: 0,
-            runHealthCheck(currentTime) {
-                if (currentTime - this.lastCheckTime > this.checkIntervalSec) {
-                    this.lastCheckTime = currentTime;
-                    // 確保核心記憶體與迴圈運作正常
-                    appendLog("[系統巡檢] 記憶體緩衝區與物理核心運作一切正常，無異常錯誤。");
-                }
-            }
-        };
-
-        // 在主迴圈中掛載健康巡檢的計時更新
-        window.addEventListener('load', () => {
-            appendLog("[模組載入] 所有 20 個大型鐵道子系統模組已全部掛載完畢！");
-        });
-    </script>
-    <!-- ==========================================
-         模組二十一：ATP / ATO 自動駕駛模式切換系統 (Auto Train Operation)
-         ========================================== -->
-    <script>
-        const atoSystem = {
-            enabled: false,
-            toggleATO() {
-                this.enabled = !this.enabled;
-                appendLog(`[ATO 自動駕駛] 自動駕駛系統已${this.enabled ? "啟動 (Active)" : "關閉 (Manual Mode)"}`);
-            },
-            runATOControl(currentSpeed, targetLimit) {
-                if (!this.enabled) return;
-                // 自動依據速限調整牽引與制動
-                if (currentSpeed < targetLimit - 5) {
-                    simulator.powerNotch = 2;
-                    simulator.brakeNotch = 0;
-                } else if (currentSpeed > targetLimit) {
-                    simulator.powerNotch = 0;
-                    simulator.brakeNotch = 3;
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組二十二：動態乘客上下車與車內擁擠度換算 (Passenger Load Dynamics)
-         ========================================== -->
-    <script>
-        const passengerLoadDynamics = {
-            crowdDensityRatio: 0.75, // 75% 載客率
-            updateCrowdRate(stationName) {
-                if (stationName.includes("接近")) {
-                    // 模擬停站時乘客隨機上下車變動
-                    let fluctuation = (Math.random() - 0.5) * 0.05;
-                    this.crowdDensityRatio = Math.min(1.0, Math.max(0.2, this.crowdDensityRatio + fluctuation));
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組二十三：列車空調與補助電源系統（SIV）負載模擬 (Auxiliary Power SIV)
-         ========================================== -->
-    <script>
-        const sivSystem = {
-            outputVoltageV: 440.0,
-            frequencyHz: 60.0,
-            loadCurrentAmps: 185.5,
-            updateSIV(dt) {
-                // 模擬空調負載隨機微幅波動
-                this.loadCurrentAmps = 180.0 + Math.sin(performance.now() * 0.001) * 15.0;
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組二十四：軌道道碴與輪緣過彎摩擦音效合成器 (Curve Squeal Generator)
-         ========================================== -->
-    <script>
-        const curveSoundSystem = {
-            isCurving: false,
-            checkCurveSqueal(speed) {
-                // 模擬高速過彎時的輪緣摩擦機率
-                if (speed > 80 && Math.random() < 0.02) {
-                    this.isCurving = true;
-                    appendLog("[音效引擎] 偵測到小半徑曲線區間，產生輪緣摩擦音效。");
-                } else {
-                    this.isCurving = false;
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組二十五：駕駛員運轉績效與安全駕駛綜合評分 (Driver Scorecard)
-         ========================================== -->
-    <script>
-        const driverScorecard = {
-            safetyScore: 100.0,
-            smoothnessScore: 100.0,
-            penaltyCount: 0,
-            recordViolation(reason) {
-                this.safetyScore = Math.max(0, this.safetyScore - 5.0);
-                this.penaltyCount++;
-                appendLog(`[安全評分扣分] 原因: ${reason} | 當前安全得分: ${this.safetyScore.toFixed(1)}`);
-            }
-        };
-    </script>
-    <!-- ==========================================
-         模組二十六：行車調度無線電通訊模擬 (Dispatcher Radio)
-         ========================================== -->
-    <script>
-        const dispatcherRadioSystem = {
-            radioChannel: "台鐵調度總臺 CH-1",
-            connectionStatus: "連線良好 (Connected)",
-            broadcastMessage(msg) {
-                appendLog(`[行車無線電 ${this.radioChannel}] 收到調度員通告: "${msg}"`);
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組二十七：行車事故黑盒子紀錄器 (Event Recorder)
-         ========================================== -->
-    <script>
-        const eventRecorder = {
-            eventBuffer: [],
-            logEvent(eventDescription) {
-                const timestamp = new Date().toISOString();
-                this.eventBuffer.push({ time: timestamp, desc: eventDescription });
-                if (this.eventBuffer.length > 100) {
-                    this.eventBuffer.shift(); // 保持緩衝區大小
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組二十八：車廂內部二氧化碳濃度與換氣模擬 (CO2 & Ventilation)
-         ========================================== -->
-    <script>
-        const ventilationSystem = {
-            co2Ppm: 650.0,
-            freshAirDamperOpen: true,
-            updateVentilation(passengerCount, dt) {
-                // 依據車內乘客人數模擬二氧化碳濃度升降
-                this.co2Ppm += (passengerCount * 0.02 - 1.5) * dt;
-                this.co2Ppm = Math.max(400, Math.min(1500, this.co2Ppm));
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組二十九：集電弓碳滑板與電車線磨耗系統 (Pantograph Wear)
-         ========================================== -->
-    <script>
-        const pantographWearSystem = {
-            carbonStripThicknessMm: 30.0,
-            accumulatedWear: 0.0,
-            updatePantographWear(speed, dt) {
-                if (speed > 0) {
-                    this.accumulatedWear += speed * 0.000002 * dt;
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組三十：全系統緊急主斷路器跳脫防護 (MCB Trip & Scram System)
-         ========================================== -->
-    <script>
-        const scramSystem = {
-            mcbTripped: false,
-            triggerScram() {
-                this.mcbTripped = true;
-                simulator.powerNotch = 0;
-                simulator.mainVoltage = 0.0;
-                appendLog("[緊急防護警報] 主斷路器 (MCB) 已強制跳脫！牽引動力全面切斷。");
-            },
-            resetScram() {
-                this.mcbTripped = false;
-                simulator.mainVoltage = 25.0;
-                appendLog("[緊急防護復歸] 主斷路器已重新投入，主電壓恢復 25 kV。");
-            }
-        };
-    </script>
-    <!-- ==========================================
-         模組三十一：自動過分相與主斷路器控制 (Automatic Phase Separation)
-         ========================================== -->
-    <script>
-        const phaseSeparationSystem = {
-            isInsideNeutralZone: false,
-            checkPhaseSeparation(kp) {
-                // 模擬台鐵電氣化區間常見的中性區 (分相區)
-                let modKp = kp % 35.0;
-                if (modKp > 33.5 && modKp < 34.5) {
-                    if (!this.isInsideNeutralZone) {
-                        this.isInsideNeutralZone = true;
-                        simulator.powerNotch = 0;
-                        appendLog("[電力系統] 進入自動過分相區 (Neutral Zone)，牽引力自動歸零。");
+            // 更新 3D 景物動畫 (枕木滾動模擬前進)
+            if (simulator.isInitialized && sleepers.length > 0) {
+                const moveSpeed = (simulator.speed * 0.8) * dt;
+                sleepers.forEach(sleeper => {
+                    sleeper.position.z += moveSpeed;
+                    if (sleeper.position.z > 5) {
+                        sleeper.position.z -= 180; // 循環利用枕木
                     }
-                } else {
-                    if (this.isInsideNeutralZone) {
-                        this.isInsideNeutralZone = false;
-                        appendLog("[電力系統] 已通過分相區，主斷路器恢復正常供電。");
-                    }
+                });
+                // 輕微的行車震動感
+                if (simulator.speed > 5) {
+                    camera.position.y = 1.6 + Math.sin(timestamp * 0.02) * (simulator.speed * 0.0008);
                 }
             }
-        };
-    </script>
 
-    <!-- ==========================================
-         模組三十二：轉向架軸承溫度與過熱預警監控 (Bearing Temperature Monitor)
-         ========================================== -->
-    <script>
-        const bearingMonitor = {
-            axleTemperaturesC: [38.5, 39.1, 40.2, 38.8],
-            updateTemperatures(speed, dt) {
-                // 依據車速模擬軸承因摩擦產生的微幅溫升
-                for (let i = 0; i < this.axleTemperaturesC.length; i++) {
-                    this.axleTemperaturesC[i] += (speed * 0.0001) * dt;
-                    if (this.axleTemperaturesC[i] > 85.0) {
-                        appendLog(`[警告] 第 ${i+1} 軸承溫度過高 (${this.axleTemperaturesC[i].toFixed(1)}°C)，請注意！`);
-                    }
-                }
+            // 渲染 3D 畫面
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
             }
-        };
-    </script>
 
-    <!-- ==========================================
-         模組三十三：空氣壓縮機排氣濾網積碳檢測 (Compressor Filter Health)
-         ========================================== -->
-    <script>
-        const compressorFilterSystem = {
-            cloggingFactor: 0.05, // 5% 積碳程度
-            updateFilter(dt) {
-                this.cloggingFactor += 0.00001 * dt;
-                if (this.cloggingFactor > 0.8) {
-                    appendLog("[機電維護] 空壓機濾網積碳偏高，建議於終點站進行清淤維護。");
-                }
-            }
-        };
-    </script>
+            // 更新 DOM 介面
+            document.getElementById('uiSpeed').innerText = simulator.speed.toFixed(1);
+            document.getElementById('uiLimit').innerText = simulator.targetLimit;
+            document.getElementById('uiBrakeCylinder').innerText = simulator.brakeCylinderPressure.toFixed(0);
+            document.getElementById('uiStation').innerText = simulator.currentStation;
+            document.getElementById('uiKp').innerText = currentKpKm.toFixed(2) + " km";
+            document.getElementById('uiGradient').innerText = simulator.gradient + " ‰";
+            document.getElementById('uiCountdown').innerText = Math.max(0, simulator.countdown).toFixed(1);
+            document.getElementById('uiNotch').innerText = `P${simulator.powerNotch}`;
+            document.getElementById('uiBrake').innerText = `B${simulator.brakeNotch}`;
 
-    <!-- ==========================================
-         模組三十四：ATS-PF 地上子與車上脈衝檢知器 (ATS Pulse Detector)
-         ========================================== -->
-    <script>
-        const atsPulseDetector = {
-            lastPulseKp: 0.0,
-            detectPulse(kp) {
-                if (kp - this.lastPulseKp >= 0.5) {
-                    this.lastPulseKp = kp;
-                    // 每 500 公尺檢測一次地上子脈衝信號
-                    // appendLog("[ATS系統] 順利通過地上子脈衝迴路訊號。");
-                }
-            }
-        };
-    </script>
+            requestAnimationFrame(masterLoop);
+        }
 
-    <!-- ==========================================
-         模組三十五：車廂內部緊急對講機通訊系統 (Passenger Intercom)
-         ========================================== -->
-    <script>
-        const passengerIntercom = {
-            activeCall: false,
-            callStation: null,
-            receiveIntercomRequest(carNumber) {
-                this.activeCall = true;
-                this.callStation = `第 ${carNumber} 車廂`;
-                appendLog(`[車內通訊] 收到來自 ${this.callStation} 的旅客緊急對講請求！`);
-            },
-            clearIntercom() {
-                this.activeCall = false;
-                this.callStation = null;
-                appendLog("[車內通訊] 緊急對講已通話結束並歸位。");
-            }
-        };
+        requestAnimationFrame(masterLoop);
     </script>
-    <!-- ==========================================
-         模組三十六：車體傾斜與自然擺式過彎控制 (Tilting Mechanism)
-         ========================================== -->
-    <script>
-        const tiltingMechanism = {
-            tiltAngleDeg: 0.0,
-            updateTilt(speed, trackCurvatureRadius) {
-                // 模擬高速過彎時車體自然或強制傾斜以減少離心力
-                if (speed > 60) {
-                    this.tiltAngleDeg = Math.min(5.0, (speed / 120.0) * 3.5);
-                } else {
-                    this.tiltAngleDeg = 0.0;
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組三十七：車上號誌訊號解碼與比對器 (Signaling Decoder)
-         ========================================== -->
-    <script>
-        const signalingDecoder = {
-            lastDecodedAspect: 'G',
-            decodeSignal(rawPulse) {
-                // 解碼來自地上的實時號誌脈衝
-                this.lastDecodedAspect = rawPulse;
-                // appendLog(`[號誌解碼] 成功解析當前區間號誌碼: ${this.lastDecodedAspect}`);
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組三十八：主變頻器與 VVVF 冷卻液溫度監控 (Inverter Coolant)
-         ========================================== -->
-    <script>
-        const inverterCoolantSystem = {
-            coolantTempC: 45.2,
-            pumpStatus: "運轉中 (Running)",
-            updateCoolant(powerNotch, dt) {
-                // 依據牽引負載模擬變頻器冷卻液溫度升降
-                let loadFactor = powerNotch > 0 ? powerNotch * 1.5 : 0.2;
-                this.coolantTempC += (loadFactor - 0.5) * 0.05 * dt;
-                this.coolantTempC = Math.max(30.0, Math.min(95.0, this.coolantTempC));
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組三十九：車門防夾與光電感應安全檢知 (Door Obstruction Sensor)
-         ========================================== -->
-    <script>
-        const doorSensorSystem = {
-            obstacleDetected: false,
-            checkObstruction() {
-                // 模擬車門關閉時的光電防夾檢測
-                if (doorSystem.doorsOpen && Math.random() < 0.01) {
-                    this.obstacleDetected = true;
-                    appendLog("[車門安全] 偵測到月台側車門有異物阻擋，自動啟動重開門程序！");
-                } else {
-                    this.obstacleDetected = false;
-                }
-            }
-        };
-    </script>
-
-    <!-- ==========================================
-         模組四十：乘務員室內部通訊對講系統 (Crew Intercom)
-         ========================================== -->
-    <script>
-        const crewIntercomSystem = {
-            connectedWithConductor: false,
-            callConductor() {
-                this.connectedWithConductor = true;
-                appendLog("[乘務通訊] 司機員已成功接通車長室，進行發車前聯控確認。");
-            },
-            hangUp() {
-                this.connectedWithConductor = false;
-                appendLog("[乘務通訊] 通話結束，通訊迴路已切斷。");
-            }
-        };
-    </script>
+</body>
+</html>
