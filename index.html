@@ -629,3 +629,40 @@
     };
 
     appendLog("[系統核心] 第八段 時刻表排班與調度中心模組已成功無縫整合至 index.html。");
+    // --- 第九段：Roblox 風格自定義 GUI、列車外觀皮膚系統與虛擬貨幣獎勵機制 ---
+    
+    const gameEconomy = {
+        coins: 0,
+        playerSkin: "Default_Silver",
+        
+        addCoins(amount) {
+            this.coins += amount;
+            appendLog(`[系統獎勵] 獲得 ${amount} 點虛擬貨幣，目前餘額：${this.coins}。`);
+        },
+
+        applySkin(skinName) {
+            this.playerSkin = skinName;
+            // 模擬更換列車外觀材質的渲染邏輯
+            scene.traverse((child) => {
+                if (child.isMesh && child.name === "TrainBody") {
+                    child.material.color.set(skinName === "Gold_Express" ? 0xffd700 : 0xffffff);
+                }
+            });
+            appendLog(`[外觀系統] 已更換列車皮膚為：${skinName}。`);
+        }
+    };
+
+    // 建立一個輕量級的自定義遊戲選單
+    function createCustomGui() {
+        const gui = document.createElement('div');
+        gui.style.cssText = "position:absolute; top:80px; right:20px; background:rgba(0,0,0,0.8); padding:10px; border-radius:8px; color:white; border:2px solid #0ea5e9;";
+        gui.innerHTML = `
+            <div style="font-size:0.7rem; font-weight:bold; margin-bottom:5px;">Roblox 商店 (Beta)</div>
+            <button onclick="gameEconomy.applySkin('Gold_Express')" style="font-size:0.6rem; margin-bottom:3px; display:block; width:100%;">購買黃金外觀 (500 幣)</button>
+            <button onclick="alert('請加入 Discord: https://discord.gg/dT47kurqw 以獲取更多功能')" style="font-size:0.6rem; display:block; width:100%;">社群支援</button>
+        `;
+        document.body.appendChild(gui);
+    }
+    createCustomGui();
+
+    appendLog("[系統核心] 第九段 Roblox 自定義 GUI、皮膚系統與經濟模組已成功無縫整合至 index.html。");
