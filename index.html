@@ -384,3 +384,117 @@
     </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣3D鐵路模擬器 - 第五階段：3D 視覺視窗</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #0b0f19;
+            color: #f8fafc;
+            font-family: sans-serif;
+            text-align: center;
+        }
+        .container { max-width: 400px; margin: 0 auto; background: #1e293b; padding: 15px; border-radius: 8px; }
+        .viewport-box {
+            background: #000;
+            border-radius: 6px;
+            overflow: hidden;
+            height: 140px;
+            position: relative;
+            margin-bottom: 10px;
+            box-shadow: inset 0 0 8px rgba(56, 189, 248, 0.3);
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+        .gauge { font-size: 1.8rem; font-weight: bold; font-family: monospace; color: #38bdf8; margin: 5px 0; }
+        button { padding: 8px 12px; font-weight: bold; margin: 4px; cursor: pointer; border: none; border-radius: 4px; color: #fff; }
+        .btn-green { background: #16a34a; }
+        .btn-yellow { background: #ca8a04; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>台灣3D鐵路模擬器</h2>
+        <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px;">第五階段：3D 景觀動態渲染</div>
+        
+        <div class="viewport-box">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+
+        <div class="gauge" id="speedDisplay">0.0 km/h</div>
+
+        <div>
+            <button class="btn-green" id="btnAccel">加速前進</button>
+            <button class="btn-yellow" id="btnBrake">減速</button>
+        </div>
+    </div>
+
+    <script>
+        let sim = { speed: 0.0 };
+        const canvas = document.getElementById('renderCanvas');
+        const ctx = canvas.getContext('2d');
+        let trackOffset = 0;
+
+        function render3DScene(speed, dt) {
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // 天空與地面
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, w, h / 2);
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, h / 2, w, h / 2);
+
+            trackOffset = (trackOffset + (speed * 2.5) * dt) % 40;
+
+            // 鐵軌透視線
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(w / 2 - 20, h / 2);
+            ctx.lineTo(w / 2 - 150, h);
+            ctx.moveTo(w / 2 + 20, h / 2);
+            ctx.lineTo(w / 2 + 150, h);
+            ctx.stroke();
+
+            // 枕木動態滾動
+            for (let i = 0; i < 10; i++) {
+                let yPos = h / 2 + ((i * 15 + trackOffset) % (h / 2));
+                let scale = (yPos - h / 2) / (h / 2);
+                let halfWidth = 20 + scale * 130;
+                
+                ctx.strokeStyle = `rgba(148, 163, 184, ${scale})`;
+                ctx.beginPath();
+                ctx.moveTo(w / 2 - halfWidth, yPos);
+                ctx.lineTo(w / 2 + halfWidth, yPos);
+                ctx.stroke();
+            }
+        }
+
+        document.getElementById('btnAccel').addEventListener('click', () => { sim.speed = Math.min(130, sim.speed + 10); });
+        document.getElementById('btnBrake').addEventListener('click', () => { sim.speed = Math.max(0, sim.speed - 15); });
+
+        let last = performance.now();
+        function loop(time) {
+            const dt = Math.min((time - last) / 1000, 0.1);
+            last = time;
+
+            if (sim.speed > 0) {
+                sim.speed = Math.max(0, sim.speed - 0.2 * dt * 60); // 自然阻力
+            }
+
+            render3DScene(sim.speed, dt);
+            document.getElementById('speedDisplay').innerText = sim.speed.toFixed(1) + " km/h";
+            requestAnimationFrame(loop);
+        }
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
