@@ -129,3 +129,132 @@ export class TrainDynamicsEngine {
         };
     }
 }
+/**
+ * @file SignalingAndCommunityEngine.ts
+ * @description 台灣3D鐵路模擬器 - ATC 號誌安全防護與線上社群多機調度核心
+ */
+
+export interface RemoteTrainTelemetry {
+    driverId: string;
+    trainNumber: string;
+    currentKp: number;
+    speedKph: number;
+    signalAspect: 'G' | 'YY' | 'Y' | 'R';
+    lastUpdated: number;
+}
+
+export class SignalingAndCommunityEngine {
+    private currentAspect: 'G' | 'YY' | 'Y' | 'R' = 'G';
+    private targetSpeedLimit: number = 130.0;
+    private ebTriggered: boolean = false;
+    private countdownTimer: number = 5.0;
+    
+    // 社群調度相關屬性
+    private socket: WebSocket | null = null;
+    private onlineDrivers: Map<string, RemoteTrainTelemetry> = new Map();
+    private localDriverId: string;
+    private roomCode: string;
+
+    constructor(driverId: string, roomCode: string = "TAIWAN-MAIN-LINE-01") {
+        this.localDriverId = driverId;
+        this.roomCode = roomCode;
+    }
+
+    /**
+     * 連線至台灣3D鐵路模擬器中央調度社群伺服器
+     */
+    public connectCommunityServer(serverUrl: string = "wss://dispatch.taiwan-railway-sim.tw") {
+        console.log(`[社群調度] ${this.localDriverId} 正在連線至房間 [${this.roomCode}]...`);
+        
+        // 實際應用之 WebSocket 連線邏輯框架
+        /*
+        this.socket = new WebSocket(`${serverUrl}?room=${this.roomCode}&driver=${this.localDriverId}`);
+        
+        this.socket.onopen = () => {
+            console.log("[社群調度] 成功連線！已加入多人線上行车網路。");
+        };
+
+        this.socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            this.handleRemoteTelemetrySync(data);
+        };
+        */
+        
+        // 模擬上線成功狀態
+        this.simulateCommunityConnection();
+    }
+
+    private simulateCommunityConnection() {
+        console.log("[社群調度] 模擬連線成功：當前線上共有 18 位駕駛員正在運行。");
+    }
+
+    /**
+     * 即時廣播自己的列車位置與速限狀態給其他線上駕駛
+     */
+    public broadcastTelemetry(kp: number, speed: number) {
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            const payload = {
+                type: "TELEMETRY_SYNC",
+                driverId: this.localDriverId,
+                currentKp: kp,
+                speedKph: speed,
+                signalAspect: this.currentAspect,
+                lastUpdated: Date.now()
+            };
+            this.socket.send(JSON.stringify(payload));
+        }
+    }
+
+    /**
+     * ATC 列車自動防護與速限交織運算核心
+     */
+    public evaluateATCSafety(currentSpeed: number, currentKp: number, dt: number, isAckPressed: boolean) {
+        // 依據位置動態決定前方閉塞區間速限
+        this.targetSpeedLimit = this.resolveBlockSpeedLimit(currentKp);
+
+        // 超速檢知 (容許超速 3 km/h)
+        if (currentSpeed > this.targetSpeedLimit + 3.0) {
+            if (isAckPressed) {
+                this.resetAlarmCountdown();
+            } else {
+                this.countdownTimer -= dt;
+                if (this.countdownTimer <= 0) {
+                    this.triggerEmergencyBrake();
+                }
+            }
+        } else {
+            this.resetAlarmCountdown();
+        }
+
+        return {
+            aspect: this.currentAspect,
+            limit: this.targetSpeedLimit,
+            eb: this.ebTriggered,
+            countdown: Math.max(0, this.countdownTimer)
+        };
+    }
+
+    private resolveBlockSpeedLimit(kp: number): number {
+        // 模擬進出車站或彎道速限
+        if (kp > 25000 && kp < 28000) {
+            this.currentAspect = 'Y';
+            return 85.0; // 警戒速限
+        }
+        this.currentAspect = 'G';
+        return 130.0; // 正常營運速限
+    }
+
+    private resetAlarmCountdown() {
+        this.countdownTimer = 5.0;
+        this.ebTriggered = false;
+    }
+
+    private triggerEmergencyBrake() {
+        this.ebTriggered = true;
+        console.warn("[ATC 安全系統] 嚴重警告：超速未確認，台灣3D鐵路模擬器已自動強制介入 EB（緊急制動）！");
+    }
+
+    public getOnlineDriversList(): RemoteTrainTelemetry[] {
+        return Array.from(this.onlineDrivers.values());
+    }
+}
