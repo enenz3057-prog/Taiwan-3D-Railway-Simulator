@@ -942,3 +942,84 @@
             }
         };
     </script>
+    <!-- ==========================================
+         模組三十六：車體傾斜與自然擺式過彎控制 (Tilting Mechanism)
+         ========================================== -->
+    <script>
+        const tiltingMechanism = {
+            tiltAngleDeg: 0.0,
+            updateTilt(speed, trackCurvatureRadius) {
+                // 模擬高速過彎時車體自然或強制傾斜以減少離心力
+                if (speed > 60) {
+                    this.tiltAngleDeg = Math.min(5.0, (speed / 120.0) * 3.5);
+                } else {
+                    this.tiltAngleDeg = 0.0;
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組三十七：車上號誌訊號解碼與比對器 (Signaling Decoder)
+         ========================================== -->
+    <script>
+        const signalingDecoder = {
+            lastDecodedAspect: 'G',
+            decodeSignal(rawPulse) {
+                // 解碼來自地上的實時號誌脈衝
+                this.lastDecodedAspect = rawPulse;
+                // appendLog(`[號誌解碼] 成功解析當前區間號誌碼: ${this.lastDecodedAspect}`);
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組三十八：主變頻器與 VVVF 冷卻液溫度監控 (Inverter Coolant)
+         ========================================== -->
+    <script>
+        const inverterCoolantSystem = {
+            coolantTempC: 45.2,
+            pumpStatus: "運轉中 (Running)",
+            updateCoolant(powerNotch, dt) {
+                // 依據牽引負載模擬變頻器冷卻液溫度升降
+                let loadFactor = powerNotch > 0 ? powerNotch * 1.5 : 0.2;
+                this.coolantTempC += (loadFactor - 0.5) * 0.05 * dt;
+                this.coolantTempC = Math.max(30.0, Math.min(95.0, this.coolantTempC));
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組三十九：車門防夾與光電感應安全檢知 (Door Obstruction Sensor)
+         ========================================== -->
+    <script>
+        const doorSensorSystem = {
+            obstacleDetected: false,
+            checkObstruction() {
+                // 模擬車門關閉時的光電防夾檢測
+                if (doorSystem.doorsOpen && Math.random() < 0.01) {
+                    this.obstacleDetected = true;
+                    appendLog("[車門安全] 偵測到月台側車門有異物阻擋，自動啟動重開門程序！");
+                } else {
+                    this.obstacleDetected = false;
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組四十：乘務員室內部通訊對講系統 (Crew Intercom)
+         ========================================== -->
+    <script>
+        const crewIntercomSystem = {
+            connectedWithConductor: false,
+            callConductor() {
+                this.connectedWithConductor = true;
+                appendLog("[乘務通訊] 司機員已成功接通車長室，進行發車前聯控確認。");
+            },
+            hangUp() {
+                this.connectedWithConductor = false;
+                appendLog("[乘務通訊] 通話結束，通訊迴路已切斷。");
+            }
+        };
+    </script>
