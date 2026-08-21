@@ -507,3 +507,49 @@
 
     // 在介面中加入一個動態切換路線的按鈕動作監聽
     appendLog("[系統核心] 第五段 互動轉轍器與車內廣播模組已成功無縫整合至 index.html。");
+    // --- 第六段：列車機電故障碼模擬、主變壓器保護與 FPS 效能監控模組 ---
+    
+    const electricalFaultSystem = {
+        transformerTemp: 45.0, // 變壓器初始溫度 (°C)
+        isFaultLocked: false,
+        
+        updateFaultLogic(powerNotch, dt) {
+            // 當長時間處於高牽引力時，變壓器溫度上升
+            if (powerNotch >= 3) {
+                this.transformerTemp += 1.5 * dt;
+            } else {
+                this.transformerTemp = Math.max(45.0, this.transformerTemp - 2.0 * dt);
+            }
+
+            // 溫度過高觸發主變壓器保護跳脫 (Overload Protection)
+            if (this.transformerTemp >= 95.0 && !this.isFaultLocked) {
+                this.isFaultLocked = true;
+                simulator.powerNotch = 0;
+                appendLog("[機電警告 (FAULT-E04)] 主變壓器過熱跳脫！牽引動力強制鎖定，請靜置散熱。");
+            } else if (this.transformerTemp < 60.0 && this.isFaultLocked) {
+                this.isFaultLocked = false;
+                appendLog("[機電復歸] 主變壓器溫度已冷卻，系統解除鎖定。");
+            }
+        }
+    };
+
+    // 效能監控器 (FPS Counter)
+    let frameCount = 0;
+    let lastFpsUpdate = performance.now();
+    let currentFps = 60;
+
+    function updateFpsCounter(timestamp) {
+        frameCount++;
+        if (timestamp - lastFpsUpdate >= 1000) {
+            currentFps = frameCount;
+            frameCount = 0;
+            lastFpsUpdate = timestamp;
+            
+            // 可在此處將 FPS 輸出到開發者終端
+            if (currentFps < 30) {
+                console.warn(`[效能警告] 目前畫面影格率偏低: ${currentFps} FPS`);
+            }
+        }
+    }
+
+    appendLog("[系統核心] 第六段 機電故障模擬與 FPS 效能監控模組已成功無縫整合至 index.html。");
