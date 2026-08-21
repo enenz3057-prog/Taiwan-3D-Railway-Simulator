@@ -683,3 +683,91 @@
             appendLog("[模組載入] 所有 20 個大型鐵道子系統模組已全部掛載完畢！");
         });
     </script>
+    <!-- ==========================================
+         模組二十一：ATP / ATO 自動駕駛模式切換系統 (Auto Train Operation)
+         ========================================== -->
+    <script>
+        const atoSystem = {
+            enabled: false,
+            toggleATO() {
+                this.enabled = !this.enabled;
+                appendLog(`[ATO 自動駕駛] 自動駕駛系統已${this.enabled ? "啟動 (Active)" : "關閉 (Manual Mode)"}`);
+            },
+            runATOControl(currentSpeed, targetLimit) {
+                if (!this.enabled) return;
+                // 自動依據速限調整牽引與制動
+                if (currentSpeed < targetLimit - 5) {
+                    simulator.powerNotch = 2;
+                    simulator.brakeNotch = 0;
+                } else if (currentSpeed > targetLimit) {
+                    simulator.powerNotch = 0;
+                    simulator.brakeNotch = 3;
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組二十二：動態乘客上下車與車內擁擠度換算 (Passenger Load Dynamics)
+         ========================================== -->
+    <script>
+        const passengerLoadDynamics = {
+            crowdDensityRatio: 0.75, // 75% 載客率
+            updateCrowdRate(stationName) {
+                if (stationName.includes("接近")) {
+                    // 模擬停站時乘客隨機上下車變動
+                    let fluctuation = (Math.random() - 0.5) * 0.05;
+                    this.crowdDensityRatio = Math.min(1.0, Math.max(0.2, this.crowdDensityRatio + fluctuation));
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組二十三：列車空調與補助電源系統（SIV）負載模擬 (Auxiliary Power SIV)
+         ========================================== -->
+    <script>
+        const sivSystem = {
+            outputVoltageV: 440.0,
+            frequencyHz: 60.0,
+            loadCurrentAmps: 185.5,
+            updateSIV(dt) {
+                // 模擬空調負載隨機微幅波動
+                this.loadCurrentAmps = 180.0 + Math.sin(performance.now() * 0.001) * 15.0;
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組二十四：軌道道碴與輪緣過彎摩擦音效合成器 (Curve Squeal Generator)
+         ========================================== -->
+    <script>
+        const curveSoundSystem = {
+            isCurving: false,
+            checkCurveSqueal(speed) {
+                // 模擬高速過彎時的輪緣摩擦機率
+                if (speed > 80 && Math.random() < 0.02) {
+                    this.isCurving = true;
+                    appendLog("[音效引擎] 偵測到小半徑曲線區間，產生輪緣摩擦音效。");
+                } else {
+                    this.isCurving = false;
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組二十五：駕駛員運轉績效與安全駕駛綜合評分 (Driver Scorecard)
+         ========================================== -->
+    <script>
+        const driverScorecard = {
+            safetyScore: 100.0,
+            smoothnessScore: 100.0,
+            penaltyCount: 0,
+            recordViolation(reason) {
+                this.safetyScore = Math.max(0, this.safetyScore - 5.0);
+                this.penaltyCount++;
+                appendLog(`[安全評分扣分] 原因: ${reason} | 當前安全得分: ${this.safetyScore.toFixed(1)}`);
+            }
+        };
+    </script>
