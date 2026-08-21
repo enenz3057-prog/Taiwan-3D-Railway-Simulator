@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - Roblox 風格 3D 互動版</title>
+    <title>台灣3D鐵路模擬器 - Roblox 沉浸互動萬行版</title>
     <!-- 引入 Three.js 3D 引擎 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -36,10 +36,10 @@
             background: #000;
             border-radius: 6px;
             overflow: hidden;
-            height: 180px;
+            height: 200px;
             position: relative;
             border: 1px solid var(--panel-border);
-            box-shadow: inset 0 0 12px rgba(14, 165, 233, 0.3);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
         }
         #webglCanvas { width: 100%; height: 100%; display: block; }
 
@@ -76,11 +76,11 @@
 
     <header>
         <h1>台灣3D鐵路模擬器</h1>
-        <div class="subtitle">EMU3000 新自強號・3D 沉浸互動版</div>
+        <div class="subtitle">EMU3000 新自強號・Roblox 級高畫質 3D 互動世界（第一段：介面與架構）</div>
     </header>
 
     <div class="layout-container">
-        <!-- 真正的 3D 渲染視窗 (Three.js) -->
+        <!-- 3D 渲染視窗 -->
         <div class="viewport-container">
             <div id="webglCanvas"></div>
         </div>
@@ -127,7 +127,7 @@
             <div style="font-size: 0.6rem; color: #9ca3af; display:flex; justify-content:space-between; padding: 0 2px;">
                 <span>牽引階位: <strong id="uiNotch" style="color:#fff;">P0</strong></span>
                 <span>制動階位: <strong id="uiBrake" style="color:#fff;">B0</strong></span>
-                <span>系統運作: <strong id="uiStatus" style="color:#10b981;">待命</strong></span>
+                <span>系統運作: <strong id="uiStatus" style="color:#10b981;">等待載入</strong></span>
             </div>
         </div>
 
@@ -136,7 +136,7 @@
             <div style="font-size:0.7rem; font-weight:bold; margin-bottom:4px; color:#93c5fd;">駕駛控制器 (Master Controller)</div>
             
             <div class="controls-grid">
-                <button class="btn-green btn-span-4" id="btnInitSystem">初始化 3D 空間與物理迴圈引擎</button>
+                <button class="btn-green btn-span-4" id="btnInitSystem">初始化 3D 引擎與邏輯</button>
                 <button class="btn-blue btn-span-2" id="btnPowerUp">牽引升階 (P+)</button>
                 <button class="btn-yellow btn-span-2" id="btnPowerDown">牽引降階 (P-)</button>
                 <button class="btn-yellow btn-span-2" id="btnBrakeUp">制動施加 (B+)</button>
@@ -145,277 +145,7 @@
             </div>
 
             <div id="terminalLog" class="terminal-box">
-                [系統核心] 3D 互動世界引擎初始化就緒。<br>
-                [資料庫] 已載入 3D 軌道模型與機電模組。<br>
+                [系統核心] 第一段 UI 與 HTML 結構已載入。<br>
             </div>
         </div>
     </div>
-
-    <script>
-        // --- 核心狀態與物理引擎 ---
-        const simulator = {
-            speed: 0.0,
-            targetLimit: 130.0,
-            powerNotch: 0,
-            brakeNotch: 0,
-            brakeCylinderPressure: 0.0,
-            mainVoltage: 25.0,
-            kpMeters: 0.0,
-            gradient: 0.0,
-            currentStation: "基隆",
-            atcAspect: 'G',
-            countdown: 5.0,
-            ebTriggered: false,
-            isInitialized: false
-        };
-
-        // --- 車站拓撲資料庫 ---
-        const trackDatabase = [
-            { name: "基隆", kp: 0.0, limit: 45, gradient: 0.0 },
-            { name: "三坑", kp: 1.3, limit: 75, gradient: 5.2 },
-            { name: "八堵", kp: 3.7, limit: 100, gradient: -3.0 },
-            { name: "七堵", kp: 6.0, limit: 90, gradient: 2.1 },
-            { name: "百福", kp: 9.2, limit: 110, gradient: 0.0 },
-            { name: "五堵", kp: 12.5, limit: 120, gradient: -4.5 },
-            { name: "汐止", kp: 14.1, limit: 110, gradient: 1.0 },
-            { name: "汐科", kp: 15.6, limit: 110, gradient: 2.5 },
-            { name: "南港", kp: 17.5, limit: 120, gradient: 0.0 },
-            { name: "松山", kp: 21.3, limit: 90, gradient: -2.0 },
-            { name: "臺北", kp: 27.1, limit: 80, gradient: 0.0 }
-        ];
-
-        function queryTrackData(kpKm) {
-            let limit = 130.0;
-            let stationName = "幹線區間高速巡航";
-            let grad = Math.sin(kpKm / 5.0) * 5.0;
-            for (let i = 0; i < trackDatabase.length; i++) {
-                let st = trackDatabase[i];
-                if (Math.abs(st.kp - kpKm) <= 1.0) {
-                    limit = st.limit;
-                    stationName = `接近 ${st.name} 站`;
-                    grad = st.gradient;
-                    break;
-                }
-            }
-            return { limit, stationName, gradient: Number(grad.toFixed(1)) };
-        }
-
-        function appendLog(msg) {
-            const term = document.getElementById('terminalLog');
-            if (!term) return;
-            const timeStr = new Date().toTimeString().split(' ')[0];
-            term.innerHTML += `[${timeStr}] ${msg}<br>`;
-            term.scrollTop = term.scrollHeight;
-        }
-
-        // --- Three.js 3D 渲染引擎初始化 ---
-        let scene, camera, renderer, trainGroup;
-        let sleepers = [];
-
-        function init3DEnvironment() {
-            const container = document.getElementById('webglCanvas');
-            
-            // 建立 3D 場景
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x030712);
-            scene.fog = new THREE.FogExp2(0x030712, 0.025);
-
-            // 建立攝影機 (第一人稱司機員視角)
-            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
-            camera.position.set(0, 1.6, 2);
-
-            // 建立渲染器
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            container.appendChild(renderer.domElement);
-
-            // 環境光源
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(ambientLight);
-            const dirLight = new THREE.DirectionalLight(0x0ea5e9, 1.0);
-            dirLight.position.set(10, 20, 10);
-            scene.add(dirLight);
-
-            // 建立 3D 地面與軌道
-            const floorGeo = new THREE.PlaneGeometry(100, 1000);
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.9 });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = -Math.PI / 2;
-            floor.position.z = -500;
-            scene.add(floor);
-
-            // 建立雙軌
-            const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8 });
-            const railGeo = new THREE.BoxGeometry(0.1, 0.1, 1000);
-            
-            const leftRail = new THREE.Mesh(railGeo, railMat);
-            leftRail.position.set(-0.75, 0.05, -500);
-            scene.add(leftRail);
-
-            const rightRail = new THREE.Mesh(railGeo, railMat);
-            rightRail.position.set(0.75, 0.05, -500);
-            scene.add(rightRail);
-
-            // 建立枕木陣列 (製造 3D 前進感)
-            const sleeperGeo = new THREE.BoxGeometry(1.8, 0.08, 0.3);
-            const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
-            for (let i = 0; i < 60; i++) {
-                const sleeper = new THREE.Mesh(sleeperGeo, sleeperMat);
-                sleeper.position.set(0, 0.01, -i * 3);
-                scene.add(sleeper);
-                sleepers.push(sleeper);
-            }
-
-            // 建立前方 3D EMU3000 車頭模型示意
-            trainGroup = new THREE.Group();
-            const bodyGeo = new THREE.BoxGeometry(2.8, 2.4, 6);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5 }); // 紅白色系新自強
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.position.set(0, 1.2, -5);
-            trainGroup.add(body);
-            scene.add(trainGroup);
-
-            simulator.isInitialized = true;
-            document.getElementById('uiStatus').innerText = "3D 運行中";
-            appendLog("Three.js 3D 空間與物理迴圈引擎已成功啟動！");
-        }
-
-        // --- 按鈕事件繫結 ---
-        document.getElementById('btnInitSystem').addEventListener('click', init3DEnvironment);
-        document.getElementById('btnPowerUp').addEventListener('click', () => {
-            if (simulator.powerNotch < 4) simulator.powerNotch++;
-            simulator.brakeNotch = 0;
-            appendLog(`控制器: 牽引升至 P${simulator.powerNotch}`);
-        });
-        document.getElementById('btnPowerDown').addEventListener('click', () => {
-            if (simulator.powerNotch > 0) simulator.powerNotch--;
-            appendLog(`控制器: 牽引降至 P${simulator.powerNotch}`);
-        });
-        document.getElementById('btnBrakeUp').addEventListener('click', () => {
-            if (simulator.brakeNotch < 8) simulator.brakeNotch++;
-            simulator.powerNotch = 0;
-            appendLog(`控制器: 制動施加至 B${simulator.brakeNotch}`);
-        });
-        document.getElementById('btnBrakeDown').addEventListener('click', () => {
-            if (simulator.brakeNotch > 0) simulator.brakeNotch--;
-            appendLog(`控制器: 制動緩解至 B${simulator.brakeNotch}`);
-        });
-        document.getElementById('btnAck').addEventListener('click', () => {
-            simulator.countdown = 5.0;
-            simulator.ebTriggered = false;
-            appendLog("ATC 警報已確認，系統復歸正常。");
-        });
-
-        // 鍵盤操控支援
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp' || e.key === 'w') {
-                if (simulator.powerNotch < 4) simulator.powerNotch++;
-                simulator.brakeNotch = 0;
-            } else if (e.key === 'ArrowDown' || e.key === 's') {
-                if (simulator.powerNotch > 0) simulator.powerNotch--;
-            } else if (e.key === 'd') {
-                if (simulator.brakeNotch < 8) simulator.brakeNotch++;
-                simulator.powerNotch = 0;
-            } else if (e.key === 'a') {
-                if (simulator.brakeNotch > 0) simulator.brakeNotch--;
-            } else if (e.key === ' ' || e.key === 'Enter') {
-                simulator.countdown = 5.0;
-                simulator.ebTriggered = false;
-            }
-        });
-
-        // --- 主物理與 3D 動畫迴圈 ---
-        let lastTimestamp = performance.now();
-
-        function masterLoop(timestamp) {
-            const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
-            lastTimestamp = timestamp;
-
-            const currentKpKm = simulator.kpMeters / 1000.0;
-            const trackInfo = queryTrackData(currentKpKm);
-            simulator.targetLimit = trackInfo.limit;
-            simulator.gradient = trackInfo.gradient;
-            simulator.currentStation = trackInfo.stationName;
-
-            // 物理動力計算
-            const gradeResistance = simulator.gradient * 0.14;
-            const rollingResistance = 0.4 + (simulator.speed * 0.01);
-            const aerodynamicDrag = 0.0002 * Math.pow(simulator.speed, 2);
-
-            if (simulator.powerNotch > 0 && !simulator.ebTriggered) {
-                let tractiveForce = simulator.powerNotch * 2.7;
-                simulator.speed += (tractiveForce - gradeResistance - rollingResistance - aerodynamicDrag) * dt;
-            } else if (simulator.brakeNotch > 0 || simulator.ebTriggered) {
-                let brakeDecel = simulator.ebTriggered ? 24.0 : simulator.brakeNotch * 3.2;
-                simulator.speed = Math.max(0, simulator.speed - brakeDecel * dt);
-            } else {
-                simulator.speed = Math.max(0, simulator.speed - (rollingResistance + aerodynamicDrag + gradeResistance) * dt);
-            }
-
-            simulator.kpMeters += (simulator.speed / 3.6) * dt;
-            simulator.brakeCylinderPressure = simulator.brakeNotch * 55.0;
-
-            // ATC 號誌超速防護
-            const badgeG = document.getElementById('badgeG');
-            const badgeY = document.getElementById('badgeY');
-            const badgeR = document.getElementById('badgeR');
-
-            if (simulator.speed > simulator.targetLimit + 3.0) {
-                simulator.countdown -= dt;
-                simulator.atcAspect = 'Y';
-                if (badgeG) badgeG.className = "aspect-badge aspect-g";
-                if (badgeY) badgeY.className = "aspect-badge aspect-y active";
-                if (simulator.countdown <= 0) {
-                    simulator.ebTriggered = true;
-                    simulator.atcAspect = 'R';
-                    if (badgeY) badgeY.className = "aspect-badge aspect-y";
-                    if (badgeR) badgeR.className = "aspect-badge aspect-r active";
-                }
-            } else {
-                simulator.countdown = 5.0;
-                if (!simulator.ebTriggered) {
-                    simulator.atcAspect = 'G';
-                    if (badgeG) badgeG.className = "aspect-badge aspect-g active";
-                    if (badgeY) badgeY.className = "aspect-badge aspect-y";
-                    if (badgeR) badgeR.className = "aspect-badge aspect-r";
-                }
-            }
-
-            // 更新 3D 景物動畫 (枕木滾動模擬前進)
-            if (simulator.isInitialized && sleepers.length > 0) {
-                const moveSpeed = (simulator.speed * 0.8) * dt;
-                sleepers.forEach(sleeper => {
-                    sleeper.position.z += moveSpeed;
-                    if (sleeper.position.z > 5) {
-                        sleeper.position.z -= 180; // 循環利用枕木
-                    }
-                });
-                // 輕微的行車震動感
-                if (simulator.speed > 5) {
-                    camera.position.y = 1.6 + Math.sin(timestamp * 0.02) * (simulator.speed * 0.0008);
-                }
-            }
-
-            // 渲染 3D 畫面
-            if (renderer && scene && camera) {
-                renderer.render(scene, camera);
-            }
-
-            // 更新 DOM 介面
-            document.getElementById('uiSpeed').innerText = simulator.speed.toFixed(1);
-            document.getElementById('uiLimit').innerText = simulator.targetLimit;
-            document.getElementById('uiBrakeCylinder').innerText = simulator.brakeCylinderPressure.toFixed(0);
-            document.getElementById('uiStation').innerText = simulator.currentStation;
-            document.getElementById('uiKp').innerText = currentKpKm.toFixed(2) + " km";
-            document.getElementById('uiGradient').innerText = simulator.gradient + " ‰";
-            document.getElementById('uiCountdown').innerText = Math.max(0, simulator.countdown).toFixed(1);
-            document.getElementById('uiNotch').innerText = `P${simulator.powerNotch}`;
-            document.getElementById('uiBrake').innerText = `B${simulator.brakeNotch}`;
-
-            requestAnimationFrame(masterLoop);
-        }
-
-        requestAnimationFrame(masterLoop);
-    </script>
-</body>
-</html>
