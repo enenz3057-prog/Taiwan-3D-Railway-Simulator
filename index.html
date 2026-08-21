@@ -849,3 +849,96 @@
             }
         };
     </script>
+    <!-- ==========================================
+         模組三十一：自動過分相與主斷路器控制 (Automatic Phase Separation)
+         ========================================== -->
+    <script>
+        const phaseSeparationSystem = {
+            isInsideNeutralZone: false,
+            checkPhaseSeparation(kp) {
+                // 模擬台鐵電氣化區間常見的中性區 (分相區)
+                let modKp = kp % 35.0;
+                if (modKp > 33.5 && modKp < 34.5) {
+                    if (!this.isInsideNeutralZone) {
+                        this.isInsideNeutralZone = true;
+                        simulator.powerNotch = 0;
+                        appendLog("[電力系統] 進入自動過分相區 (Neutral Zone)，牽引力自動歸零。");
+                    }
+                } else {
+                    if (this.isInsideNeutralZone) {
+                        this.isInsideNeutralZone = false;
+                        appendLog("[電力系統] 已通過分相區，主斷路器恢復正常供電。");
+                    }
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組三十二：轉向架軸承溫度與過熱預警監控 (Bearing Temperature Monitor)
+         ========================================== -->
+    <script>
+        const bearingMonitor = {
+            axleTemperaturesC: [38.5, 39.1, 40.2, 38.8],
+            updateTemperatures(speed, dt) {
+                // 依據車速模擬軸承因摩擦產生的微幅溫升
+                for (let i = 0; i < this.axleTemperaturesC.length; i++) {
+                    this.axleTemperaturesC[i] += (speed * 0.0001) * dt;
+                    if (this.axleTemperaturesC[i] > 85.0) {
+                        appendLog(`[警告] 第 ${i+1} 軸承溫度過高 (${this.axleTemperaturesC[i].toFixed(1)}°C)，請注意！`);
+                    }
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組三十三：空氣壓縮機排氣濾網積碳檢測 (Compressor Filter Health)
+         ========================================== -->
+    <script>
+        const compressorFilterSystem = {
+            cloggingFactor: 0.05, // 5% 積碳程度
+            updateFilter(dt) {
+                this.cloggingFactor += 0.00001 * dt;
+                if (this.cloggingFactor > 0.8) {
+                    appendLog("[機電維護] 空壓機濾網積碳偏高，建議於終點站進行清淤維護。");
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組三十四：ATS-PF 地上子與車上脈衝檢知器 (ATS Pulse Detector)
+         ========================================== -->
+    <script>
+        const atsPulseDetector = {
+            lastPulseKp: 0.0,
+            detectPulse(kp) {
+                if (kp - this.lastPulseKp >= 0.5) {
+                    this.lastPulseKp = kp;
+                    // 每 500 公尺檢測一次地上子脈衝信號
+                    // appendLog("[ATS系統] 順利通過地上子脈衝迴路訊號。");
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組三十五：車廂內部緊急對講機通訊系統 (Passenger Intercom)
+         ========================================== -->
+    <script>
+        const passengerIntercom = {
+            activeCall: false,
+            callStation: null,
+            receiveIntercomRequest(carNumber) {
+                this.activeCall = true;
+                this.callStation = `第 ${carNumber} 車廂`;
+                appendLog(`[車內通訊] 收到來自 ${this.callStation} 的旅客緊急對講請求！`);
+            },
+            clearIntercom() {
+                this.activeCall = false;
+                this.callStation = null;
+                appendLog("[車內通訊] 緊急對講已通話結束並歸位。");
+            }
+        };
+    </script>
