@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - Roblox 沉浸互動萬行版</title>
-    <!-- 引入 Three.js 3D 引擎 -->
+    <title>台灣3D鐵路模擬器 - 新自強號 Roblox 完整版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root {
@@ -69,705 +68,6 @@
         .btn-span-2 { grid-column: span 2; }
         .btn-span-4 { grid-column: span 4; }
 
-        .terminal-box { background: #030712; padding: 4px; border-radius: 4px; font-family: monospace; font-size: 0.5rem; height: 50px; overflow-y: auto; color: #34d399; margin-top: 4px; border: 1px solid #1f2937; }
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1>台灣3D鐵路模擬器</h1>
-        <div class="subtitle">EMU3000 新自強號・Roblox 級高畫質 3D 互動世界（第一段：介面與架構）</div>
-    </header>
-
-    <div class="layout-container">
-        <!-- 3D 渲染視窗 -->
-        <div class="viewport-container">
-            <div id="webglCanvas"></div>
-        </div>
-
-        <!-- 駕駛艙儀表板 -->
-        <div class="panel">
-            <div style="font-size:0.7rem; font-weight:bold; margin-bottom:4px; color:#93c5fd;">MBus 列車狀況監控面板</div>
-            
-            <div class="dashboard-grid">
-                <div class="gauge-card">
-                    <div id="uiSpeed" class="gauge-value" style="color: #38bdf8;">0.0</div>
-                    <div class="gauge-label">速度 (km/h)</div>
-                </div>
-                <div class="gauge-card">
-                    <div id="uiLimit" class="gauge-value" style="color: #f59e0b;">130</div>
-                    <div class="gauge-label">速限 (km/h)</div>
-                </div>
-                <div class="gauge-card">
-                    <div id="uiBrakeCylinder" class="gauge-value" style="color: #ef4444;">0.0</div>
-                    <div class="gauge-label">煞缸壓 (kPa)</div>
-                </div>
-                <div class="gauge-card">
-                    <div id="uiVoltage" class="gauge-value" style="color: #10b981;">25.0</div>
-                    <div class="gauge-label">主電壓 (kV)</div>
-                </div>
-            </div>
-
-            <div class="telemetry-bar">
-                <div>站場: <span id="uiStation" style="color:#fff;">基隆</span></div>
-                <div>里程: <span id="uiKp" style="color:#fff;">0.00 km</span></div>
-                <div>坡度: <span id="uiGradient" style="color:#fff;">0.0 ‰</span></div>
-            </div>
-
-            <div class="atc-panel">
-                <div style="font-weight:bold;">ATC 號誌防護</div>
-                <div class="aspect-group">
-                    <div id="badgeG" class="aspect-badge aspect-g active">G</div>
-                    <div id="badgeY" class="aspect-badge aspect-y">Y</div>
-                    <div id="badgeR" class="aspect-badge aspect-r">R</div>
-                </div>
-                <div>超速倒數: <span id="uiCountdown" style="font-family:monospace; font-weight:bold; color:#f59e0b;">5.0s</span></div>
-            </div>
-
-            <div style="font-size: 0.6rem; color: #9ca3af; display:flex; justify-content:space-between; padding: 0 2px;">
-                <span>牽引階位: <strong id="uiNotch" style="color:#fff;">P0</strong></span>
-                <span>制動階位: <strong id="uiBrake" style="color:#fff;">B0</strong></span>
-                <span>系統運作: <strong id="uiStatus" style="color:#10b981;">等待載入</strong></span>
-            </div>
-        </div>
-
-        <!-- 運轉控制台 -->
-        <div class="panel">
-            <div style="font-size:0.7rem; font-weight:bold; margin-bottom:4px; color:#93c5fd;">駕駛控制器 (Master Controller)</div>
-            
-            <div class="controls-grid">
-                <button class="btn-green btn-span-4" id="btnInitSystem">初始化 3D 引擎與邏輯</button>
-                <button class="btn-blue btn-span-2" id="btnPowerUp">牽引升階 (P+)</button>
-                <button class="btn-yellow btn-span-2" id="btnPowerDown">牽引降階 (P-)</button>
-                <button class="btn-yellow btn-span-2" id="btnBrakeUp">制動施加 (B+)</button>
-                <button class="btn-blue btn-span-2" id="btnBrakeDown">制動緩解 (B-)</button>
-                <button class="btn-red btn-span-4" id="btnAck">確認警報 (ACK / ATS 警鈴復歸)</button>
-            </div>
-
-            <div id="terminalLog" class="terminal-box">
-                [系統核心] 第一段 UI 與 HTML 結構已載入。<br>
-            </div>
-        </div>
-    </div>
-    <script>
-        // --- 第二段：Three.js 3D 渲染引擎與 Roblox 遊戲世界邏輯 ---
-        const simulator = {
-            speed: 0.0,
-            targetLimit: 130.0,
-            powerNotch: 0,
-            brakeNotch: 0,
-            brakeCylinderPressure: 0.0,
-            mainVoltage: 25.0,
-            kpMeters: 0.0,
-            gradient: 0.0,
-            currentStation: "基隆",
-            atcAspect: 'G',
-            countdown: 5.0,
-            ebTriggered: false
-        };
-
-        const trackDatabase = [
-            { name: "基隆", kp: 0.0, limit: 45, gradient: 0.0 },
-            { name: "三坑", kp: 1.3, limit: 75, gradient: 5.2 },
-            { name: "八堵", kp: 3.7, limit: 100, gradient: -3.0 },
-            { name: "七堵", kp: 6.0, limit: 90, gradient: 2.1 },
-            { name: "百福", kp: 9.2, limit: 110, gradient: 0.0 }
-        ];
-
-        function queryTrackData(kpKm) {
-            let limit = 130.0;
-            let stationName = "新自強號專用高速線";
-            let grad = 0.0;
-            for (let i = 0; i < trackDatabase.length; i++) {
-                let st = trackDatabase[i];
-                if (Math.abs(st.kp - kpKm) <= 1.0) {
-                    limit = st.limit;
-                    stationName = `接近 ${st.name} 站`;
-                    grad = st.gradient;
-                    break;
-                }
-            }
-            return { limit, stationName, gradient: Number(grad.toFixed(1)) };
-        }
-
-        function appendLog(msg) {
-            const term = document.getElementById('terminalLog');
-            if (!term) return;
-            const timeStr = new Date().toTimeString().split(' ')[0];
-            term.innerHTML += `[${timeStr}] ${msg}<br>`;
-            term.scrollTop = term.scrollHeight;
-        }
-
-        let scene, camera, renderer;
-        let trackSegments = [];
-        const trackPoolSize = 30;
-        const sceneryGroup = new THREE.Group();
-        const passengerGroup = new THREE.Group();
-
-        function initThreeJS() {
-            const container = document.getElementById('webglCanvas');
-            container.innerHTML = '';
-
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x020617);
-            scene.fog = new THREE.FogExp2(0x020617, 0.015);
-
-            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
-            camera.position.set(0, 2.2, 5);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            container.appendChild(renderer.domElement);
-
-            // 環境光與動態光源
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(ambientLight);
-
-            const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
-            dirLight.position.set(10, 20, 10);
-            scene.add(dirLight);
-
-            scene.add(sceneryGroup);
-            scene.add(passengerGroup);
-
-            // 建立 3D 軌道物件池
-            const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
-            const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 1.0 });
-
-            const groundGeo = new THREE.PlaneGeometry(100, 1000);
-            const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.rotation.x = -Math.PI / 2;
-            ground.position.z = -400;
-            scene.add(ground);
-
-            trackSegments = [];
-            for (let i = 0; i < trackPoolSize; i++) {
-                const group = new THREE.Group();
-
-                const sleeperGeo = new THREE.BoxGeometry(2.6, 0.15, 0.6);
-                const sleeper = new THREE.Mesh(sleeperGeo, sleeperMat);
-                sleeper.position.set(0, 0.05, -i * 4);
-                group.add(sleeper);
-
-                const leftRailGeo = new THREE.BoxGeometry(0.12, 0.2, 4);
-                const leftRail = new THREE.Mesh(leftRailGeo, railMat);
-                leftRail.position.set(-1.0, 0.2, -i * 4);
-                group.add(leftRail);
-
-                const rightRailGeo = new THREE.BoxGeometry(0.12, 0.2, 4);
-                const rightRail = new THREE.Mesh(rightRailGeo, railMat);
-                rightRail.position.set(1.0, 0.2, -i * 4);
-                group.add(rightRail);
-
-                scene.add(group);
-                trackSegments.push(group);
-            }
-
-            // Roblox 風格月台與建築生成
-            for (let i = 0; i < 5; i++) {
-                createRobloxPlatform(-i * 100 - 50);
-            }
-
-            // Roblox 風格積木人旅客生成
-            for (let i = 0; i < 20; i++) {
-                spawnRobloxPassenger(Math.random() * 6 - 3, -Math.random() * 500);
-            }
-
-            document.getElementById('uiStatus').innerText = "Roblox 3D 運行中";
-            appendLog("[引擎核心] 第二段 Three.js 3D 渲染與 Roblox 場景建構完成。");
-        }
-
-        function createRobloxPlatform(zPos) {
-            const shelterGeo = new THREE.BoxGeometry(8, 0.5, 10);
-            const shelterMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
-            const shelter = new THREE.Mesh(shelterGeo, shelterMat);
-            shelter.position.set(6, 4, zPos);
-            sceneryGroup.add(shelter);
-
-            const poleGeo = new THREE.CylinderGeometry(0.2, 0.2, 8);
-            const poleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
-            const pole = new THREE.Mesh(poleGeo, poleMat);
-            pole.position.set(5, 2, zPos - 3);
-            sceneryGroup.add(pole);
-        }
-
-        function spawnRobloxPassenger(x, z) {
-            const bodyGeo = new THREE.BoxGeometry(0.5, 0.8, 0.3);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff });
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.position.set(x, 0.5, z);
-            passengerGroup.add(body);
-
-            const headGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-            const headMat = new THREE.MeshStandardMaterial({ color: 0xfde047 });
-            const head = new THREE.Mesh(headGeo, headMat);
-            head.position.set(x, 1.0, z);
-            passengerGroup.add(head);
-        }
-
-        // 按鈕與事件繫結
-        document.getElementById('btnInitSystem').addEventListener('click', initThreeJS);
-        document.getElementById('btnPowerUp').addEventListener('click', () => {
-            if (simulator.powerNotch < 4) simulator.powerNotch++;
-            simulator.brakeNotch = 0;
-            appendLog(`控制器: 牽引升至 P${simulator.powerNotch}`);
-        });
-        document.getElementById('btnPowerDown').addEventListener('click', () => {
-            if (simulator.powerNotch > 0) simulator.powerNotch--;
-            appendLog(`控制器: 牽引降至 P${simulator.powerNotch}`);
-        });
-        document.getElementById('btnBrakeUp').addEventListener('click', () => {
-            if (simulator.brakeNotch < 8) simulator.brakeNotch++;
-            simulator.powerNotch = 0;
-            appendLog(`控制器: 制動施加至 B${simulator.brakeNotch}`);
-        });
-        document.getElementById('btnBrakeDown').addEventListener('click', () => {
-            if (simulator.brakeNotch > 0) simulator.brakeNotch--;
-            appendLog(`控制器: 制動緩解至 B${simulator.brakeNotch}`);
-        });
-        document.getElementById('btnAck').addEventListener('click', () => {
-            simulator.countdown = 5.0;
-            simulator.ebTriggered = false;
-            appendLog("ATC 警報已確認，系統復歸。");
-        });
-
-        // 頁面載入後自動啟動 3D 引擎
-        initThreeJS();
-
-        // 主物理與動畫迴圈
-        let lastTimestamp = performance.now();
-        let worldZOffset = 0;
-
-        function animate(timestamp) {
-            const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
-            lastTimestamp = timestamp;
-
-            const currentKpKm = simulator.kpMeters / 1000.0;
-            const trackInfo = queryTrackData(currentKpKm);
-            simulator.targetLimit = trackInfo.limit;
-            simulator.gradient = trackInfo.gradient;
-            simulator.currentStation = trackInfo.stationName;
-
-            const gradeResistance = simulator.gradient * 0.14;
-            const rollingResistance = 0.4 + (simulator.speed * 0.01);
-            const aerodynamicDrag = 0.0002 * Math.pow(simulator.speed, 2);
-
-            if (simulator.powerNotch > 0 && !simulator.ebTriggered) {
-                let tractiveForce = simulator.powerNotch * 2.7;
-                simulator.speed += (tractiveForce - gradeResistance - rollingResistance - aerodynamicDrag) * dt;
-            } else if (simulator.brakeNotch > 0 || simulator.ebTriggered) {
-                let brakeDecel = simulator.ebTriggered ? 24.0 : simulator.brakeNotch * 3.2;
-                simulator.speed = Math.max(0, simulator.speed - brakeDecel * dt);
-            } else {
-                simulator.speed = Math.max(0, simulator.speed - (rollingResistance + aerodynamicDrag + gradeResistance) * dt);
-            }
-
-            simulator.kpMeters += (simulator.speed / 3.6) * dt;
-            simulator.brakeCylinderPressure = simulator.brakeNotch * 55.0;
-
-            worldZOffset += (simulator.speed * 0.4) * dt;
-            if (worldZOffset >= 4) worldZOffset %= 4;
-
-            if (trackSegments.length > 0) {
-                for (let i = 0; i < trackSegments.length; i++) {
-                    let baseZ = -i * 4 + worldZOffset;
-                    if (baseZ > 4) baseZ -= (trackPoolSize * 4);
-                    trackSegments[i].position.z = baseZ;
-                }
-            }
-
-            if (renderer && scene && camera) {
-                renderer.render(scene, camera);
-            }
-
-            document.getElementById('uiSpeed').innerText = simulator.speed.toFixed(1);
-            document.getElementById('uiLimit').innerText = simulator.targetLimit;
-            document.getElementById('uiBrakeCylinder').innerText = simulator.brakeCylinderPressure.toFixed(0);
-            document.getElementById('uiStation').innerText = simulator.currentStation;
-            document.getElementById('uiKp').innerText = currentKpKm.toFixed(2) + " km";
-            document.getElementById('uiGradient').innerText = simulator.gradient + " ‰";
-            document.getElementById('uiNotch').innerText = `P${simulator.powerNotch}`;
-            document.getElementById('uiBrake').innerText = `B${simulator.brakeNotch}`;
-
-            requestAnimationFrame(animate);
-        }
-
-        requestAnimationFrame(animate);
-    </script>
-    // --- 第三段：ATC 號誌連動防護、自動超速判定與完整軌道資料庫模組 ---
-    
-    // 擴充閉塞區間與號誌巨型資料庫
-    const advancedTrackDatabase = [
-        { id: "SEC_001", name: "基隆站內", kp_start: 0.0, kp_end: 0.5, limit: 45, signal: "G" },
-        { id: "SEC_002", name: "基隆-三坑", kp_start: 0.5, kp_end: 1.3, limit: 75, signal: "Y" },
-        { id: "SEC_003", name: "三坑-八堵", kp_start: 1.3, kp_end: 3.7, limit: 100, signal: "G" },
-        { id: "SEC_004", name: "八堵-七堵", kp_start: 3.7, kp_end: 6.0, limit: 90, signal: "Y" },
-        { id: "SEC_005", name: "七堵-百福", kp_start: 6.0, kp_end: 9.2, limit: 110, signal: "G" },
-        { id: "SEC_006", name: "百福-五堵", kp_start: 9.2, kp_end: 12.0, limit: 110, signal: "G" }
-    ];
-
-    function evaluateATCSystem(currentKp, currentSpeed) {
-        let currentSection = advancedTrackDatabase[0];
-        for (let i = 0; i < advancedTrackDatabase.length; i++) {
-            if (currentKp >= advancedTrackDatabase[i].kp_start && currentKp <= advancedTrackDatabase[i].kp_end) {
-                currentSection = advancedTrackDatabase[i];
-                break;
-            }
-        }
-
-        // 號誌燈號切換顯示更新
-        const badgeG = document.getElementById('badgeG');
-        const badgeY = document.getElementById('badgeY');
-        const badgeR = document.getElementById('badgeR');
-        
-        if (badgeG && badgeY && badgeR) {
-            badgeG.className = "aspect-badge aspect-g " + (currentSection.signal === 'G' ? "active" : "");
-            badgeY.className = "aspect-badge aspect-y " + (currentSection.signal === 'Y' ? "active" : "");
-            badgeR.className = "aspect-badge aspect-r " + (currentSection.signal === 'R' ? "active" : "");
-        }
-
-        // 超速防護邏輯 (若超過速限 5 km/h 且未確認，觸發緊急煞車 EB)
-        if (currentSpeed > currentSection.limit + 5) {
-            if (!simulator.ebTriggered) {
-                simulator.ebTriggered = true;
-                appendLog(`[ATC 警告] 速度 (${currentSpeed.toFixed(1)} km/h) 超過區間速限 (${currentSection.limit} km/h)！已強制啟動 EB 緊急制動。`);
-            }
-        }
-
-        return currentSection.limit;
-    }
-
-    // 將 ATC 檢查掛載進主循環中執行
-    // (這段與第二段的 animate 迴圈完美對接，讓每一次畫面更新都進行號誌防護判定)
-    appendLog("[系統核心] 第三段 ATC 號誌防護與閉塞區間資料庫已成功掛載至單一 index.html。");
-    // --- 第四段：Roblox 風格動態環境、天空盒與大氣光影特效模組 ---
-    
-    function initRobloxEnvironment() {
-        // 建立 Roblox 風格的動態雲朵或天空裝飾群組
-        const skyGroup = new THREE.Group();
-        scene.add(skyGroup);
-
-        // 隨機生成方塊狀的 Roblox 風格雲朵
-        const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
-        for (let i = 0; i < 15; i++) {
-            const cloudGeo = new THREE.BoxGeometry(
-                Math.random() * 20 + 10, 
-                Math.random() * 4 + 2, 
-                Math.random() * 20 + 10
-            );
-            const cloud = new THREE.Mesh(cloudGeo, cloudMat);
-            cloud.position.set(
-                (Math.random() - 0.5) * 300,
-                Math.random() * 40 + 60,
-                (Math.random() - 0.5) * 500
-            );
-            skyGroup.add(cloud);
-        }
-
-        // 優化場景材質以呈現更強烈的 Roblox 塑料質感
-        scene.traverse((child) => {
-            if (child.isMesh && child.material) {
-                child.material.roughness = 0.4;
-                child.material.metalness = 0.1;
-            }
-        });
-
-        appendLog("[系統核心] 第四段 Roblox 風格動態天空與環境光影模組已成功無縫整合至 index.html。");
-    }
-
-    // 自動執行環境初始化
-    initRobloxEnvironment();
-    // --- 第五段：互動式轉轍器切換、多路線選擇與列車語音廣播模擬模組 ---
-    
-    const trainAnnouncer = {
-        stations: ["基隆", "三坑", "八堵", "七堵", "百福"],
-        currentIndex: 0,
-        playAnnouncement(stationName) {
-            appendLog(`[車內廣播] 各位旅客，下一站是：${stationName}，請準備下車。`);
-        },
-        checkStationArrival(kpKm) {
-            // 當接近特定里程時自動觸發廣播
-            if (this.currentIndex < this.stations.length) {
-                let targetKp = this.currentIndex * 2.0; // 模擬每2公里一站
-                if (kpKm >= targetKp && kpKm < targetKp + 0.3) {
-                    this.playAnnouncement(this.stations[this.currentIndex]);
-                    this.currentIndex++;
-                }
-            }
-        }
-    };
-
-    // 轉轍器與路線切換邏輯
-    let currentRouteMode = "新自強號專用高速線";
-    function switchRailwayRoute(modeName) {
-        currentRouteMode = modeName;
-        appendLog(`[轉轍器系統] 路線已切換至：${currentRouteMode}，軌道岔路配置更新完畢。`);
-    }
-
-    // 在介面中加入一個動態切換路線的按鈕動作監聽
-    appendLog("[系統核心] 第五段 互動轉轍器與車內廣播模組已成功無縫整合至 index.html。");
-    // --- 第六段：列車機電故障碼模擬、主變壓器保護與 FPS 效能監控模組 ---
-    
-    const electricalFaultSystem = {
-        transformerTemp: 45.0, // 變壓器初始溫度 (°C)
-        isFaultLocked: false,
-        
-        updateFaultLogic(powerNotch, dt) {
-            // 當長時間處於高牽引力時，變壓器溫度上升
-            if (powerNotch >= 3) {
-                this.transformerTemp += 1.5 * dt;
-            } else {
-                this.transformerTemp = Math.max(45.0, this.transformerTemp - 2.0 * dt);
-            }
-
-            // 溫度過高觸發主變壓器保護跳脫 (Overload Protection)
-            if (this.transformerTemp >= 95.0 && !this.isFaultLocked) {
-                this.isFaultLocked = true;
-                simulator.powerNotch = 0;
-                appendLog("[機電警告 (FAULT-E04)] 主變壓器過熱跳脫！牽引動力強制鎖定，請靜置散熱。");
-            } else if (this.transformerTemp < 60.0 && this.isFaultLocked) {
-                this.isFaultLocked = false;
-                appendLog("[機電復歸] 主變壓器溫度已冷卻，系統解除鎖定。");
-            }
-        }
-    };
-
-    // 效能監控器 (FPS Counter)
-    let frameCount = 0;
-    let lastFpsUpdate = performance.now();
-    let currentFps = 60;
-
-    function updateFpsCounter(timestamp) {
-        frameCount++;
-        if (timestamp - lastFpsUpdate >= 1000) {
-            currentFps = frameCount;
-            frameCount = 0;
-            lastFpsUpdate = timestamp;
-            
-            // 可在此處將 FPS 輸出到開發者終端
-            if (currentFps < 30) {
-                console.warn(`[效能警告] 目前畫面影格率偏低: ${currentFps} FPS`);
-            }
-        }
-    }
-
-    appendLog("[系統核心] 第六段 機電故障模擬與 FPS 效能監控模組已成功無縫整合至 index.html。");
-    // --- 第七段：照相機視角切換、鐵道環境音效模擬與駕駛成就解鎖模組 ---
-    
-    const achievements = {
-        speedKing: false,
-        stationMaster: false,
-        checkAchievements(speed, kp) {
-            if (speed >= 120 && !this.speedKing) {
-                this.speedKing = true;
-                appendLog("[成就解鎖] 獲得頭銜：【極速飆風手】（速度達到 120 km/h 以上）！");
-            }
-            if (kp >= 10.0 && !this.stationMaster) {
-                this.stationMaster = true;
-                appendLog("[成就解鎖] 獲得頭銜：【縱貫線長征者】（行駛里程突破 10 公里）！");
-            }
-        }
-    };
-
-    // 視角切換控制 (第一人稱駕駛室 vs Roblox 第三人稱背視角)
-    let cameraMode = "CABIN"; // CABIN 或 THIRD_PERSON
-    function toggleCameraView() {
-        if (cameraMode === "CABIN") {
-            cameraMode = "THIRD_PERSON";
-            if (camera) camera.position.set(0, 6, 12);
-            appendLog("[視角切換] 已切換至：Roblox 第三人稱跟隨視角。");
-        } else {
-            cameraMode = "CABIN";
-            if (camera) camera.position.set(0, 2.2, 5);
-            appendLog("[視角切換] 已切換至：駕駛室第一人稱視角。");
-        }
-    }
-
-    // 模擬鐵路輪軌摩擦音效狀態機
-    const audioSimulator = {
-        playWheelClatter(speed) {
-            if (speed > 5) {
-                // 模擬輪軌規律撞擊聲的頻率觸發
-                let interval = Math.max(100, 600 - (speed * 4));
-                // 這裡保留音效介面供後續掛載 Web Audio API
-            }
-        }
-    };
-
-    appendLog("[系統核心] 第七段 視角切換、環境音效與駕駛成就模組已成功無縫整合至 index.html。");
-    // --- 第八段：台鐵線上時刻表排班、誤點秒數計算與調度中心模擬模組 ---
-    
-    const timetableDispatcher = {
-        schedule: [
-            { station: "基隆", targetTimeSec: 0, actualTimeSec: 0, status: "已發車" },
-            { station: "三坑", targetTimeSec: 90, actualTimeSec: null, status: "未到" },
-            { station: "八堵", targetTimeSec: 210, actualTimeSec: null, status: "未到" },
-            { station: "七堵", targetTimeSec: 320, actualTimeSec: null, status: "未到" },
-            { station: "百福", targetTimeSec: 450, actualTimeSec: null, status: "未到" }
-        ],
-        currentElapsedSec: 0,
-        delaySeconds: 0,
-
-        updateTimetable(dt, currentKpKm) {
-            this.currentElapsedSec += dt;
-
-            // 根據里程自動判定是否抵達各站並計算誤點
-            if (currentKpKm >= 1.3 && this.schedule[1].status === "未到") {
-                this.schedule[1].actualTimeSec = Math.round(this.currentElapsedSec);
-                let diff = this.schedule[1].actualTimeSec - this.schedule[1].targetTimeSec;
-                this.schedule[1].status = diff > 0 ? `誤點 ${diff} 秒` : `準點 / 早到 ${Math.abs(diff)} 秒`;
-                appendLog(`[調度中心] 三坑站通過紀錄：${this.schedule[1].status}`);
-            }
-            if (currentKpKm >= 3.7 && this.schedule[2].status === "未到") {
-                this.schedule[2].actualTimeSec = Math.round(this.currentElapsedSec);
-                let diff = this.schedule[2].actualTimeSec - this.schedule[2].targetTimeSec;
-                this.schedule[2].status = diff > 0 ? `誤點 ${diff} 秒` : `準點 / 早到 ${Math.abs(diff)} 秒`;
-                appendLog(`[調度中心] 八堵站通過紀錄：${this.schedule[2].status}`);
-            }
-        }
-    };
-
-    appendLog("[系統核心] 第八段 時刻表排班與調度中心模組已成功無縫整合至 index.html。");
-    // --- 第九段：Roblox 風格自定義 GUI、列車外觀皮膚系統與虛擬貨幣獎勵機制 ---
-    
-    const gameEconomy = {
-        coins: 0,
-        playerSkin: "Default_Silver",
-        
-        addCoins(amount) {
-            this.coins += amount;
-            appendLog(`[系統獎勵] 獲得 ${amount} 點虛擬貨幣，目前餘額：${this.coins}。`);
-        },
-
-        applySkin(skinName) {
-            this.playerSkin = skinName;
-            // 模擬更換列車外觀材質的渲染邏輯
-            scene.traverse((child) => {
-                if (child.isMesh && child.name === "TrainBody") {
-                    child.material.color.set(skinName === "Gold_Express" ? 0xffd700 : 0xffffff);
-                }
-            });
-            appendLog(`[外觀系統] 已更換列車皮膚為：${skinName}。`);
-        }
-    };
-
-    // 建立一個輕量級的自定義遊戲選單
-    function createCustomGui() {
-        const gui = document.createElement('div');
-        gui.style.cssText = "position:absolute; top:80px; right:20px; background:rgba(0,0,0,0.8); padding:10px; border-radius:8px; color:white; border:2px solid #0ea5e9;";
-        gui.innerHTML = `
-            <div style="font-size:0.7rem; font-weight:bold; margin-bottom:5px;">Roblox 商店 (Beta)</div>
-            <button onclick="gameEconomy.applySkin('Gold_Express')" style="font-size:0.6rem; margin-bottom:3px; display:block; width:100%;">購買黃金外觀 (500 幣)</button>
-            <button onclick="alert('請加入 Discord: https://discord.gg/dT47kurqw 以獲取更多功能')" style="font-size:0.6rem; display:block; width:100%;">社群支援</button>
-        `;
-        document.body.appendChild(gui);
-    }
-    createCustomGui();
-
-    appendLog("[系統核心] 第九段 Roblox 自定義 GUI、皮膚系統與經濟模組已成功無縫整合至 index.html。");
-    // --- 第十段：多人連線狀態同步、全球排行榜與調度中心遠端廣播模組 ---
-    
-    const multiplayerManager = {
-        serverUrl: "wss://railway-simulator-multi.example.com", // 模擬連線端點
-        isOnline: false,
-
-        connectToDispatch() {
-            appendLog("[連線系統] 正在嘗試連接至「新自強」遠端調度伺服器...");
-            
-            // 模擬連線成功
-            setTimeout(() => {
-                this.isOnline = true;
-                appendLog("[連線系統] 已成功連線至全球調度中心 (Discord: https://discord.gg/dT47kurqw)");
-                this.syncTrainStatus();
-            }, 1500);
-        },
-
-        syncTrainStatus() {
-            if (this.isOnline) {
-                // 模擬將列車位置數據傳送至伺服器
-                console.log(`[同步] 上傳位置: ${simulator.kpMeters.toFixed(2)} km, 速度: ${simulator.speed.toFixed(1)} km/h`);
-                
-                // 定期同步數據
-                setTimeout(() => this.syncTrainStatus(), 5000);
-            }
-        },
-
-        updateGlobalLeaderboard(score) {
-            appendLog(`[排行榜] 您的成績已更新至全球榜單: 第 ${Math.floor(Math.random() * 100) + 1} 名！`);
-        }
-    };
-
-    // 在選單中加入連線按鈕
-    const connectBtn = document.createElement('button');
-    connectBtn.innerText = "連接多人調度系統";
-    connectBtn.style.cssText = "font-size:0.6rem; margin-top:5px; width:100%; cursor:pointer;";
-    connectBtn.onclick = () => multiplayerManager.connectToDispatch();
-    document.body.querySelector('div[style*="absolute"]').appendChild(connectBtn);
-
-    appendLog("[系統核心] 第十段 多人連線、全球排行榜與調度系統已無縫整合至 index.html。");
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - Roblox 沉浸互動萬行版</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <style>
-        :root {
-            --bg-color: #030712;
-            --panel-bg: #111827;
-            --panel-border: #1f2937;
-            --accent-green: #10b981;
-            --accent-yellow: #f59e0b;
-            --accent-red: #ef4444;
-            --text-main: #f3f4f6;
-            --primary-blue: #0ea5e9;
-        }
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            padding: 6px;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            overflow-x: hidden;
-        }
-        header { text-align: center; margin-bottom: 6px; }
-        h1 { margin: 0; font-size: 1.15rem; color: var(--primary-blue); letter-spacing: 1px; }
-        .subtitle { color: #9ca3af; font-size: 0.6rem; margin-top: 1px; }
-        .layout-container { display: grid; grid-template-columns: 1fr; gap: 6px; max-width: 650px; margin: 0 auto; }
-        .viewport-container {
-            background: #000;
-            border-radius: 6px;
-            overflow: hidden;
-            height: 200px;
-            position: relative;
-            border: 1px solid var(--panel-border);
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
-        }
-        #webglCanvas { width: 100%; height: 100%; display: block; }
-        .panel { background-color: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 6px; padding: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.4); }
-        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 4px; }
-        .gauge-card { background: #1f2937; padding: 4px; border-radius: 4px; text-align: center; border: 1px solid #374151; }
-        .gauge-value { font-size: 1.1rem; font-weight: bold; font-family: monospace; }
-        .gauge-label { color: #9ca3af; font-size: 0.5rem; margin-top: 1px; }
-        .telemetry-bar { background: #030712; padding: 4px; border-radius: 4px; font-size: 0.65rem; margin-bottom: 4px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border: 1px solid #1f2937; }
-        .atc-panel { display: flex; justify-content: space-between; align-items: center; background: #1f2937; padding: 4px 8px; border-radius: 4px; margin-bottom: 4px; font-size: 0.65rem; border: 1px solid #374151; }
-        .aspect-group { display: flex; gap: 4px; align-items: center; }
-        .aspect-badge { width: 20px; height: 20px; border-radius: 50%; background: #374151; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.65rem; color: #6b7280; }
-        .aspect-g.active { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); color: #000; }
-        .aspect-y.active { background: var(--accent-yellow); box-shadow: 0 0 6px var(--accent-yellow); color: #000; }
-        .aspect-r.active { background: var(--accent-red); box-shadow: 0 0 6px var(--accent-red); color: #fff; }
-        .controls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-        button { padding: 6px 2px; font-size: 0.7rem; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; color: #fff; }
-        button:active { opacity: 0.6; }
-        .btn-green { background: #059669; }
-        .btn-blue { background: #0284c7; }
-        .btn-yellow { background: #d97706; color: #000; }
-        .btn-red { background: #dc2626; }
-        .btn-span-2 { grid-column: span 2; }
-        .btn-span-4 { grid-column: span 4; }
         .terminal-box { background: #030712; padding: 4px; border-radius: 4px; font-family: monospace; font-size: 0.5rem; height: 50px; overflow-y: auto; color: #34d399; margin-top: 4px; border: 1px solid #1f2937; }
     </style>
 </head>
@@ -785,6 +85,7 @@
 
         <div class="panel">
             <div style="font-size:0.7rem; font-weight:bold; margin-bottom:4px; color:#93c5fd;">MBus 列車狀況監控面板</div>
+            
             <div class="dashboard-grid">
                 <div class="gauge-card">
                     <div id="uiSpeed" class="gauge-value" style="color: #38bdf8;">0.0</div>
@@ -829,6 +130,7 @@
 
         <div class="panel">
             <div style="font-size:0.7rem; font-weight:bold; margin-bottom:4px; color:#93c5fd;">駕駛控制器 (Master Controller)</div>
+            
             <div class="controls-grid">
                 <button class="btn-green btn-span-4" id="btnInitSystem">初始化 3D 引擎與邏輯</button>
                 <button class="btn-blue btn-span-2" id="btnPowerUp">牽引升階 (P+)</button>
@@ -839,7 +141,7 @@
             </div>
 
             <div id="terminalLog" class="terminal-box">
-                [系統核心] 完整單檔系統已準備就緒。<br>
+                [系統核心] 系統已準備就緒。<br>
             </div>
         </div>
     </div>
@@ -861,12 +163,12 @@
         };
 
         const advancedTrackDatabase = [
-            { id: "SEC_001", name: "基隆站內", kp_start: 0.0, kp_end: 0.5, limit: 45, signal: "G" },
-            { id: "SEC_002", name: "基隆-三坑", kp_start: 0.5, kp_end: 1.3, limit: 75, signal: "Y" },
-            { id: "SEC_003", name: "三坑-八堵", kp_start: 1.3, kp_end: 3.7, limit: 100, signal: "G" },
-            { id: "SEC_004", name: "八堵-七堵", kp_start: 3.7, kp_end: 6.0, limit: 90, signal: "Y" },
-            { id: "SEC_005", name: "七堵-百福", kp_start: 6.0, kp_end: 9.2, limit: 110, signal: "G" },
-            { id: "SEC_006", name: "百福-五堵", kp_start: 9.2, kp_end: 12.0, limit: 110, signal: "G" }
+            { id: "SEC_001", name: "基隆站內", kp_start: 0.0, kp_end: 0.5, limit: 45, signal: "G", gradient: 0.0 },
+            { id: "SEC_002", name: "基隆-三坑", kp_start: 0.5, kp_end: 1.3, limit: 75, signal: "Y", gradient: 5.2 },
+            { id: "SEC_003", name: "三坑-八堵", kp_start: 1.3, kp_end: 3.7, limit: 100, signal: "G", gradient: -3.0 },
+            { id: "SEC_004", name: "八堵-七堵", kp_start: 3.7, kp_end: 6.0, limit: 90, signal: "Y", gradient: 2.1 },
+            { id: "SEC_005", name: "七堵-百福", kp_start: 6.0, kp_end: 9.2, limit: 110, signal: "G", gradient: 0.0 },
+            { id: "SEC_006", name: "百福-五堵", kp_start: 9.2, kp_end: 12.0, limit: 110, signal: "G", gradient: 1.0 }
         ];
 
         function queryTrackData(kpKm) {
@@ -878,6 +180,7 @@
                 if (kpKm >= st.kp_start && kpKm <= st.kp_end) {
                     limit = st.limit;
                     stationName = st.name;
+                    grad = st.gradient;
                     break;
                 }
             }
@@ -956,7 +259,7 @@
             }
 
             document.getElementById('uiStatus').innerText = "Roblox 3D 運行中";
-            appendLog("[引擎核心] 3D 渲染與號誌防護初始化完畢。");
+            appendLog("[引擎核心] 3D 渲染與 ATC 系統初始化完畢。");
         }
 
         function evaluateATCSystem(currentKp, currentSpeed) {
@@ -967,6 +270,7 @@
                     break;
                 }
             }
+
             const badgeG = document.getElementById('badgeG');
             const badgeY = document.getElementById('badgeY');
             const badgeR = document.getElementById('badgeR');
@@ -975,9 +279,10 @@
                 badgeY.className = "aspect-badge aspect-y " + (currentSection.signal === 'Y' ? "active" : "");
                 badgeR.className = "aspect-badge aspect-r " + (currentSection.signal === 'R' ? "active" : "");
             }
+
             if (currentSpeed > currentSection.limit + 5 && !simulator.ebTriggered) {
                 simulator.ebTriggered = true;
-                appendLog(`[ATC 警告] 超速強制啟動 EB 緊急制動！`);
+                appendLog(`[ATC 警告] 超速！強制啟動 EB 緊急制動！`);
             }
             return currentSection.limit;
         }
@@ -1002,18 +307,20 @@
             const trackInfo = queryTrackData(currentKpKm);
             simulator.targetLimit = evaluateATCSystem(currentKpKm, simulator.speed);
             simulator.currentStation = trackInfo.stationName;
+            simulator.gradient = trackInfo.gradient;
 
             const rollingResistance = 0.4 + (simulator.speed * 0.01);
             const aerodynamicDrag = 0.0002 * Math.pow(simulator.speed, 2);
+            const gradeResistance = simulator.gradient * 0.14;
 
             if (simulator.powerNotch > 0 && !simulator.ebTriggered) {
                 let tractiveForce = simulator.powerNotch * 2.7;
-                simulator.speed += (tractiveForce - rollingResistance - aerodynamicDrag) * dt;
+                simulator.speed += (tractiveForce - gradeResistance - rollingResistance - aerodynamicDrag) * dt;
             } else if (simulator.brakeNotch > 0 || simulator.ebTriggered) {
                 let brakeDecel = simulator.ebTriggered ? 24.0 : simulator.brakeNotch * 3.2;
                 simulator.speed = Math.max(0, simulator.speed - brakeDecel * dt);
             } else {
-                simulator.speed = Math.max(0, simulator.speed - (rollingResistance + aerodynamicDrag) * dt);
+                simulator.speed = Math.max(0, simulator.speed - (rollingResistance + aerodynamicDrag + gradeResistance) * dt);
             }
 
             simulator.kpMeters += (simulator.speed / 3.6) * dt;
@@ -1039,6 +346,7 @@
             document.getElementById('uiBrakeCylinder').innerText = simulator.brakeCylinderPressure.toFixed(0);
             document.getElementById('uiStation').innerText = simulator.currentStation;
             document.getElementById('uiKp').innerText = currentKpKm.toFixed(2) + " km";
+            document.getElementById('uiGradient').innerText = simulator.gradient + " ‰";
             document.getElementById('uiNotch').innerText = `P${simulator.powerNotch}`;
             document.getElementById('uiBrake').innerText = `B${simulator.brakeNotch}`;
 
