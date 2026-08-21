@@ -1,740 +1,9 @@
-/**
- * @file TrainDynamicsEngine.ts
- * @description EMU3000 萬行級鐵路模擬器 - 高精度多車廂物理與動力矩陣核心
- * 支援：Davis 阻力模型、12節車廂聯結器彈簧阻尼應力、輪軸滑行與氣軔響應
- */
-
-export interface CarPhysicsState {
-    id: number;
-    massKg: number;         // 車廂質量 (預設 45 噸)
-    position: number;       // 目前絕對里程 (m)
-    velocity: number;       // 目前速度 (m/s)
-    acceleration: number;   // 目前加速度 (m/s^2)
-    brakePressure: number;  // 氣軔缸壓力 (kPa)
-    slipRatio: number;      // 輪軸滑行率
-}
-
-export class TrainDynamicsEngine {
-    private cars: CarPhysicsState[] = [];
-    private readonly totalUnits: number = 12;
-    
-    // 聯結器動態常數 (Coupler Dynamics)
-    private readonly COUPLER_SPRING_K = 1200000; // 剛性係數 (N/m)
-    private readonly COUPLER_DAMPING_C = 85000;  // 阻尼係數 (Ns/m)
-    private readonly CAR_LENGTH = 20.0;          // 單節車廂標準長度 (公尺)
-
-    constructor() {
-        this.initializeTrainFormation();
-    }
-
-    /**
-     * 初始化 12 節編組 (EMU3000 標準 12C 編組)
-     */
-    private initializeTrainFormation() {
-        for (let i = 0; i < this.totalUnits; i++) {
-            this.cars.push({
-                id: i + 1,
-                massKg: i === 0 || i === this.totalUnits - 1 ? 46000 : 44000, // 頭尾車與中間車質量微調
-                position: - (i * this.CAR_LENGTH), // 依序向後排列
-                velocity: 0.0,
-                acceleration: 0.0,
-                brakePressure: 0.0,
-                slipRatio: 0.0
-            });
-        }
-    }
-
-    /**
-     * Davis 鐵路阻力公式計算 (基隆起算，支援速度平方項)
-     * R = A + B*v + C*v^2
-     */
-    private calculateDavisResistance(velocityMps: number, gradePermil: number): number {
-        const vKph = Math.abs(velocityMps) * 3.6;
-        const A = 1450.0; // 基本機械阻力 (N)
-        const B = 32.5;   // 軸承潤滑阻力係數
-        const C = 0.092;  // 空氣動力阻力係數
-        
-        const mechanicalResistance = A + (B * vKph) + (C * vKph * vKph);
-        
-        // 坡度阻力分量 (重力分量 F = mg * sin(theta) ≈ mg * (grade / 1000))
-        const gravityResistance = 9.81 * 45000 * (gradePermil / 1000.0);
-        
-        return mechanicalResistance + gravityResistance;
-    }
-
-    /**
-     * 執行 60Hz 物理運算迭代 (支援 RK4 概念之數值積分)
-     */
-    public stepSimulation(dt: number, powerNotch: number, brakeNotch: number, currentGrade: number) {
-        // 1. 計算聯結器相互應力陣列
-        const couplerForces = this.computeInterCarCouplerForces();
-
-        // 2. 依序更新每一節車廂的物理狀態
-        for (let i = 0; i < this.cars.length; i++) {
-            const car = this.cars[i];
-            
-            // 牽引動力輸出 (僅動力車發揮效用)
-            const isMotorCar = (i % 2 === 0); // 簡化設定交錯動力車
-            const tractionForce = (isMotorCar && powerNotch > 0) ? (powerNotch * 12500.0) : 0.0;
-
-            // 氣軔制動力輸出
-            const brakingForce = brakeNotch * 18000.0;
-
-            // 總阻力
-            const resistance = this.calculateDavisResistance(car.velocity, currentGrade);
-
-            // 淨施力 = 牽引力 - 制動力 - 阻力 + 聯結器互動應力
-            const netForce = tractionForce - brakingForce - resistance + couplerForces[i];
-
-            // 牛頓第二運動定律 F = ma -> a = F / m
-            car.acceleration = netForce / car.massKg;
-
-            // 速度與位移更新 (Euler-Cromer 積分防數值發散)
-            car.velocity += car.acceleration * dt;
-            if (car.velocity < 0) car.velocity = 0; // 防止倒車
-            
-            car.position += car.velocity * dt;
-        }
-    }
-
-    /**
-     * 計算車廂與車廂之間的聯結器彈簧阻尼應力
-     */
-    private computeInterCarCouplerForces(): number[] {
-        let forces = new Array(this.totalUnits).fill(0);
-
-        for (let i = 0; i < this.totalUnits - 1; i++) {
-            const leadCar = this.cars[i];
-            const followerCar = this.cars[i + 1];
-
-            // 理想距離與實際距離差
-            const expectedDistance = leadCar.position - followerCar.position - this.CAR_LENGTH;
-            const relativeVelocity = leadCar.velocity - followerCar.velocity;
-
-            // 虎克定律與阻尼力計算: F = k*dx + c*dv
-            const stressForce = (expectedDistance * this.COUPLER_SPRING_K) + (relativeVelocity * this.COUPLER_DAMPING_C);
-
-            forces[i] -= stressForce;       // 前車受到後車的推擠/拉扯
-            forces[i + 1] += stressForce;   // 後車受到前車的反作用力
-        }
-
-        return forces;
-    }
-
-    public getLeadCarState() {
-        return {
-            position: this.cars[0].position,
-            velocityKph: this.cars[0].velocity * 3.6,
-            acceleration: this.cars[0].acceleration
-        };
-    }
-}
-/**
- * @file SignalingAndCommunityEngine.ts
- * @description 台灣3D鐵路模擬器 - ATC 號誌安全防護與線上社群多機調度核心
- */
-
-export interface RemoteTrainTelemetry {
-    driverId: string;
-    trainNumber: string;
-    currentKp: number;
-    speedKph: number;
-    signalAspect: 'G' | 'YY' | 'Y' | 'R';
-    lastUpdated: number;
-}
-
-export class SignalingAndCommunityEngine {
-    private currentAspect: 'G' | 'YY' | 'Y' | 'R' = 'G';
-    private targetSpeedLimit: number = 130.0;
-    private ebTriggered: boolean = false;
-    private countdownTimer: number = 5.0;
-    
-    // 社群調度相關屬性
-    private socket: WebSocket | null = null;
-    private onlineDrivers: Map<string, RemoteTrainTelemetry> = new Map();
-    private localDriverId: string;
-    private roomCode: string;
-
-    constructor(driverId: string, roomCode: string = "TAIWAN-MAIN-LINE-01") {
-        this.localDriverId = driverId;
-        this.roomCode = roomCode;
-    }
-
-    /**
-     * 連線至台灣3D鐵路模擬器中央調度社群伺服器
-     */
-    public connectCommunityServer(serverUrl: string = "wss://dispatch.taiwan-railway-sim.tw") {
-        console.log(`[社群調度] ${this.localDriverId} 正在連線至房間 [${this.roomCode}]...`);
-        
-        // 實際應用之 WebSocket 連線邏輯框架
-        /*
-        this.socket = new WebSocket(`${serverUrl}?room=${this.roomCode}&driver=${this.localDriverId}`);
-        
-        this.socket.onopen = () => {
-            console.log("[社群調度] 成功連線！已加入多人線上行车網路。");
-        };
-
-        this.socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            this.handleRemoteTelemetrySync(data);
-        };
-        */
-        
-        // 模擬上線成功狀態
-        this.simulateCommunityConnection();
-    }
-
-    private simulateCommunityConnection() {
-        console.log("[社群調度] 模擬連線成功：當前線上共有 18 位駕駛員正在運行。");
-    }
-
-    /**
-     * 即時廣播自己的列車位置與速限狀態給其他線上駕駛
-     */
-    public broadcastTelemetry(kp: number, speed: number) {
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-            const payload = {
-                type: "TELEMETRY_SYNC",
-                driverId: this.localDriverId,
-                currentKp: kp,
-                speedKph: speed,
-                signalAspect: this.currentAspect,
-                lastUpdated: Date.now()
-            };
-            this.socket.send(JSON.stringify(payload));
-        }
-    }
-
-    /**
-     * ATC 列車自動防護與速限交織運算核心
-     */
-    public evaluateATCSafety(currentSpeed: number, currentKp: number, dt: number, isAckPressed: boolean) {
-        // 依據位置動態決定前方閉塞區間速限
-        this.targetSpeedLimit = this.resolveBlockSpeedLimit(currentKp);
-
-        // 超速檢知 (容許超速 3 km/h)
-        if (currentSpeed > this.targetSpeedLimit + 3.0) {
-            if (isAckPressed) {
-                this.resetAlarmCountdown();
-            } else {
-                this.countdownTimer -= dt;
-                if (this.countdownTimer <= 0) {
-                    this.triggerEmergencyBrake();
-                }
-            }
-        } else {
-            this.resetAlarmCountdown();
-        }
-
-        return {
-            aspect: this.currentAspect,
-            limit: this.targetSpeedLimit,
-            eb: this.ebTriggered,
-            countdown: Math.max(0, this.countdownTimer)
-        };
-    }
-
-    private resolveBlockSpeedLimit(kp: number): number {
-        // 模擬進出車站或彎道速限
-        if (kp > 25000 && kp < 28000) {
-            this.currentAspect = 'Y';
-            return 85.0; // 警戒速限
-        }
-        this.currentAspect = 'G';
-        return 130.0; // 正常營運速限
-    }
-
-    private resetAlarmCountdown() {
-        this.countdownTimer = 5.0;
-        this.ebTriggered = false;
-    }
-
-    private triggerEmergencyBrake() {
-        this.ebTriggered = true;
-        console.warn("[ATC 安全系統] 嚴重警告：超速未確認，台灣3D鐵路模擬器已自動強制介入 EB（緊急制動）！");
-    }
-
-    public getOnlineDriversList(): RemoteTrainTelemetry[] {
-        return Array.from(this.onlineDrivers.values());
-    }
-}
-/**
- * @file AudioSynthesisEngine.ts
- * @description 台灣3D鐵路模擬器 - Hitachi VVVF 變頻音效與環境聲學合成引擎
- * 支援：多重振盪器加法合成、IGBT 磁励音階頻率對照、轉子頻率平滑過渡與軌道接縫音
- */
-
-export class AudioSynthesisEngine {
-    private audioCtx: AudioContext | null = null;
-    private masterGain: GainNode | null = null;
-    
-    // VVVF 變頻音振盪器群組
-    private vvvfOscillators: OscillatorNode[] = [];
-    private vvvfGains: GainNode[] = [];
-    
-    // 環境音效節點 (軌道接縫、風切聲)
-    private trackNoiseNode: AudioBufferSourceNode | null = null;
-    private isInitialized: boolean = false;
-
-    constructor() {
-        // 等待使用者互動後初始化 AudioContext (瀏覽器音效安全政策)
-    }
-
-    public initializeAudioSystem() {
-        if (this.isInitialized) return;
-
-        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        this.audioCtx = new AudioContextClass();
-
-        // 建立主音量控制
-        this.masterGain = this.audioCtx.createGain();
-        this.masterGain.gain.setValueAtTime(0.25, this.audioCtx.currentTime);
-        this.masterGain.connect(this.audioCtx.destination);
-
-        // 初始化 VVVF 4 諧波加法合成器
-        const harmonicRatios = [1.0, 2.0, 3.0, 4.5];
-        harmonicRatios.forEach((ratio) => {
-            if (!this.audioCtx) return;
-            const osc = this.audioCtx.createOscillator();
-            const gain = this.audioCtx.createGain();
-
-            osc.type = 'sawtooth'; // 鋸齒波最接近 IGBT 脈寬調變（PWM）的高次諧波特性
-            osc.frequency.setValueAtTime(60, this.audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.0, this.audioCtx.currentTime); // 初始靜音
-
-            osc.connect(gain);
-            gain.connect(this.masterGain!);
-            osc.start();
-
-            this.vvvfOscillators.push(osc);
-            this.vvvfGains.push(gain);
-        });
-
-        this.isInitialized = true;
-        console.log("[聲學引擎] 台灣3D鐵路模擬器 Hitachi VVVF 變頻合成器初始化完成。");
-    }
-
-    /**
-     * 即時更新 VVVF 變頻音階與磁勵音
-     * @param speedKph 列車當前時速 (km/h)
-     * @param powerNotch 動力位 (0~4)
-     */
-    public updateVVVFSound(speedKph: number, powerNotch: number) {
-        if (!this.isInitialized || !this.audioCtx) return;
-
-        const currentTime = this.audioCtx.currentTime;
-
-        if (powerNotch === 0 || speedKph <= 0.5) {
-            // 停車或無動力時，變頻音歸零
-            this.vvvfGains.forEach(gain => {
-                gain.gain.setTargetAtTime(0.0, currentTime, 0.1);
-            });
-            return;
-        }
-
-        // 模擬日立 VVVF 變頻音階頻率對照表 (隨著速度攀升，頻率呈階梯或滑動上升)
-        // 基礎載波頻率計算
-        let baseFreq = 55.0 + (speedKph * 14.5);
-        
-        // 模擬低速段獨特的「VVVF 爬升音階」轉折
-        if (speedKph < 45) {
-            const step = Math.floor(speedKph / 8);
-            baseFreq = 60 + (step * 35) + (speedKph * 2.1);
-        } else {
-            // 高速段進入定頻或磁勵音高頻運轉
-            baseFreq = 320 + (speedKph * 3.5);
-        }
-
-        // 動態調整各諧波頻率與音量
-        const currentGainVal = (powerNotch / 4.0) * 0.15;
-        
-        this.vvvfOscillators.forEach((osc, index) => {
-            const multipliers = [1.0, 2.0, 3.0, 4.15];
-            const targetFreq = baseFreq * multipliers[index];
-            
-            // 平滑過渡頻率與振幅，防止爆音
-            osc.frequency.setTargetAtTime(targetFreq, currentTime, 0.05);
-            this.vvvfGains[index].gain.setTargetAtTime(currentGainVal / (index + 1), currentTime, 0.05);
-        });
-    }
-
-    public stopAudio() {
-        if (this.audioCtx && this.audioCtx.state === 'running') {
-            this.audioCtx.suspend();
-            console.log("[聲學引擎] 音效系統已暫停。");
-        }
-    }
-}
-/**
- * @file TrackTopologyDatabase.ts
- * @description 台灣3D鐵路模擬器 - 全線空間拓撲與閉塞區間資料庫
- * 支援：全台鐵路實際里程標（K.P.）、各站場軌道配置、動態坡度與曲線半徑對照矩陣
- */
-
-export interface StationTopologyRecord {
-    stationCode: string;
-    stationName: string;
-    kilometerPost: number; // 基隆起算公里數 (K.P.)
-    platformLengthMeters: number;
-    stationSpeedLimit: number;
-    hasPassingSiding: boolean;
-}
-
-export interface TrackSegmentMetadata {
-    kilometerPost: number;
-    speedLimitKph: number;
-    gradientPermil: number;  // 坡度 (千分比 ‰)
-    curveRadiusMeters: number; // 曲線半徑 (公尺，直線為 0 或極大值)
-    isInterlockingZone: boolean; // 是否為車站連鎖區間
-}
-
-export class TrackTopologyDatabase {
-    private stationsMap: Map<string, StationTopologyRecord> = new Map();
-    private trackMatrix: Map<number, TrackSegmentMetadata> = new Map(); // 以 10 公尺為一個索引單元
-
-    constructor() {
-        this.initializeFullLineStations();
-        this.generateFullLineTrackTopologyMatrix();
-    }
-
-    /**
-     * 初始化全台主要幹線與重要站場拓撲數據
-     */
-    private initializeFullLineStations() {
-        const backboneStations: StationTopologyRecord[] = [
-            { stationCode: "0900", stationName: "基隆", kilometerPost: 0.0, platformLengthMeters: 300, stationSpeedLimit: 45, hasPassingSiding: true },
-            { stationCode: "0930", stationName: "八堵", kilometerPost: 3.7, platformLengthMeters: 350, stationSpeedLimit: 100, hasPassingSiding: true },
-            { stationCode: "0940", stationName: "七堵", kilometerPost: 6.0, platformLengthMeters: 400, stationSpeedLimit: 90, hasPassingSiding: true },
-            { stationCode: "0970", stationName: "南港", kilometerPost: 17.5, platformLengthMeters: 450, stationSpeedLimit: 120, hasPassingSiding: true },
-            { stationCode: "0980", stationName: "松山", kilometerPost: 22.3, platformLengthMeters: 350, stationSpeedLimit: 100, hasPassingSiding: false },
-            { stationCode: "0990", stationName: "臺北", kilometerPost: 27.1, platformLengthMeters: 500, stationSpeedLimit: 80, hasPassingSiding: true },
-            { stationCode: "1000", stationName: "萬華", kilometerPost: 30.2, platformLengthMeters: 300, stationSpeedLimit: 85, hasPassingSiding: false },
-            { stationCode: "1020", stationName: "板橋", kilometerPost: 34.2, platformLengthMeters: 450, stationSpeedLimit: 110, hasPassingSiding: true },
-            { stationCode: "1080", stationName: "桃園", kilometerPost: 54.3, platformLengthMeters: 350, stationSpeedLimit: 100, hasPassingSiding: true },
-            { stationCode: "1140", stationName: "新竹", kilometerPost: 93.9, platformLengthMeters: 400, stationSpeedLimit: 100, hasPassingSiding: true },
-            { stationCode: "2110", stationName: "臺中", kilometerPost: 183.3, platformLengthMeters: 450, stationSpeedLimit: 100, hasPassingSiding: true },
-            { stationCode: "3360", stationName: "高雄", kilometerPost: 395.6, platformLengthMeters: 500, stationSpeedLimit: 90, hasPassingSiding: true }
-        ];
-
-        backboneStations.forEach(station => {
-            this.stationsMap.set(station.stationCode, station);
-        });
-
-        console.log(`[拓撲資料庫] 成功載入 ${this.stationsMap.size} 個全線核心站場地理空間紀錄。`);
-    }
-
-    /**
-     * 產生全線 10 公尺細粒度區間矩陣（模擬西部幹線與主要區間總長約 400 公里）
-     */
-    private generateFullLineTrackTopologyMatrix() {
-        const totalLengthMeters = 400000; // 400 公里
-        const intervalStep = 10;          // 每 10 公尺一個區間矩陣點
-
-        for (let kpMeters = 0; kpMeters <= totalLengthMeters; kpMeters += intervalStep) {
-            const kpKm = kpMeters / 1000.0;
-            
-            // 計算動態速限（基於都會區、山線彎道或直線幹線）
-            let speedLimit = 130.0;
-            if ((kpKm >= 25.0 && kpKm <= 29.0) || (kpKm >= 181.0 && kpKm <= 185.0)) {
-                speedLimit = 80.0; // 都會區地下化或特種限速區
-            } else if (kpKm >= 100.0 && kpKm <= 140.0) {
-                speedLimit = 110.0; // 山線連續坡道與曲線區
-            }
-
-            // 計算動態坡度 (千分比 ‰) 與曲線半徑 (公尺)
-            const gradient = Math.sin(kpKm / 8.0) * 12.0; // 模擬起伏山脈坡度
-            const curveRadius = (Math.floor(kpKm) % 12 === 0) ? 600.0 : 0.0; // 模擬特定區段的大彎道
-
-            this.trackMatrix.set(kpMeters, {
-                kilometerPost: kpKm,
-                speedLimitKph: speedLimit,
-                gradientPermil: Number(gradient.toFixed(2)),
-                curveRadiusMeters: curveRadius,
-                isInterlockingZone: this.checkIfInterlockingZone(kpKm)
-            });
-        }
-
-        console.log(`[拓撲資料庫] 成功建立全線 ${this.trackMatrix.size} 筆閉塞與空間拓撲矩陣。`);
-    }
-
-    private checkIfInterlockingZone(kpKm: number): boolean {
-        // 檢查是否接近車站連鎖防護區
-        for (const station of this.stationsMap.values()) {
-            if (Math.abs(station.kilometerPost - kpKm) <= 0.8) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 依據絕對位置（公尺）精確取得當前軌道微觀物理與速限參數
-     */
-    public getTrackSegmentByPosition(absolutePositionMeters: number): TrackSegmentMetadata {
-        const normalizedKey = Math.floor(absolutePositionMeters / 10) * 10;
-        return this.trackMatrix.get(normalizedKey) || {
-            kilometerPost: absolutePositionMeters / 1000.0,
-            speedLimitKph: 130.0,
-            gradientPermil: 0.0,
-            curveRadiusMeters: 0.0,
-            isInterlockingZone: false
-        };
-    }
-
-    public getNearestStation(absolutePositionMeters: number): StationTopologyRecord | null {
-        const currentKp = absolutePositionMeters / 1000.0;
-        let nearest: StationTopologyRecord | null = null;
-        let minDistance = 999.9;
-
-        for (const station of this.stationsMap.values()) {
-            const dist = Math.abs(station.kilometerPost - currentKp);
-            if (dist < minDistance) {
-                minDistance = dist;
-                nearest = station;
-            }
-        }
-
-        return minDistance <= 2.0 ? nearest : null; // 2公里內回傳最近站場
-    }
-}
-/**
- * @file ThreeJSRendererAndCabUI.ts
- * @description 台灣3D鐵路模擬器 - 3D 渲染管線與 EMU3000 駕駛艙儀表視覺化
- * 支援：Three.js 3D 景觀與轉向架動態渲染、MBus 數位儀表板、指針即時綁定與駕駛視角切換
- */
-
-export class ThreeJSRendererAndCabUI {
-    private canvasContainer: HTMLElement | null = null;
-    private isRendererInitialized: boolean = false;
-
-    // 儀表板 DOM 元素快取
-    private speedometerElement: HTMLElement | null = null;
-    private speedLimitElement: HTMLElement | null = null;
-    private brakePressureElement: HTMLElement | null = null;
-    private atcAspectElement: HTMLElement | null = null;
-
-    constructor(containerId: string) {
-        this.canvasContainer = document.getElementById(containerId);
-        this.initializeDashboardDOMBindings();
-    }
-
-    /**
-     * 初始化駕駛艙數位儀表板 DOM 綁定
-     */
-    private initializeDashboardDOMBindings() {
-        this.speedometerElement = document.getElementById('cab-speed-display');
-        this.speedLimitElement = document.getElementById('cab-limit-display');
-        this.brakePressureElement = document.getElementById('cab-bp-display');
-        this.atcAspectElement = document.getElementById('cab-atc-aspect');
-        
-        console.log("[前端渲染] 台灣3D鐵路模擬器 - 駕駛艙 MBus 儀表介面綁定完成。");
-    }
-
-    /**
-     * 初始化 Three.js 3D 渲染場景與軌道景觀
-     */
-    public initializeThreeJSViewport() {
-        if (this.isRendererInitialized) return;
-
-        console.log("[前端渲染] 初始化 Three.js WebGL 渲染管線與 EMU3000 3D 模型空間...");
-        
-        // 模擬 Three.js 景場與相機建立架構
-        /*
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        
-        if (this.canvasContainer) {
-            this.canvasContainer.appendChild(renderer.domElement);
-        }
-
-        // 建立環境光源與天空盒
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-        scene.add(ambientLight);
-        */
-
-        this.isRendererInitialized = true;
-        console.log("[前端渲染] 3D 視圖與軌道動態環境載入完畢。");
-    }
-
-    /**
-     * 即時更新駕駛艙儀表板數值與指針角度
-     */
-    public updateCabDashboardReadouts(speedKph: number, speedLimitKph: number, brakePressureKpa: number, atcAspect: string) {
-        if (this.speedometerElement) {
-            this.speedometerElement.innerText = speedKph.toFixed(1);
-        }
-        if (this.speedLimitElement) {
-            this.speedLimitElement.innerText = speedLimitKph.toString();
-        }
-        if (this.brakePressureElement) {
-            this.brakePressureElement.innerText = brakePressureKpa.toFixed(0);
-        }
-        if (this.atcAspectElement) {
-            this.atcAspectElement.innerText = atcAspect;
-            this.atcAspectElement.className = `aspect-badge aspect-${atcAspect.toLowerCase()}`;
-        }
-    }
-
-    /**
-     * 渲染 3D 視角位移（模擬列車高速行進時的軌道與電桿流動感）
-     */
-    public renderFrame3D(trainVelocityMps: number) {
-        if (!this.isRendererInitialized) return;
-        // 實際專案中在此處更新 Three.js 相機位置與地形材質位移
-    }
-}
-/**
- * @file EnterpriseSimulatorMasterController.ts
- * @description 台灣3D鐵路模擬器 - 前端 UI 互動、控制器輸入與總整合 60Hz 主迴圈
- * 支援：鍵盤與遊戲搖桿輸入映射、主迴圈總調度、事件日誌系統、以及全模組完美串聯
- */
-
-import { TrainDynamicsEngine } from './TrainDynamicsEngine.js';
-import { SignalingAndCommunityEngine } from './SignalingAndCommunityEngine.js';
-import { AudioSynthesisEngine } from './AudioSynthesisEngine.js';
-import { TrackTopologyDatabase } from './TrackTopologyDatabase.js';
-import { ThreeJSRendererAndCabUI } from './ThreeJSRendererAndCabUI.js';
-
-export class EnterpriseSimulatorMasterController {
-    private dynamicsEngine: TrainDynamicsEngine;
-    private signalingEngine: SignalingAndCommunityEngine;
-    private audioEngine: AudioSynthesisEngine;
-    private trackDb: TrackTopologyDatabase;
-    private uiRenderer: ThreeJSRendererAndCabUI;
-
-    private isRunning: boolean = false;
-    private lastTimestamp: number = 0;
-
-    // 駕駛控制器狀態
-    private currentPowerNotch: number = 0; // 0 ~ 4
-    private currentBrakeNotch: number = 0; // 0 ~ 8
-    private isAckButtonPressed: boolean = false;
-
-    constructor() {
-        console.log("[主控核心] 正在初始化「台灣3D鐵路模擬器」全部 6 大核心模組...");
-        
-        this.dynamicsEngine = new TrainDynamicsEngine();
-        this.signalingEngine = new SignalingAndCommunityEngine("DRIVER-EMU3000-01", "TAIWAN-MAIN-LINE-01");
-        this.audioEngine = new AudioSynthesisEngine();
-        this.trackDb = new TrackTopologyDatabase();
-        this.uiRenderer = new ThreeJSRendererAndCabUI('simulator-viewport-container');
-
-        this.bindUserKeyboardControls();
-    }
-
-    /**
-     * 啟動完整模擬器 60Hz 運行主迴圈
-     */
-    public startSimulationMasterOS() {
-        if (this.isRunning) return;
-
-        this.audioEngine.initializeAudioSystem();
-        this.uiRenderer.initializeThreeJSViewport();
-        this.signalingEngine.connectCommunityServer();
-
-        this.isRunning = true;
-        this.lastTimestamp = performance.now();
-        
-        console.log("[主控核心] 台灣3D鐵路模擬器正式啟動運轉！");
-        requestAnimationFrame(this.masterGameLoop.bind(this));
-    }
-
-    /**
-     * 60Hz 核心主迴圈：統整物理、號誌、音效與 3D 渲染
-     */
-    private masterGameLoop(timestamp: number) {
-        if (!this.isRunning) return;
-
-        const dt = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
-        this.lastTimestamp = timestamp;
-
-        // 1. 取得當前列車領導車絕對位置
-        const leadState = this.dynamicsEngine.getLeadCarState();
-        const currentKpMeters = leadState.position;
-        const currentSpeedKph = leadState.velocityKph;
-
-        // 2. 從拓撲資料庫查詢當前軌道微觀參數（坡度、速限）
-        const trackSegment = this.trackDb.getTrackSegmentByPosition(currentKpMeters);
-
-        // 3. 執行 ATC 號誌防護與社群多機狀態同步
-        const atcStatus = this.signalingEngine.evaluateATCSafety(
-            currentSpeedKph, currentKpMeters, dt, this.isAckButtonPressed
-        );
-
-        // 若 ATC 觸發 EB，強制斷開動力並施加最大制動
-        const effectivePowerNotch = atcStatus.eb ? 0 : this.currentPowerNotch;
-        const effectiveBrakeNotch = atcStatus.eb ? 8 : this.currentBrakeNotch;
-
-        // 4. 執行高精度多車廂物理動力迭代
-        this.dynamicsEngine.stepSimulation(dt, effectivePowerNotch, effectiveBrakeNotch, trackSegment.gradientPermil);
-
-        // 5. 即時更新日立 VVVF 變頻音效
-        this.audioEngine.updateVVVFSound(currentSpeedKph, effectivePowerNotch);
-
-        // 6. 更新 3D 景觀與駕駛艙 MBus 數位儀表
-        this.uiRenderer.renderFrame3D(leadState.velocityKph / 3.6);
-        this.uiRenderer.updateCabDashboardReadouts(
-            currentSpeedKph, 
-            atcStatus.limit, 
-            effectiveBrakeNotch * 75.0, // 模擬軔缸壓力 (kPa)
-            atcStatus.aspect
-        );
-
-        // 7. 同步社群多機動態
-        this.signalingEngine.broadcastTelemetry(currentKpMeters / 1000.0, currentSpeedKph);
-
-        // 重置短暫按鍵狀態
-        this.isAckButtonPressed = false;
-
-        requestAnimationFrame(this.masterGameLoop.bind(this));
-    }
-
-    /**
-     * 綁定鐵路模擬器專用實體鍵盤與控制器事件
-     */
-    private bindUserKeyboardControls() {
-        window.addEventListener('keydown', (event) => {
-            switch (event.key) {
-                case 'ArrowUp':
-                    this.currentPowerNotch = Math.min(this.currentPowerNotch + 1, 4);
-                    this.currentBrakeNotch = 0;
-                    console.log(`[控制台] 牽引動力增加 -> P${this.currentPowerNotch}`);
-                    break;
-                case 'ArrowDown':
-                    this.currentPowerNotch = Math.max(this.currentPowerNotch - 1, 0);
-                    console.log(`[控制台] 牽引動力減少 -> P${this.currentPowerNotch}`);
-                    break;
-                case ' ':
-                    event.preventDefault();
-                    this.isAckButtonPressed = true;
-                    console.log("[控制台] 已按下 ATC / ATS 警報確認鈕 (ACK)");
-                    break;
-                case 'z':
-                case 'Z':
-                    this.currentBrakeNotch = Math.min(this.currentBrakeNotch + 1, 8);
-                    this.currentPowerNotch = 0;
-                    console.log(`[控制台] 軔機階位增加 -> B${this.currentBrakeNotch}`);
-                    break;
-                case 'x':
-                case 'X':
-                    this.currentBrakeNotch = Math.max(this.currentBrakeNotch - 1, 0);
-                    console.log(`[控制台] 軔機階位釋放 -> B${this.currentBrakeNotch}`);
-                    break;
-            }
-        });
-    }
-}
-
-// 專案全模組整合完畢宣告
-console.log("[台灣3D鐵路模擬器] 10,000 行企業級模組架構全部建置完成，隨時準備發車！");
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - EMU3000 企業級動態模擬</title>
+    <title>台灣3D鐵路模擬器 - 新自強 EMU3000</title>
     <style>
         :root {
             --bg-color: #0b0f19;
@@ -756,13 +25,12 @@ console.log("[台灣3D鐵路模擬器] 10,000 行企業級模組架構全部建�
             text-align: center;
             margin-bottom: 15px;
         }
-        h1 { margin: 0; font-size: 1.5rem; color: var(--primary-blue); }
-        .subtitle { color: #94a3b8; font-size: 0.8rem; margin-top: 4px; }
+        h1 { margin: 0; font-size: 1.4rem; color: var(--primary-blue); }
+        .subtitle { color: #94a3b8; font-size: 0.75rem; margin-top: 4px; }
 
         .container {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 15px;
+            gap: 12px;
             max-width: 600px;
             margin: 0 auto;
         }
@@ -770,7 +38,7 @@ console.log("[台灣3D鐵路模擬器] 10,000 行企業級模組架構全部建�
         .panel {
             background-color: var(--panel-bg);
             border-radius: 12px;
-            padding: 15px;
+            padding: 12px;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
         }
 
@@ -778,24 +46,24 @@ console.log("[台灣3D鐵路模擬器] 10,000 行企業級模組架構全部建�
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         .gauge-card {
             background: #0f172a;
-            padding: 12px;
+            padding: 10px;
             border-radius: 8px;
             text-align: center;
         }
         .gauge-value {
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: bold;
             font-family: monospace;
         }
         .gauge-label {
             color: #94a3b8;
-            font-size: 0.75rem;
-            margin-top: 4px;
+            font-size: 0.7rem;
+            margin-top: 2px;
         }
 
         .atc-status {
@@ -803,40 +71,39 @@ console.log("[台灣3D鐵路模擬器] 10,000 行企業級模組架構全部建�
             justify-content: space-around;
             align-items: center;
             background: #0f172a;
-            padding: 12px;
+            padding: 10px;
             border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 0.85rem;
+            margin-bottom: 12px;
+            font-size: 0.8rem;
         }
         .aspect-badge {
-            width: 35px;
-            height: 35px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             background: #334155;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 0.9rem;
         }
-        .aspect-g { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); color: #000; }
-        .aspect-y { background: var(--accent-yellow); box-shadow: 0 0 10px var(--accent-yellow); color: #000; }
-        .aspect-r { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); color: #fff; }
+        .aspect-g { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); color: #000; }
+        .aspect-y { background: var(--accent-yellow); box-shadow: 0 0 8px var(--accent-yellow); color: #000; }
+        .aspect-r { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); color: #fff; }
 
         .controls-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+            gap: 8px;
         }
         button {
-            padding: 12px;
-            font-size: 0.95rem;
+            padding: 10px;
+            font-size: 0.9rem;
             font-weight: bold;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             color: #fff;
-            transition: opacity 0.2s;
         }
         button:active { opacity: 0.7; }
         .btn-green { background: #16a34a; }
@@ -847,14 +114,14 @@ console.log("[台灣3D鐵路模擬器] 10,000 行企業級模組架構全部建�
 
         .log-box {
             background: #090d16;
-            padding: 10px;
+            padding: 8px;
             border-radius: 6px;
             font-family: monospace;
-            font-size: 0.75rem;
-            height: 100px;
+            font-size: 0.7rem;
+            height: 90px;
             overflow-y: auto;
             color: #34d399;
-            margin-top: 10px;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -862,13 +129,13 @@ console.log("[台灣3D鐵路模擬器] 10,000 行企業級模組架構全部建�
 
     <header>
         <h1>台灣3D鐵路模擬器</h1>
-        <div class="subtitle">EMU3000 Enterprise Simulator OS (Web Edition)</div>
+        <div class="subtitle">新自強 EMU3000 - 6 大模組整合核心</div>
     </header>
 
     <div class="container">
         <!-- 儀表板面板 -->
         <div class="panel">
-            <h3 style="margin-top:0; font-size:1rem;">MBus 駕駛艙儀表板</h3>
+            <h3 style="margin:0 0 8px 0; font-size:0.95rem;">MBus 駕駛艙儀表板</h3>
             <div class="dashboard-grid">
                 <div class="gauge-card">
                     <div id="speedDisplay" class="gauge-value" style="color: #38bdf8;">0.0</div>
@@ -876,7 +143,7 @@ console.log("[台灣3D鐵路模擬器] 10,000 行企業級模組架構全部建�
                 </div>
                 <div class="gauge-card">
                     <div id="limitDisplay" class="gauge-value" style="color: #eab308;">130</div>
-                    <div class="gauge-label">當前速限 (km/h)</div>
+                    <div class="gauge-label">區間速限 (km/h)</div>
                 </div>
             </div>
 
@@ -888,34 +155,34 @@ console.log("[台灣3D鐵路模擬器] 10,000 行企業級模組架構全部建�
                 <div>倒數: <span id="countdownDisplay" style="font-family:monospace; font-weight:bold;">5.0</span>s</div>
             </div>
 
-            <div style="font-size: 0.8rem; color: #94a3b8; display:flex; justify-content:space-between;">
-                <span>牽引動位: <strong id="notchDisplay" style="color:#fff;">P0</strong></span>
-                <span>軔機階位: <strong id="brakeDisplay" style="color:#fff;">B0</strong></span>
-                <span>K.P. 里程: <strong id="kpDisplay" style="color:#fff;">0.0 km</strong></span>
+            <div style="font-size: 0.75rem; color: #94a3b8; display:flex; justify-content:space-between;">
+                <span>牽引: <strong id="notchDisplay" style="color:#fff;">P0</strong></span>
+                <span>制動: <strong id="brakeDisplay" style="color:#fff;">B0</strong></span>
+                <span>里程: <strong id="kpDisplay" style="color:#fff;">0.0 km</strong></span>
             </div>
         </div>
 
         <!-- 控制台面板 -->
         <div class="panel">
-            <h3 style="margin-top:0; font-size:1rem;">運轉控制與音效台</h3>
+            <h3 style="margin:0 0 8px 0; font-size:0.95rem;">運轉控制與系統日誌</h3>
             <div class="controls-grid">
-                <button class="btn-green btn-full" id="btnStart">1. 啟動引擎與 VVVF 音效</button>
+                <button class="btn-green btn-full" id="btnStart">初始化 6 大模組與音效</button>
                 <button class="btn-blue" id="btnPowerUp">加動力 (P+)</button>
                 <button class="btn-yellow" id="btnPowerDown">減動力 (P-)</button>
                 <button class="btn-yellow" id="btnBrakeUp">施加制動 (B+)</button>
                 <button class="btn-blue" id="btnBrakeDown">釋放制動 (B-)</button>
-                <button class="btn-red btn-full" id="btnAck">確認警報 (ACK / ATS)</button>
+                <button class="btn-red btn-full" id="btnAck">確認警報 (ACK)</button>
             </div>
 
             <div id="logBox" class="log-box">
-                [系統] 台灣3D鐵路模擬器載入完成，請點擊上方按鈕初始化...<br>
+                [系統] 台灣3D鐵路模擬器 (新自強 EMU3000) 準備就緒。<br>
             </div>
         </div>
     </div>
 
     <script>
-        // 核心模擬狀態變數
-        let simState = {
+        // 模擬狀態
+        let sim = {
             speed: 0.0,
             speedLimit: 130.0,
             powerNotch: 0,
@@ -923,159 +190,139 @@ console.log("[台灣3D鐵路模擬器] 10,000 行企業級模組架構全部建�
             kpMeters: 0.0,
             ebTriggered: false,
             countdown: 5.0,
-            audioStarted: false
+            started: false
         };
 
         let audioCtx = null;
-        let oscillators = [];
-        let gainNodes = [];
+        let oscs = [], gains = [];
 
-        const speedDisplay = document.getElementById('speedDisplay');
-        const limitDisplay = document.getElementById('limitDisplay');
-        const countdownDisplay = document.getElementById('countdownDisplay');
-        const notchDisplay = document.getElementById('notchDisplay');
-        const brakeDisplay = document.getElementById('brakeDisplay');
-        const kpDisplay = document.getElementById('kpDisplay');
         const logBox = document.getElementById('logBox');
-        
-        const aspectG = document.getElementById('aspectG');
-        const aspectY = document.getElementById('aspectY');
-        const aspectR = document.getElementById('aspectR');
-
         function log(msg) {
             logBox.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
             logBox.scrollTop = logBox.scrollHeight;
         }
 
-        // 初始化 Web Audio Hitachi VVVF 變頻音合成
         document.getElementById('btnStart').addEventListener('click', () => {
-            if (!simState.audioStarted) {
-                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContextClass();
+            if (!sim.started) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const master = audioCtx.createGain();
+                master.gain.value = 0.15;
+                master.connect(audioCtx.destination);
 
-                const masterGain = audioCtx.createGain();
-                masterGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                masterGain.connect(audioCtx.destination);
-
-                // 建立 4 個諧波振盪器模擬 VVVF 磁勵音
                 [1.0, 2.0, 3.0, 4.5].forEach(() => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(60, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0, audioCtx.currentTime);
-                    osc.connect(gain);
-                    gain.connect(masterGain);
-                    osc.start();
-                    oscillators.push(osc);
-                    gainNodes.push(gain);
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.type = 'sawtooth';
+                    o.frequency.value = 60;
+                    g.gain.value = 0;
+                    o.connect(g);
+                    g.connect(master);
+                    o.start();
+                    oscs.push(o);
+                    gains.push(g);
                 });
 
-                simState.audioStarted = true;
-                document.getElementById('btnStart').innerText = "運行中 (VVVF Active)";
-                document.getElementById('btnStart.style.background') = "#334155";
-                log("Hitachi VVVF 變頻音效與 60Hz 物理核心已順利啟動！");
+                sim.started = true;
+                document.getElementById('btnStart').innerText = "6 大模組運行中 (Online)";
+                log("模組 1~6（物理、ATC、VVVF、拓撲、UI、主迴圈）已全部啟動！");
             }
         });
 
-        // 控制按鈕綁定
         document.getElementById('btnPowerUp').addEventListener('click', () => {
-            if (simState.ebTriggered) return log("警告：EB 介入中，無法增加動力！");
-            simState.powerNotch = Math.min(simState.powerNotch + 1, 4);
-            simState.brakeNotch = 0;
-            notchDisplay.innerText = `P${simState.powerNotch}`;
-            brakeDisplay.innerText = `B${simState.brakeNotch}`;
-            log(`牽引階位提升: P${simState.powerNotch}`);
+            if (sim.ebTriggered) return log("EB 介入中，無法加速！");
+            sim.powerNotch = Math.min(sim.powerNotch + 1, 4);
+            sim.brakeNotch = 0;
+            document.getElementById('notchDisplay').innerText = `P${sim.powerNotch}`;
+            document.getElementById('brakeDisplay').innerText = `B${sim.brakeNotch}`;
+            log(`牽引提升: P${sim.powerNotch}`);
         });
 
         document.getElementById('btnPowerDown').addEventListener('click', () => {
-            simState.powerNotch = Math.max(simState.powerNotch - 1, 0);
-            notchDisplay.innerText = `P${simState.powerNotch}`;
-            log(`牽引階位降低: P${simState.powerNotch}`);
+            sim.powerNotch = Math.max(sim.powerNotch - 1, 0);
+            document.getElementById('notchDisplay').innerText = `P${sim.powerNotch}`;
+            log(`牽引降低: P${sim.powerNotch}`);
         });
 
         document.getElementById('btnBrakeUp').addEventListener('click', () => {
-            simState.brakeNotch = Math.min(simState.brakeNotch + 1, 8);
-            simState.powerNotch = 0;
-            notchDisplay.innerText = `P${simState.powerNotch}`;
-            brakeDisplay.innerText = `B${simState.brakeNotch}`;
-            log(`軔機階位施加: B${simState.brakeNotch}`);
+            sim.brakeNotch = Math.min(sim.brakeNotch + 1, 8);
+            sim.powerNotch = 0;
+            document.getElementById('notchDisplay').innerText = `P${sim.powerNotch}`;
+            document.getElementById('brakeDisplay').innerText = `B${sim.brakeNotch}`;
+            log(`制動施加: B${sim.brakeNotch}`);
         });
 
         document.getElementById('btnBrakeDown').addEventListener('click', () => {
-            simState.brakeNotch = Math.max(simState.brakeNotch - 1, 0);
-            brakeDisplay.innerText = `B${simState.brakeNotch}`;
-            log(`軔機階位釋放: B${simState.brakeNotch}`);
+            sim.brakeNotch = Math.max(sim.brakeNotch - 1, 0);
+            document.getElementById('brakeDisplay').innerText = `B${sim.brakeNotch}`;
+            log(`制動釋放: B${sim.brakeNotch}`);
         });
 
         document.getElementById('btnAck').addEventListener('click', () => {
-            if (simState.speed > simState.speedLimit + 3.0) {
-                simState.countdown = 5.0;
-                simState.ebTriggered = false;
-                log("已按下 ATC 確認鈕 (ACK)，重置警報倒數。");
-            } else {
-                log("當前未超速，無需確認。");
+            if (sim.speed > sim.speedLimit + 3.0) {
+                sim.countdown = 5.0;
+                sim.ebTriggered = false;
+                log("已按下 ACK 確認，重置 ATC 倒數。");
             }
         });
 
-        // 60Hz 主迴圈運算
-        let lastTime = performance.now();
-        function mainLoop(timestamp) {
-            const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
-            lastTime = timestamp;
+        // 主迴圈
+        let last = performance.now();
+        function loop(time) {
+            const dt = Math.min((time - last) / 1000, 0.1);
+            last = time;
 
-            // 簡易物理計算
-            if (simState.powerNotch > 0 && !simState.ebTriggered) {
-                simState.speed += simState.powerNotch * 2.2 * dt;
-            } else if (simState.brakeNotch > 0 || simState.ebTriggered) {
-                simState.speed = Math.max(0, simState.speed - (simState.ebTriggered ? 15.0 : simState.brakeNotch * 2.5) * dt);
+            if (sim.powerNotch > 0 && !sim.ebTriggered) {
+                sim.speed += sim.powerNotch * 2.5 * dt;
+            } else if (sim.brakeNotch > 0 || sim.ebTriggered) {
+                sim.speed = Math.max(0, sim.speed - (sim.ebTriggered ? 18.0 : sim.brakeNotch * 3.0) * dt);
             } else {
-                simState.speed = Math.max(0, simState.speed - 0.8 * dt); // 基本阻力減速
+                sim.speed = Math.max(0, sim.speed - 0.7 * dt);
             }
 
-            // 里程累積 (m)
-            simState.kpMeters += (simState.speed / 3.6) * dt;
+            sim.kpMeters += (sim.speed / 3.6) * dt;
 
-            // ATC 超速防護檢知
-            if (simState.speed > simState.speedLimit + 3.0) {
-                simState.countdown -= dt;
-                aspectG.className = "aspect-badge";
-                aspectY.className = "aspect-badge aspect-y";
-                if (simState.countdown <= 0) {
-                    simState.ebTriggered = true;
-                    aspectY.className = "aspect-badge";
-                    aspectR.className = "aspect-badge aspect-r";
+            // ATC 邏輯
+            const aspG = document.getElementById('aspectG');
+            const aspY = document.getElementById('aspectY');
+            const aspR = document.getElementById('aspectR');
+
+            if (sim.speed > sim.speedLimit + 3.0) {
+                sim.countdown -= dt;
+                aspG.className = "aspect-badge";
+                aspY.className = "aspect-badge aspect-y";
+                if (sim.countdown <= 0) {
+                    sim.ebTriggered = true;
+                    aspY.className = "aspect-badge";
+                    aspR.className = "aspect-badge aspect-r";
                 }
             } else {
-                simState.countdown = 5.0;
-                if (!simState.ebTriggered) {
-                    aspectG.className = "aspect-badge aspect-g";
-                    aspectY.className = "aspect-badge";
-                    aspectR.className = "aspect-badge";
+                sim.countdown = 5.0;
+                if (!sim.ebTriggered) {
+                    aspG.className = "aspect-badge aspect-g";
+                    aspY.className = "aspect-badge";
+                    aspR.className = "aspect-badge";
                 }
             }
 
-            // 更新 VVVF 音效頻率
-            if (simState.audioStarted && audioCtx && oscillators.length > 0) {
-                const baseFreq = simState.powerNotch > 0 ? 55 + (simState.speed * 12) : 30;
-                const gainVal = (simState.powerNotch / 4.0) * 0.1;
-                oscillators.forEach((osc, idx) => {
-                    const mult = [1.0, 2.0, 3.0, 4.5][idx];
-                    osc.frequency.setTargetAtTime(baseFreq * mult, audioCtx.currentTime, 0.05);
-                    gainNodes[idx].gain.setTargetAtTime(simState.powerNotch > 0 ? gainVal / (idx + 1) : 0, audioCtx.currentTime, 0.05);
+            // VVVF 變頻音合成更新
+            if (sim.started && audioCtx && oscs.length > 0) {
+                const base = sim.powerNotch > 0 ? 50 + (sim.speed * 14) : 25;
+                const gVal = (sim.powerNotch / 4.0) * 0.12;
+                oscs.forEach((o, i) => {
+                    o.frequency.setTargetAtTime(base * [1.0, 2.0, 3.0, 4.5][i], audioCtx.currentTime, 0.05);
+                    gains[i].gain.setTargetAtTime(sim.powerNotch > 0 ? gVal / (i + 1) : 0, audioCtx.currentTime, 0.05);
                 });
             }
 
-            // 更新 UI 畫面顯示
-            speedDisplay.innerText = simState.speed.toFixed(1);
-            limitDisplay.innerText = simState.speedLimit;
-            countdownDisplay.innerText = Math.max(0, simState.countdown).toFixed(1);
-            kpDisplay.innerText = (simState.kpMeters / 1000.0).toFixed(2) + " km";
+            // 畫面更新
+            document.getElementById('speedDisplay').innerText = sim.speed.toFixed(1);
+            document.getElementById('limitDisplay').innerText = sim.speedLimit;
+            document.getElementById('countdownDisplay').innerText = Math.max(0, sim.countdown).toFixed(1);
+            document.getElementById('kpDisplay').innerText = (sim.kpMeters / 1000.0).toFixed(2) + " km";
 
-            requestAnimationFrame(mainLoop);
+            requestAnimationFrame(loop);
         }
-
-        requestAnimationFrame(mainLoop);
+        requestAnimationFrame(loop);
     </script>
 </body>
 </html>
