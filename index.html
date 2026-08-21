@@ -365,3 +365,135 @@ export class AudioSynthesisEngine {
         }
     }
 }
+/**
+ * @file TrackTopologyDatabase.ts
+ * @description 台灣3D鐵路模擬器 - 全線空間拓撲與閉塞區間資料庫
+ * 支援：全台鐵路實際里程標（K.P.）、各站場軌道配置、動態坡度與曲線半徑對照矩陣
+ */
+
+export interface StationTopologyRecord {
+    stationCode: string;
+    stationName: string;
+    kilometerPost: number; // 基隆起算公里數 (K.P.)
+    platformLengthMeters: number;
+    stationSpeedLimit: number;
+    hasPassingSiding: boolean;
+}
+
+export interface TrackSegmentMetadata {
+    kilometerPost: number;
+    speedLimitKph: number;
+    gradientPermil: number;  // 坡度 (千分比 ‰)
+    curveRadiusMeters: number; // 曲線半徑 (公尺，直線為 0 或極大值)
+    isInterlockingZone: boolean; // 是否為車站連鎖區間
+}
+
+export class TrackTopologyDatabase {
+    private stationsMap: Map<string, StationTopologyRecord> = new Map();
+    private trackMatrix: Map<number, TrackSegmentMetadata> = new Map(); // 以 10 公尺為一個索引單元
+
+    constructor() {
+        this.initializeFullLineStations();
+        this.generateFullLineTrackTopologyMatrix();
+    }
+
+    /**
+     * 初始化全台主要幹線與重要站場拓撲數據
+     */
+    private initializeFullLineStations() {
+        const backboneStations: StationTopologyRecord[] = [
+            { stationCode: "0900", stationName: "基隆", kilometerPost: 0.0, platformLengthMeters: 300, stationSpeedLimit: 45, hasPassingSiding: true },
+            { stationCode: "0930", stationName: "八堵", kilometerPost: 3.7, platformLengthMeters: 350, stationSpeedLimit: 100, hasPassingSiding: true },
+            { stationCode: "0940", stationName: "七堵", kilometerPost: 6.0, platformLengthMeters: 400, stationSpeedLimit: 90, hasPassingSiding: true },
+            { stationCode: "0970", stationName: "南港", kilometerPost: 17.5, platformLengthMeters: 450, stationSpeedLimit: 120, hasPassingSiding: true },
+            { stationCode: "0980", stationName: "松山", kilometerPost: 22.3, platformLengthMeters: 350, stationSpeedLimit: 100, hasPassingSiding: false },
+            { stationCode: "0990", stationName: "臺北", kilometerPost: 27.1, platformLengthMeters: 500, stationSpeedLimit: 80, hasPassingSiding: true },
+            { stationCode: "1000", stationName: "萬華", kilometerPost: 30.2, platformLengthMeters: 300, stationSpeedLimit: 85, hasPassingSiding: false },
+            { stationCode: "1020", stationName: "板橋", kilometerPost: 34.2, platformLengthMeters: 450, stationSpeedLimit: 110, hasPassingSiding: true },
+            { stationCode: "1080", stationName: "桃園", kilometerPost: 54.3, platformLengthMeters: 350, stationSpeedLimit: 100, hasPassingSiding: true },
+            { stationCode: "1140", stationName: "新竹", kilometerPost: 93.9, platformLengthMeters: 400, stationSpeedLimit: 100, hasPassingSiding: true },
+            { stationCode: "2110", stationName: "臺中", kilometerPost: 183.3, platformLengthMeters: 450, stationSpeedLimit: 100, hasPassingSiding: true },
+            { stationCode: "3360", stationName: "高雄", kilometerPost: 395.6, platformLengthMeters: 500, stationSpeedLimit: 90, hasPassingSiding: true }
+        ];
+
+        backboneStations.forEach(station => {
+            this.stationsMap.set(station.stationCode, station);
+        });
+
+        console.log(`[拓撲資料庫] 成功載入 ${this.stationsMap.size} 個全線核心站場地理空間紀錄。`);
+    }
+
+    /**
+     * 產生全線 10 公尺細粒度區間矩陣（模擬西部幹線與主要區間總長約 400 公里）
+     */
+    private generateFullLineTrackTopologyMatrix() {
+        const totalLengthMeters = 400000; // 400 公里
+        const intervalStep = 10;          // 每 10 公尺一個區間矩陣點
+
+        for (let kpMeters = 0; kpMeters <= totalLengthMeters; kpMeters += intervalStep) {
+            const kpKm = kpMeters / 1000.0;
+            
+            // 計算動態速限（基於都會區、山線彎道或直線幹線）
+            let speedLimit = 130.0;
+            if ((kpKm >= 25.0 && kpKm <= 29.0) || (kpKm >= 181.0 && kpKm <= 185.0)) {
+                speedLimit = 80.0; // 都會區地下化或特種限速區
+            } else if (kpKm >= 100.0 && kpKm <= 140.0) {
+                speedLimit = 110.0; // 山線連續坡道與曲線區
+            }
+
+            // 計算動態坡度 (千分比 ‰) 與曲線半徑 (公尺)
+            const gradient = Math.sin(kpKm / 8.0) * 12.0; // 模擬起伏山脈坡度
+            const curveRadius = (Math.floor(kpKm) % 12 === 0) ? 600.0 : 0.0; // 模擬特定區段的大彎道
+
+            this.trackMatrix.set(kpMeters, {
+                kilometerPost: kpKm,
+                speedLimitKph: speedLimit,
+                gradientPermil: Number(gradient.toFixed(2)),
+                curveRadiusMeters: curveRadius,
+                isInterlockingZone: this.checkIfInterlockingZone(kpKm)
+            });
+        }
+
+        console.log(`[拓撲資料庫] 成功建立全線 ${this.trackMatrix.size} 筆閉塞與空間拓撲矩陣。`);
+    }
+
+    private checkIfInterlockingZone(kpKm: number): boolean {
+        // 檢查是否接近車站連鎖防護區
+        for (const station of this.stationsMap.values()) {
+            if (Math.abs(station.kilometerPost - kpKm) <= 0.8) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 依據絕對位置（公尺）精確取得當前軌道微觀物理與速限參數
+     */
+    public getTrackSegmentByPosition(absolutePositionMeters: number): TrackSegmentMetadata {
+        const normalizedKey = Math.floor(absolutePositionMeters / 10) * 10;
+        return this.trackMatrix.get(normalizedKey) || {
+            kilometerPost: absolutePositionMeters / 1000.0,
+            speedLimitKph: 130.0,
+            gradientPermil: 0.0,
+            curveRadiusMeters: 0.0,
+            isInterlockingZone: false
+        };
+    }
+
+    public getNearestStation(absolutePositionMeters: number): StationTopologyRecord | null {
+        const currentKp = absolutePositionMeters / 1000.0;
+        let nearest: StationTopologyRecord | null = null;
+        let minDistance = 999.9;
+
+        for (const station of this.stationsMap.values()) {
+            const dist = Math.abs(station.kilometerPost - currentKp);
+            if (dist < minDistance) {
+                minDistance = dist;
+                nearest = station;
+            }
+        }
+
+        return minDistance <= 2.0 ? nearest : null; // 2公里內回傳最近站場
+    }
+}
