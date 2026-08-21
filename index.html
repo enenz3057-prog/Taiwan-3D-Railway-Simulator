@@ -88,3 +88,106 @@
     </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣3D鐵路模擬器 - 第二階段：ATC 號誌防護</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #0b0f19;
+            color: #f8fafc;
+            font-family: sans-serif;
+            text-align: center;
+        }
+        .container { max-width: 400px; margin: 0 auto; background: #1e293b; padding: 15px; border-radius: 8px; }
+        .gauge { font-size: 2rem; font-weight: bold; font-family: monospace; color: #38bdf8; margin: 10px 0; }
+        .atc-box { display: flex; justify-content: space-around; background: #0f172a; padding: 10px; border-radius: 6px; margin: 10px 0; align-items: center; }
+        .aspect { width: 30px; height: 30px; border-radius: 50%; background: #334155; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .aspect-g { background: #22c55e; color: #000; box-shadow: 0 0 8px #22c55e; }
+        .aspect-y { background: #eab308; color: #000; box-shadow: 0 0 8px #eab308; }
+        .aspect-r { background: #ef4444; color: #fff; box-shadow: 0 0 8px #ef4444; }
+        button { padding: 8px 12px; font-weight: bold; margin: 4px; cursor: pointer; border: none; border-radius: 4px; color: #fff; }
+        .btn-green { background: #16a34a; }
+        .btn-yellow { background: #ca8a04; }
+        .btn-red { background: #dc2626; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>台灣3D鐵路模擬器</h2>
+        <div style="font-size: 0.8rem; color: #94a3b8;">第二階段：ATC 號誌防護與速限監控</div>
+        
+        <div class="gauge" id="speedDisplay">0.0 km/h</div>
+        <div style="font-size: 0.85rem; color: #eab308;">當前速限: <span id="limitDisplay">130</span> km/h</div>
+
+        <div class="atc-box">
+            <span>ATC:</span>
+            <div id="aspG" class="aspect aspect-g">G</div>
+            <div id="aspY" class="aspect">Y</div>
+            <div id="aspR" class="aspect">R</div>
+            <span>倒數: <span id="countdown" style="font-family:monospace;">5.0</span>s</span>
+        </div>
+
+        <div>
+            <button class="btn-green" id="btnAccel">加速</button>
+            <button class="btn-yellow" id="btnBrake">減速</button>
+            <button class="btn-red" id="btnAck">ACK 警報確認</button>
+        </div>
+    </div>
+
+    <script>
+        let sim = {
+            speed: 0.0,
+            limit: 80.0,
+            countdown: 5.0,
+            eb: false
+        };
+
+        function triggerAck() {
+            if (sim.speed > sim.limit) {
+                sim.countdown = 5.0;
+                sim.eb = false;
+                alert("已確認 ATC 警報！");
+            }
+        }
+
+        document.getElementById('btnAccel').addEventListener('click', () => { if(!sim.eb) sim.speed += 10; });
+        document.getElementById('btnBrake').addEventListener('click', () => { sim.speed = Math.max(0, sim.speed - 15); });
+        document.getElementById('btnAck').addEventListener('click', triggerAck);
+
+        setInterval(() => {
+            const aspG = document.getElementById('aspG');
+            const aspY = document.getElementById('aspY');
+            const aspR = document.getElementById('aspR');
+
+            if (sim.speed > sim.limit + 3.0) {
+                sim.countdown -= 0.1;
+                aspG.className = "aspect";
+                aspY.className = "aspect aspect-y";
+                if (sim.countdown <= 0) {
+                    sim.eb = true;
+                    sim.speed = Math.max(0, sim.speed - 5.0);
+                    aspY.className = "aspect";
+                    aspR.className = "aspect aspect-r";
+                }
+            } else {
+                sim.countdown = 5.0;
+                if (!sim.eb) {
+                    aspG.className = "aspect aspect-g";
+                    aspY.className = "aspect";
+                    aspR.className = "aspect";
+                }
+            }
+
+            document.getElementById('speedDisplay').innerText = sim.speed.toFixed(1) + " km/h";
+            document.getElementById('limitDisplay').innerText = sim.limit;
+            document.getElementById('countdown').innerText = Math.max(0, sim.countdown).toFixed(1);
+        }, 100);
+    </script>
+</body>
+</html>
