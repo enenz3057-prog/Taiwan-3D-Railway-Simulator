@@ -191,3 +191,106 @@
     </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣3D鐵路模擬器 - 第三階段：Hitachi VVVF 音效</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #0b0f19;
+            color: #f8fafc;
+            font-family: sans-serif;
+            text-align: center;
+        }
+        .container { max-width: 400px; margin: 0 auto; background: #1e293b; padding: 15px; border-radius: 8px; }
+        .gauge { font-size: 2rem; font-weight: bold; font-family: monospace; color: #38bdf8; margin: 10px 0; }
+        button { padding: 10px 15px; font-weight: bold; margin: 5px; cursor: pointer; border: none; border-radius: 4px; color: #fff; }
+        .btn-green { background: #16a34a; }
+        .btn-blue { background: #0284c7; }
+        .btn-yellow { background: #ca8a04; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>台灣3D鐵路模擬器</h2>
+        <div style="font-size: 0.8rem; color: #94a3b8;">第三階段：Hitachi VVVF 變頻音效引擎</div>
+        
+        <div class="gauge" id="speedDisplay">0.0 km/h</div>
+        <div style="margin: 10px 0; font-size: 0.9rem;">
+            牽引狀態: <span id="powerStatus" style="font-weight:bold; color:#22c55e;">滑行/惰行</span>
+        </div>
+
+        <div>
+            <button class="btn-green" id="btnStartAudio">啟動音效引擎</button><br>
+            <button class="btn-blue" id="btnPowerOn">施加牽引 (加速)</button>
+            <button class="btn-yellow" id="btnPowerOff">切斷牽引 (滑行)</button>
+        </div>
+    </div>
+
+    <script>
+        let sim = {
+            speed: 0.0,
+            isPowered: false,
+            audioStarted: false
+        };
+
+        let audioCtx = null;
+        let oscs = [], gains = [];
+
+        document.getElementById('btnStartAudio').addEventListener('click', () => {
+            if (!sim.audioStarted) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const master = audioCtx.createGain();
+                master.gain.value = 0.2;
+                master.connect(audioCtx.destination);
+
+                // 建立四個不同頻率倍數的合成音軌來模擬 VVVF 變頻聲
+                [1.0, 2.0, 3.0, 4.5].forEach(() => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.type = 'sawtooth';
+                    o.frequency.value = 60;
+                    g.gain.value = 0;
+                    o.connect(g);
+                    g.connect(master);
+                    o.start();
+                    oscs.push(o);
+                    gains.push(g);
+                });
+
+                sim.audioStarted = true;
+                document.getElementById('btnStartAudio').innerText = "音效引擎運行中";
+                alert("Web Audio API VVVF 音效已啟動！");
+            }
+        });
+
+        document.getElementById('btnPowerOn').addEventListener('click', () => { sim.isPowered = true; document.getElementById('powerStatus').innerText = "牽引輸出中"; });
+        document.getElementById('btnPowerOff').addEventListener('click', () => { sim.isPowered = false; document.getElementById('powerStatus').innerText = "滑行/惰行"; });
+
+        setInterval(() => {
+            if (sim.isPowered) {
+                sim.speed = Math.min(130, sim.speed + 1.5);
+            } else {
+                sim.speed = Math.max(0, sim.speed - 0.5);
+            }
+
+            // 即時動態調整 VVVF 頻率與音量
+            if (sim.audioStarted && audioCtx && oscs.length > 0) {
+                const base = sim.isPowered ? 50 + (sim.speed * 14) : 25;
+                const gVal = sim.isPowered ? 0.12 : 0.0;
+                oscs.forEach((o, i) => {
+                    o.frequency.setTargetAtTime(base * [1.0, 2.0, 3.0, 4.5][i], audioCtx.currentTime, 0.05);
+                    gains[i].gain.setTargetAtTime(gVal / (i + 1), audioCtx.currentTime, 0.05);
+                });
+            }
+
+            document.getElementById('speedDisplay').innerText = sim.speed.toFixed(1) + " km/h";
+        }, 100);
+    </script>
+</body>
+</html>
