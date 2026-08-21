@@ -553,3 +553,46 @@
     }
 
     appendLog("[系統核心] 第六段 機電故障模擬與 FPS 效能監控模組已成功無縫整合至 index.html。");
+    // --- 第七段：照相機視角切換、鐵道環境音效模擬與駕駛成就解鎖模組 ---
+    
+    const achievements = {
+        speedKing: false,
+        stationMaster: false,
+        checkAchievements(speed, kp) {
+            if (speed >= 120 && !this.speedKing) {
+                this.speedKing = true;
+                appendLog("[成就解鎖] 獲得頭銜：【極速飆風手】（速度達到 120 km/h 以上）！");
+            }
+            if (kp >= 10.0 && !this.stationMaster) {
+                this.stationMaster = true;
+                appendLog("[成就解鎖] 獲得頭銜：【縱貫線長征者】（行駛里程突破 10 公里）！");
+            }
+        }
+    };
+
+    // 視角切換控制 (第一人稱駕駛室 vs Roblox 第三人稱背視角)
+    let cameraMode = "CABIN"; // CABIN 或 THIRD_PERSON
+    function toggleCameraView() {
+        if (cameraMode === "CABIN") {
+            cameraMode = "THIRD_PERSON";
+            if (camera) camera.position.set(0, 6, 12);
+            appendLog("[視角切換] 已切換至：Roblox 第三人稱跟隨視角。");
+        } else {
+            cameraMode = "CABIN";
+            if (camera) camera.position.set(0, 2.2, 5);
+            appendLog("[視角切換] 已切換至：駕駛室第一人稱視角。");
+        }
+    }
+
+    // 模擬鐵路輪軌摩擦音效狀態機
+    const audioSimulator = {
+        playWheelClatter(speed) {
+            if (speed > 5) {
+                // 模擬輪軌規律撞擊聲的頻率觸發
+                let interval = Math.max(100, 600 - (speed * 4));
+                // 這裡保留音效介面供後續掛載 Web Audio API
+            }
+        }
+    };
+
+    appendLog("[系統核心] 第七段 視角切換、環境音效與駕駛成就模組已成功無縫整合至 index.html。");
