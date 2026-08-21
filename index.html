@@ -729,3 +729,353 @@ export class EnterpriseSimulatorMasterController {
 
 // 專案全模組整合完畢宣告
 console.log("[台灣3D鐵路模擬器] 10,000 行企業級模組架構全部建置完成，隨時準備發車！");
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣3D鐵路模擬器 - EMU3000 企業級動態模擬</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: #1e293b;
+            --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
+            --primary-blue: #38bdf8;
+        }
+        body {
+            margin: 0;
+            padding: 15px;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        h1 { margin: 0; font-size: 1.5rem; color: var(--primary-blue); }
+        .subtitle { color: #94a3b8; font-size: 0.8rem; margin-top: 4px; }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .gauge-card {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .gauge-value {
+            font-size: 2rem;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        .gauge-label {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            margin-top: 4px;
+        }
+
+        .atc-status {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+        }
+        .aspect-badge {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        .aspect-g { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); color: #000; }
+        .aspect-y { background: var(--accent-yellow); box-shadow: 0 0 10px var(--accent-yellow); color: #000; }
+        .aspect-r { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); color: #fff; }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        button {
+            padding: 12px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #fff;
+            transition: opacity 0.2s;
+        }
+        button:active { opacity: 0.7; }
+        .btn-green { background: #16a34a; }
+        .btn-blue { background: #0284c7; }
+        .btn-yellow { background: #ca8a04; color: #000; }
+        .btn-red { background: #dc2626; }
+        .btn-full { grid-column: span 2; }
+
+        .log-box {
+            background: #090d16;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            height: 100px;
+            overflow-y: auto;
+            color: #34d399;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>台灣3D鐵路模擬器</h1>
+        <div class="subtitle">EMU3000 Enterprise Simulator OS (Web Edition)</div>
+    </header>
+
+    <div class="container">
+        <!-- 儀表板面板 -->
+        <div class="panel">
+            <h3 style="margin-top:0; font-size:1rem;">MBus 駕駛艙儀表板</h3>
+            <div class="dashboard-grid">
+                <div class="gauge-card">
+                    <div id="speedDisplay" class="gauge-value" style="color: #38bdf8;">0.0</div>
+                    <div class="gauge-label">列車速度 (km/h)</div>
+                </div>
+                <div class="gauge-card">
+                    <div id="limitDisplay" class="gauge-value" style="color: #eab308;">130</div>
+                    <div class="gauge-label">當前速限 (km/h)</div>
+                </div>
+            </div>
+
+            <div class="atc-status">
+                <div>ATC 號誌:</div>
+                <div id="aspectG" class="aspect-badge aspect-g">G</div>
+                <div id="aspectY" class="aspect-badge">Y</div>
+                <div id="aspectR" class="aspect-badge">R</div>
+                <div>倒數: <span id="countdownDisplay" style="font-family:monospace; font-weight:bold;">5.0</span>s</div>
+            </div>
+
+            <div style="font-size: 0.8rem; color: #94a3b8; display:flex; justify-content:space-between;">
+                <span>牽引動位: <strong id="notchDisplay" style="color:#fff;">P0</strong></span>
+                <span>軔機階位: <strong id="brakeDisplay" style="color:#fff;">B0</strong></span>
+                <span>K.P. 里程: <strong id="kpDisplay" style="color:#fff;">0.0 km</strong></span>
+            </div>
+        </div>
+
+        <!-- 控制台面板 -->
+        <div class="panel">
+            <h3 style="margin-top:0; font-size:1rem;">運轉控制與音效台</h3>
+            <div class="controls-grid">
+                <button class="btn-green btn-full" id="btnStart">1. 啟動引擎與 VVVF 音效</button>
+                <button class="btn-blue" id="btnPowerUp">加動力 (P+)</button>
+                <button class="btn-yellow" id="btnPowerDown">減動力 (P-)</button>
+                <button class="btn-yellow" id="btnBrakeUp">施加制動 (B+)</button>
+                <button class="btn-blue" id="btnBrakeDown">釋放制動 (B-)</button>
+                <button class="btn-red btn-full" id="btnAck">確認警報 (ACK / ATS)</button>
+            </div>
+
+            <div id="logBox" class="log-box">
+                [系統] 台灣3D鐵路模擬器載入完成，請點擊上方按鈕初始化...<br>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 核心模擬狀態變數
+        let simState = {
+            speed: 0.0,
+            speedLimit: 130.0,
+            powerNotch: 0,
+            brakeNotch: 0,
+            kpMeters: 0.0,
+            ebTriggered: false,
+            countdown: 5.0,
+            audioStarted: false
+        };
+
+        let audioCtx = null;
+        let oscillators = [];
+        let gainNodes = [];
+
+        const speedDisplay = document.getElementById('speedDisplay');
+        const limitDisplay = document.getElementById('limitDisplay');
+        const countdownDisplay = document.getElementById('countdownDisplay');
+        const notchDisplay = document.getElementById('notchDisplay');
+        const brakeDisplay = document.getElementById('brakeDisplay');
+        const kpDisplay = document.getElementById('kpDisplay');
+        const logBox = document.getElementById('logBox');
+        
+        const aspectG = document.getElementById('aspectG');
+        const aspectY = document.getElementById('aspectY');
+        const aspectR = document.getElementById('aspectR');
+
+        function log(msg) {
+            logBox.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // 初始化 Web Audio Hitachi VVVF 變頻音合成
+        document.getElementById('btnStart').addEventListener('click', () => {
+            if (!simState.audioStarted) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContextClass();
+
+                const masterGain = audioCtx.createGain();
+                masterGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                masterGain.connect(audioCtx.destination);
+
+                // 建立 4 個諧波振盪器模擬 VVVF 磁勵音
+                [1.0, 2.0, 3.0, 4.5].forEach(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(60, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    osc.connect(gain);
+                    gain.connect(masterGain);
+                    osc.start();
+                    oscillators.push(osc);
+                    gainNodes.push(gain);
+                });
+
+                simState.audioStarted = true;
+                document.getElementById('btnStart').innerText = "運行中 (VVVF Active)";
+                document.getElementById('btnStart.style.background') = "#334155";
+                log("Hitachi VVVF 變頻音效與 60Hz 物理核心已順利啟動！");
+            }
+        });
+
+        // 控制按鈕綁定
+        document.getElementById('btnPowerUp').addEventListener('click', () => {
+            if (simState.ebTriggered) return log("警告：EB 介入中，無法增加動力！");
+            simState.powerNotch = Math.min(simState.powerNotch + 1, 4);
+            simState.brakeNotch = 0;
+            notchDisplay.innerText = `P${simState.powerNotch}`;
+            brakeDisplay.innerText = `B${simState.brakeNotch}`;
+            log(`牽引階位提升: P${simState.powerNotch}`);
+        });
+
+        document.getElementById('btnPowerDown').addEventListener('click', () => {
+            simState.powerNotch = Math.max(simState.powerNotch - 1, 0);
+            notchDisplay.innerText = `P${simState.powerNotch}`;
+            log(`牽引階位降低: P${simState.powerNotch}`);
+        });
+
+        document.getElementById('btnBrakeUp').addEventListener('click', () => {
+            simState.brakeNotch = Math.min(simState.brakeNotch + 1, 8);
+            simState.powerNotch = 0;
+            notchDisplay.innerText = `P${simState.powerNotch}`;
+            brakeDisplay.innerText = `B${simState.brakeNotch}`;
+            log(`軔機階位施加: B${simState.brakeNotch}`);
+        });
+
+        document.getElementById('btnBrakeDown').addEventListener('click', () => {
+            simState.brakeNotch = Math.max(simState.brakeNotch - 1, 0);
+            brakeDisplay.innerText = `B${simState.brakeNotch}`;
+            log(`軔機階位釋放: B${simState.brakeNotch}`);
+        });
+
+        document.getElementById('btnAck').addEventListener('click', () => {
+            if (simState.speed > simState.speedLimit + 3.0) {
+                simState.countdown = 5.0;
+                simState.ebTriggered = false;
+                log("已按下 ATC 確認鈕 (ACK)，重置警報倒數。");
+            } else {
+                log("當前未超速，無需確認。");
+            }
+        });
+
+        // 60Hz 主迴圈運算
+        let lastTime = performance.now();
+        function mainLoop(timestamp) {
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+            lastTime = timestamp;
+
+            // 簡易物理計算
+            if (simState.powerNotch > 0 && !simState.ebTriggered) {
+                simState.speed += simState.powerNotch * 2.2 * dt;
+            } else if (simState.brakeNotch > 0 || simState.ebTriggered) {
+                simState.speed = Math.max(0, simState.speed - (simState.ebTriggered ? 15.0 : simState.brakeNotch * 2.5) * dt);
+            } else {
+                simState.speed = Math.max(0, simState.speed - 0.8 * dt); // 基本阻力減速
+            }
+
+            // 里程累積 (m)
+            simState.kpMeters += (simState.speed / 3.6) * dt;
+
+            // ATC 超速防護檢知
+            if (simState.speed > simState.speedLimit + 3.0) {
+                simState.countdown -= dt;
+                aspectG.className = "aspect-badge";
+                aspectY.className = "aspect-badge aspect-y";
+                if (simState.countdown <= 0) {
+                    simState.ebTriggered = true;
+                    aspectY.className = "aspect-badge";
+                    aspectR.className = "aspect-badge aspect-r";
+                }
+            } else {
+                simState.countdown = 5.0;
+                if (!simState.ebTriggered) {
+                    aspectG.className = "aspect-badge aspect-g";
+                    aspectY.className = "aspect-badge";
+                    aspectR.className = "aspect-badge";
+                }
+            }
+
+            // 更新 VVVF 音效頻率
+            if (simState.audioStarted && audioCtx && oscillators.length > 0) {
+                const baseFreq = simState.powerNotch > 0 ? 55 + (simState.speed * 12) : 30;
+                const gainVal = (simState.powerNotch / 4.0) * 0.1;
+                oscillators.forEach((osc, idx) => {
+                    const mult = [1.0, 2.0, 3.0, 4.5][idx];
+                    osc.frequency.setTargetAtTime(baseFreq * mult, audioCtx.currentTime, 0.05);
+                    gainNodes[idx].gain.setTargetAtTime(simState.powerNotch > 0 ? gainVal / (idx + 1) : 0, audioCtx.currentTime, 0.05);
+                });
+            }
+
+            // 更新 UI 畫面顯示
+            speedDisplay.innerText = simState.speed.toFixed(1);
+            limitDisplay.innerText = simState.speedLimit;
+            countdownDisplay.innerText = Math.max(0, simState.countdown).toFixed(1);
+            kpDisplay.innerText = (simState.kpMeters / 1000.0).toFixed(2) + " km";
+
+            requestAnimationFrame(mainLoop);
+        }
+
+        requestAnimationFrame(mainLoop);
+    </script>
+</body>
+</html>
