@@ -434,3 +434,144 @@
 
             // 4. VVVF 音效頻率動態調變
  
+    <!-- ==========================================
+         模組八：鍵盤快捷鍵與實體控制器擴充層 (Keyboard Listener)
+         ========================================== -->
+    <script>
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                if (simulator.powerNotch < 4) simulator.powerNotch++;
+                simulator.brakeNotch = 0;
+                appendLog(`[鍵盤操控] 牽引階位升至 P${simulator.powerNotch}`);
+            } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                if (simulator.powerNotch > 0) simulator.powerNotch--;
+                appendLog(`[鍵盤操控] 牽引階位降至 P${simulator.powerNotch}`);
+            } else if (e.key === 'd' || e.key === 'D') {
+                if (simulator.brakeNotch < 8) simulator.brakeNotch++;
+                simulator.powerNotch = 0;
+                appendLog(`[鍵盤操控] 制動階位施加至 B${simulator.brakeNotch}`);
+            } else if (e.key === 'a' || e.key === 'A') {
+                if (simulator.brakeNotch > 0) simulator.brakeNotch--;
+                appendLog(`[鍵盤操控] 制動階位緩解至 B${simulator.brakeNotch}`);
+            } else if (e.key === ' ' || e.key === 'Enter') {
+                simulator.countdown = 5.0;
+                simulator.ebTriggered = false;
+                appendLog("[鍵盤操控] ATC / ATS 警報確認 (ACK) 執行完成。");
+            }
+        });
+    </script>
+
+    <!-- ==========================================
+         模組九：車內自動語音與進站播報系統 (Station Announcement)
+         ========================================== -->
+    <script>
+        const announcementSystem = {
+            lastAnnouncedStation: "",
+            checkAndAnnounce(stationName, kp) {
+                if (stationName !== this.lastAnnouncedStation && stationName.includes("接近")) {
+                    this.lastAnnouncedStation = stationName;
+                    appendLog(`[車內廣播] 各位旅客請注意，列車即將到達 ${stationName.replace("接近 ", "")}，請提前準備下車。`);
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組十：氣象與日夜環境變換模擬器 (Environment & Weather)
+         ========================================== -->
+    <script>
+        const environmentSimulator = {
+            timeOfDay: "Day", // Day, Dusk, Night
+            weather: "Clear", // Clear, Rain, Fog
+            skyColorTop: "#060913",
+            skyColorBottom: "#111827",
+            updateEnvironment(kp) {
+                // 根據行駛里程自動變換環境氛圍
+                let hourVal = Math.floor((kp / 10.0) % 24);
+                if (hourVal >= 6 && hourVal < 18) {
+                    this.timeOfDay = "Day";
+                    this.skyColorTop = "#0284c7";
+                    this.skyColorBottom = "#38bdf8";
+                } else if (hourVal >= 18 && hourVal < 20) {
+                    this.timeOfDay = "Dusk";
+                    this.skyColorTop = "#c2410c";
+                    this.skyColorBottom = "#7c2d12";
+                } else {
+                    this.timeOfDay = "Night";
+                    this.skyColorTop = "#030712";
+                    this.skyColorBottom = "#000000";
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組十一：轉轍器過岔震動與音效回饋模擬 (Turnout & Vibration)
+         ========================================== -->
+    <script>
+        const turnoutSystem = {
+            isPassingTurnout: false,
+            vibrationOffset: 0,
+            computeTurnoutVibration(kp, speed, dt) {
+                // 當接近特定里程時模擬經過轉轍器的上下晃動
+                let modVal = kp % 5.0;
+                if (modVal < 0.3 && speed > 20) {
+                    this.isPassingTurnout = true;
+                    this.vibrationOffset = (Math.random() - 0.5) * 4.0;
+                } else {
+                    this.isPassingTurnout = false;
+                    this.vibrationOffset = 0;
+                }
+                return this.vibrationOffset;
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組十二：列車故障診斷與狀態紀錄器 (Diagnostics & Telemetry Log)
+         ========================================== -->
+    <script>
+        const vehicleDiagnostics = {
+            pantographStatus: "正常 (Normal)",
+            mainCircuitBreaker: "投入 (Closed)",
+            auxiliaryPowerSupply: "正常運作 (Active)",
+            compressorPressureKpa: 850.0,
+            updateDiagnostics(dt) {
+                // 模擬主風泵壓力隨時間微幅波動
+                if (this.compressorPressureKpa < 900) {
+                    this.compressorPressureKpa += 2.5 * dt;
+                }
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組十三：多車廂連掛重連運轉模擬 (Consist Multi-Unit Physics)
+         ========================================== -->
+    <script>
+        const consistSimulator = {
+            totalCars: 12, // EMU3000 標準 12 編組
+            carType: "EMU3000 新自強號城際列車",
+            motorCarCount: 8,
+            trailerCarCount: 4,
+            calculateConsistEfficiency() {
+                return (this.motorCarCount / this.totalCars);
+            }
+        };
+    </script>
+
+    <!-- ==========================================
+         模組十四：高級運行統計與誤點判定分析器 (Performance Analytics)
+         ========================================== -->
+    <script>
+        const performanceAnalytics = {
+            totalTripTimeSeconds: 0,
+            maxRecordedSpeed: 0.0,
+            recordPerformance(speed, dt) {
+                this.totalTripTimeSeconds += dt;
+                if (speed > this.maxRecordedSpeed) {
+                    this.maxRecordedSpeed = speed;
+                }
+            }
+        };
+    </script>
