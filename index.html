@@ -294,3 +294,93 @@
     </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣3D鐵路模擬器 - 第四階段：拓撲資料庫與坡度</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #0b0f19;
+            color: #f8fafc;
+            font-family: sans-serif;
+            text-align: center;
+        }
+        .container { max-width: 400px; margin: 0 auto; background: #1e293b; padding: 15px; border-radius: 8px; }
+        .gauge { font-size: 2rem; font-weight: bold; font-family: monospace; color: #38bdf8; margin: 10px 0; }
+        .topo-box { background: #090d16; padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 0.85rem; color: #38bdf8; text-align: left; }
+        button { padding: 8px 12px; font-weight: bold; margin: 4px; cursor: pointer; border: none; border-radius: 4px; color: #fff; }
+        .btn-green { background: #16a34a; }
+        .btn-yellow { background: #ca8a04; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>台灣3D鐵路模擬器</h2>
+        <div style="font-size: 0.8rem; color: #94a3b8;">第四階段：全線拓撲資料庫與坡度阻力</div>
+        
+        <div class="gauge" id="speedDisplay">0.0 km/h</div>
+        
+        <div class="topo-box">
+            <div>當前站場/區間: <span id="stationDisplay" style="color:#fff;">基隆 (0.0k)</span></div>
+            <div>軌道當前坡度: <span id="gradientDisplay" style="color:#fff;">0.0 ‰</span></div>
+            <div>區間動態速限: <span id="limitDisplay" style="color:#eab308;">45</span> km/h</div>
+        </div>
+
+        <div>
+            <button class="btn-green" id="btnAccel">加速前進</button>
+            <button class="btn-yellow" id="btnBrake">減速</button>
+        </div>
+    </div>
+
+    <script>
+        let sim = {
+            speed: 0.0,
+            kpMeters: 0.0
+        };
+
+        const stations = [
+            { name: "基隆", kp: 0.0, limit: 45 },
+            { name: "八堵", kp: 3.7, limit: 100 },
+            { name: "七堵", kp: 6.0, limit: 90 },
+            { name: "南港", kp: 17.5, limit: 120 },
+            { name: "臺北", kp: 27.1, limit: 80 }
+        ];
+
+        function getTrackMetadata(kpKm) {
+            let limit = 130.0;
+            let currentStationName = "幹線巡航";
+            for (let st of stations) {
+                if (Math.abs(st.kp - kpKm) <= 1.5) {
+                    limit = st.limit;
+                    currentStationName = `接近 ${st.name}`;
+                    break;
+                }
+            }
+            const gradient = Math.sin(kpKm / 8.0) * 8.0;
+            return { limit, gradient: Number(gradient.toFixed(1)), stationName: currentStationName };
+        }
+
+        document.getElementById('btnAccel').addEventListener('click', () => { sim.speed = Math.min(130, sim.speed + 10); });
+        document.getElementById('btnBrake').addEventListener('click', () => { sim.speed = Math.max(0, sim.speed - 15); });
+
+        setInterval(() => {
+            const kpKm = sim.kpMeters / 1000.0;
+            const track = getTrackMetadata(kpKm);
+            const gradeResistance = track.gradient * 0.15;
+
+            // 模擬推進里程
+            sim.kpMeters += (sim.speed / 3.6) * 0.1;
+
+            document.getElementById('speedDisplay').innerText = sim.speed.toFixed(1) + " km/h";
+            document.getElementById('stationDisplay').innerText = `${track.stationName} (${kpKm.toFixed(2)}k)`;
+            document.getElementById('gradientDisplay').innerText = `${track.gradient} ‰`;
+            document.getElementById('limitDisplay').innerText = track.limit;
+        }, 100);
+    </script>
+</body>
+</html>
