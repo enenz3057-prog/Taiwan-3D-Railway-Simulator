@@ -2,168 +2,247 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣3D鐵路模擬器 - Roblox 聯機社群版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>台灣3D鐵路模擬器 - Roblox 手機版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root {
-            --bg-color: #030712;
-            --panel-bg: #111827;
-            --panel-border: #1f2937;
-            --accent-green: #10b981;
-            --accent-yellow: #f59e0b;
-            --accent-red: #ef4444;
-            --text-main: #f3f4f6;
-            --primary-blue: #0ea5e9;
-            --roblox-red: #e5444d;
+            --rbx-panel: rgba(25, 27, 31, 0.92);
+            --rbx-border: rgba(255, 255, 255, 0.12);
+            --rbx-blue: #00a2ff;
+            --rbx-green: #02b753;
+            --rbx-red: #e5444d;
+            --rbx-yellow: #f59e0b;
         }
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
             margin: 0;
-            padding: 6px;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            overflow-x: hidden;
+            padding: 4px;
+            background-color: #0b0e14;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden; /* 手機端鎖定捲動，像一個真正的 App */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
-        header { text-align: center; margin-bottom: 6px; }
-        h1 { margin: 0; font-size: 1.15rem; color: var(--primary-blue); letter-spacing: 1px; }
-        .subtitle { color: #9ca3af; font-size: 0.6rem; margin-top: 1px; }
 
-        .layout-container { display: grid; grid-template-columns: 1fr; gap: 6px; max-width: 650px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2px; flex-shrink: 0; }
+        h1 { margin: 0; font-size: 0.95rem; color: #fff; letter-spacing: 0.5px; }
+        .subtitle { color: #8a929d; font-size: 0.5rem; }
+
+        .layout-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-width: 100%;
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-bottom: 10px;
+        }
         
-        .viewport-container {
-            background: #000;
-            border-radius: 6px;
-            overflow: hidden;
-            height: 180px;
-            position: relative;
-            border: 1px solid var(--panel-border);
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
-        }
-        #webglCanvas { width: 100%; height: 100%; display: block; }
-
+        /* Roblox 手機版頂部列 */
         .roblox-topbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: #1f2937;
+            background: var(--rbx-panel);
             padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.65rem;
-            margin-bottom: 4px;
-            border: 1px solid #374151;
+            border-radius: 6px;
+            font-size: 0.58rem;
+            border: 1px solid var(--rbx-border);
+            flex-shrink: 0;
         }
         .roblox-badge {
-            background: var(--roblox-red);
+            background: var(--rbx-red);
             color: white;
-            padding: 2px 6px;
+            padding: 1px 5px;
             border-radius: 3px;
-            font-weight: bold;
-            font-size: 0.55rem;
+            font-weight: 800;
+            font-size: 0.5rem;
         }
 
-        .panel { background-color: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 6px; padding: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.4); }
+        /* 3D 視窗 (手機版縮小高度保留給控制按鈕) */
+        .viewport-container {
+            background: #000;
+            border-radius: 6px;
+            overflow: hidden;
+            height: 130px;
+            position: relative;
+            border: 1px solid var(--rbx-border);
+            flex-shrink: 0;
+        }
+        #webglCanvas { width: 100%; height: 100%; display: block; }
+
+        /* Roblox 風格透明面板 */
+        .panel {
+            background-color: var(--rbx-panel);
+            backdrop-filter: blur(6px);
+            border: 1px solid var(--rbx-border);
+            border-radius: 8px;
+            padding: 6px;
+        }
 
         .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 4px; }
-        .gauge-card { background: #1f2937; padding: 4px; border-radius: 4px; text-align: center; border: 1px solid #374151; }
-        .gauge-value { font-size: 1.1rem; font-weight: bold; font-family: monospace; }
-        .gauge-label { color: #9ca3af; font-size: 0.5rem; margin-top: 1px; }
+        .gauge-card {
+            background: rgba(12, 14, 18, 0.6);
+            padding: 4px 2px;
+            border-radius: 5px;
+            text-align: center;
+            border: 1px solid var(--rbx-border);
+        }
+        .gauge-value { font-size: 1rem; font-weight: bold; font-family: monospace; }
+        .gauge-label { color: #8a929d; font-size: 0.45rem; margin-top: 1px; }
 
-        .telemetry-bar { background: #030712; padding: 4px; border-radius: 4px; font-size: 0.65rem; margin-bottom: 4px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border: 1px solid #1f2937; }
+        .telemetry-bar {
+            background: rgba(12, 14, 18, 0.6);
+            padding: 4px 6px;
+            border-radius: 5px;
+            font-size: 0.58rem;
+            margin-bottom: 4px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            border: 1px solid var(--rbx-border);
+            text-align: center;
+        }
 
-        .atc-panel { display: flex; justify-content: space-between; align-items: center; background: #1f2937; padding: 4px 8px; border-radius: 4px; margin-bottom: 4px; font-size: 0.65rem; border: 1px solid #374151; }
+        .atc-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(12, 14, 18, 0.6);
+            padding: 4px 8px;
+            border-radius: 5px;
+            margin-bottom: 4px;
+            font-size: 0.58rem;
+            border: 1px solid var(--rbx-border);
+        }
         .aspect-group { display: flex; gap: 4px; align-items: center; }
-        .aspect-badge { width: 18px; height: 18px; border-radius: 50%; background: #374151; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.6rem; color: #6b7280; }
-        .aspect-g.active { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); color: #000; }
-        .aspect-y.active { background: var(--accent-yellow); box-shadow: 0 0 6px var(--accent-yellow); color: #000; }
-        .aspect-r.active { background: var(--accent-red); box-shadow: 0 0 6px var(--accent-red); color: #fff; }
+        .aspect-badge {
+            width: 16px; height: 16px; border-radius: 50%;
+            background: #2a2e33; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 0.5rem; color: #5a626d;
+        }
+        .aspect-g.active { background: var(--rbx-green); box-shadow: 0 0 6px var(--rbx-green); color: #000; }
+        .aspect-y.active { background: var(--rbx-yellow); box-shadow: 0 0 6px var(--rbx-yellow); color: #000; }
+        .aspect-r.active { background: var(--rbx-red); box-shadow: 0 0 6px var(--rbx-red); color: #fff; }
 
+        /* 手機版 Roblox 大觸控按鈕 */
         .controls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-        button { padding: 6px 2px; font-size: 0.7rem; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; color: #fff; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
-        button:active { opacity: 0.6; }
-        .btn-green { background: #059669; }
-        .btn-blue { background: #0284c7; }
-        .btn-yellow { background: #d97706; color: #000; }
-        .btn-red { background: #dc2626; }
-        .btn-roblox { background: #e5444d; }
+        button, .rbx-btn {
+            padding: 10px 2px; /* 手機更好點擊的大觸控區 */
+            font-size: 0.65rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #fff;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+        button:active, .rbx-btn:active { transform: scale(0.96); filter: brightness(0.85); }
+        .btn-green { background: #02b753; }
+        .btn-blue { background: #00a2ff; }
+        .btn-yellow { background: #f59e0b; color: #000; }
+        .btn-red { background: #e5444d; }
+        .btn-discord { background: #5865F2; }
         .btn-span-2 { grid-column: span 2; }
         .btn-span-4 { grid-column: span 4; }
 
-        .chat-box { background: #030712; padding: 4px; border-radius: 4px; font-family: monospace; font-size: 0.55rem; height: 60px; overflow-y: auto; color: #e2e8f0; margin-top: 4px; border: 1px solid #1f2937; }
+        /* 手機即時聊天室 */
+        .chat-box {
+            background: rgba(8, 10, 13, 0.95);
+            padding: 4px 6px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.52rem;
+            height: 48px;
+            overflow-y: auto;
+            color: #d1d5db;
+            margin-top: 4px;
+            border: 1px solid var(--rbx-border);
+        }
         .chat-msg { margin-bottom: 2px; }
-        .chat-user { color: #38bdf8; font-weight: bold; }
+        .chat-user { color: #00a2ff; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <header>
         <h1>台灣3D鐵路模擬器</h1>
-        <div class="subtitle">EMU3000 新自強號・Roblox 聯機伺服器與社群互動版</div>
+        <div class="subtitle">EMU3000 新自強號・Roblox 手機觸控聯機版</div>
     </header>
 
     <div class="layout-container">
+        <!-- 伺服器狀態 -->
         <div class="roblox-topbar">
-            <div>🌐 伺服器: <span style="color:#38bdf8;">TW-Express-VIP #04</span></div>
-            <div>👥 在線駕駛: <span style="color:#10b981;">18 / 30</span></div>
-            <div class="roblox-badge">ROBLOX 聯機中</div>
+            <div>🌐 伺服器: <span style="color:#00a2ff;">VIP #04</span></div>
+            <div>👥 線上: <span style="color:#02b753;">18/30</span></div>
+            <div class="roblox-badge">ROBLOX</div>
         </div>
 
+        <!-- 3D 視窗 -->
         <div class="viewport-container">
             <div id="webglCanvas"></div>
         </div>
 
+        <!-- 儀表板 -->
         <div class="panel">
-            <div style="font-size:0.7rem; font-weight:bold; margin-bottom:4px; color:#93c5fd;">MBus 列車狀況監控面板</div>
+            <div style="font-size:0.65rem; font-weight:bold; margin-bottom:4px; color:#60a5fa;">MBus 列車監控面板</div>
             
             <div class="dashboard-grid">
                 <div class="gauge-card">
-                    <div id="uiSpeed" class="gauge-value" style="color: #38bdf8;">0.0</div>
-                    <div class="gauge-label">速度 (km/h)</div>
+                    <div id="uiSpeed" class="gauge-value" style="color: #00a2ff;">0.0</div>
+                    <div class="gauge-label">速度 km/h</div>
                 </div>
                 <div class="gauge-card">
                     <div id="uiLimit" class="gauge-value" style="color: #f59e0b;">130</div>
-                    <div class="gauge-label">速限 (km/h)</div>
+                    <div class="gauge-label">速限 km/h</div>
                 </div>
                 <div class="gauge-card">
-                    <div id="uiBrakeCylinder" class="gauge-value" style="color: #ef4444;">0.0</div>
-                    <div class="gauge-label">煞缸壓 (kPa)</div>
+                    <div id="uiBrakeCylinder" class="gauge-value" style="color: #e5444d;">0.0</div>
+                    <div class="gauge-label">煞缸 kPa</div>
                 </div>
                 <div class="gauge-card">
-                    <div id="uiVoltage" class="gauge-value" style="color: #10b981;">25.0</div>
-                    <div class="gauge-label">主電壓 (kV)</div>
+                    <div id="uiVoltage" class="gauge-value" style="color: #02b753;">25.0</div>
+                    <div class="gauge-label">電壓 kV</div>
                 </div>
             </div>
 
             <div class="telemetry-bar">
                 <div>站場: <span id="uiStation" style="color:#fff;">基隆</span></div>
-                <div>里程: <span id="uiKp" style="color:#fff;">0.00 km</span></div>
-                <div>坡度: <span id="uiGradient" style="color:#fff;">0.0 ‰</span></div>
+                <div>里程: <span id="uiKp" style="color:#fff;">0.00km</span></div>
+                <div>坡度: <span id="uiGradient" style="color:#fff;">0.0‰</span></div>
             </div>
 
             <div class="atc-panel">
-                <div style="font-weight:bold;">ATC 號誌防護</div>
+                <div style="font-weight:bold;">ATC 防護</div>
                 <div class="aspect-group">
                     <div id="badgeG" class="aspect-badge aspect-g active">G</div>
                     <div id="badgeY" class="aspect-badge aspect-y">Y</div>
                     <div id="badgeR" class="aspect-badge aspect-r">R</div>
                 </div>
-                <div>系統: <span id="uiStatus" style="font-family:monospace; font-weight:bold; color:#10b981;">正常</span></div>
+                <div>狀態: <span id="uiStatus" style="font-family:monospace; color:#02b753;">正常</span></div>
             </div>
 
-            <div style="font-size: 0.6rem; color: #9ca3af; display:flex; justify-content:space-between; padding: 0 2px;">
-                <span>牽引階位: <strong id="uiNotch" style="color:#fff;">P0</strong></span>
-                <span>制動階位: <strong id="uiBrake" style="color:#fff;">B0</strong></span>
-                <span>EMU3000 狀態: <strong style="color:#38bdf8;">定速運轉中</strong></span>
+            <div style="font-size: 0.55rem; color: #9ca3af; display:flex; justify-content:space-between; padding: 0 2px;">
+                <span>牽引: <strong id="uiNotch" style="color:#fff;">P0</strong></span>
+                <span>制動: <strong id="uiBrake" style="color:#fff;">B0</strong></span>
+                <span>狀態: <strong style="color:#00a2ff;">定速運轉</strong></span>
             </div>
         </div>
 
+        <!-- 駕駛控制與社群 -->
         <div class="panel">
-            <div style="font-size:0.7rem; font-weight:bold; margin-bottom:4px; color:#93c5fd;">駕駛控制器 & Roblox 聯機社群</div>
+            <div style="font-size:0.65rem; font-weight:bold; margin-bottom:4px; color:#60a5fa;">駕駛控制器 & 社群</div>
             
             <div class="controls-grid">
                 <button class="btn-green btn-span-2" id="btnInitSystem">重新載入引擎</button>
-                <a href="https://discord.gg/dT47kurqw" target="_blank" class="btn-roblox btn-span-2" style="text-decoration:none;">加入 Discord 社群</a>
+                <a href="https://discord.gg/dT47kurqw" target="_blank" class="rbx-btn btn-discord btn-span-2">加入 Discord</a>
                 <button class="btn-blue btn-span-2" id="btnPowerUp">牽引升階 (P+)</button>
                 <button class="btn-yellow btn-span-2" id="btnPowerDown">牽引降階 (P-)</button>
                 <button class="btn-yellow btn-span-2" id="btnBrakeUp">制動施加 (B+)</button>
@@ -171,10 +250,10 @@
                 <button class="btn-red btn-span-4" id="btnAck">確認警報 (ACK / ATS 警鈴復歸)</button>
             </div>
 
-            <div style="font-size: 0.65rem; font-weight: bold; margin-top: 6px; margin-bottom: 2px; color: #f43f5e;">💬 Roblox 伺服器即時聊天室</div>
+            <div style="font-size: 0.58rem; font-weight: bold; margin-top: 6px; margin-bottom: 2px; color: #e5444d;">💬 遊戲即時聊天室</div>
             <div id="chatLog" class="chat-box">
-                <div class="chat-msg"><span class="chat-user">[系統公告]</span> 歡迎來到台灣鐵路模擬器 Roblox 聯機房！</div>
-                <div class="chat-msg"><span class="chat-user">[調度員_Admin]</span> 點擊上方按鈕即可加入 Discord 社群討論！</div>
+                <div class="chat-msg"><span class="chat-user">[系統]</span> 歡迎來到 Roblox 手機版聯機房！</div>
+                <div class="chat-msg"><span class="chat-user">[調度員]</span> 請隨時留意 ATC 速限與號誌。</div>
             </div>
         </div>
     </div>
@@ -226,10 +305,9 @@
         }
 
         const randomChats = [
-            { user: "TrainFan_TW", msg: "這台 EMU3000 的加速感超像真的！" },
-            { user: "Dispatcher_Alex", msg: "大家記得點擊上方按鈕加入我們的 Discord 喔" },
-            { user: "RobloxPro2026", msg: "有人要一起開到花蓮嗎？XD" },
-            { user: "BrakeMaster", msg: "剛剛差點 EB，好險及時按了 ACK" }
+            { user: "TrainFan", msg: "手機開這台超順的 XD" },
+            { user: "Dispatcher", msg: "各車注意保持安全距離" },
+            { user: "Robloxer", msg: "有人在玩這款嗎？" }
         ];
 
         setInterval(() => {
@@ -239,15 +317,15 @@
 
         let scene, camera, renderer;
         let trackSegments = [];
-        const trackPoolSize = 30;
+        const trackPoolSize = 25;
 
         function initThreeJS() {
             const container = document.getElementById('webglCanvas');
             container.innerHTML = '';
 
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x020617);
-            scene.fog = new THREE.FogExp2(0x020617, 0.015);
+            scene.background = new THREE.Color(0x0b0e14);
+            scene.fog = new THREE.FogExp2(0x0b0e14, 0.02);
 
             camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
             camera.position.set(0, 2.2, 5);
@@ -257,13 +335,13 @@
             container.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-            const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
+            const dirLight = new THREE.DirectionalLight(0x00a2ff, 1.2);
             dirLight.position.set(10, 20, 10);
             scene.add(dirLight);
 
             const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
             const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 1.0 });
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x111418, roughness: 1.0 });
 
             const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 1000), groundMat);
             ground.rotation.x = -Math.PI / 2;
@@ -310,7 +388,7 @@
 
             if (currentSpeed > currentSection.limit + 5 && !simulator.ebTriggered) {
                 simulator.ebTriggered = true;
-                appendChat("ATC系統", "⚠️ 超速警告！強制啟動 EB 緊急制動！");
+                appendChat("ATC系統", "⚠️ 超速！啟動 EB 緊急制動！");
             }
             return currentSection.limit;
         }
@@ -320,7 +398,7 @@
         document.getElementById('btnPowerDown').addEventListener('click', () => { if (simulator.powerNotch > 0) simulator.powerNotch--; });
         document.getElementById('btnBrakeUp').addEventListener('click', () => { if (simulator.brakeNotch < 8) simulator.brakeNotch++; simulator.powerNotch = 0; });
         document.getElementById('btnBrakeDown').addEventListener('click', () => { if (simulator.brakeNotch > 0) simulator.brakeNotch--; });
-        document.getElementById('btnAck').addEventListener('click', () => { simulator.ebTriggered = false; appendChat("駕駛員", "已確認 ATC 警報，系統復歸。"); });
+        document.getElementById('btnAck').addEventListener('click', () => { simulator.ebTriggered = false; appendChat("駕駛員", "已確認 ATC 警報。"); });
 
         initThreeJS();
 
@@ -373,15 +451,9 @@
             document.getElementById('uiLimit').innerText = simulator.targetLimit;
             document.getElementById('uiBrakeCylinder').innerText = simulator.brakeCylinderPressure.toFixed(0);
             document.getElementById('uiStation').innerText = simulator.currentStation;
-            document.getElementById('uiKp').innerText = currentKpKm.toFixed(2) + " km";
-            document.getElementById('uiGradient').innerText = simulator.gradient + " ‰";
+            document.getElementById('uiKp').innerText = currentKpKm.toFixed(2) + "km";
+            document.getElementById('uiGradient').innerText = simulator.gradient + "‰";
             document.getElementById('uiNotch').innerText = `P${simulator.powerNotch}`;
             document.getElementById('uiBrake').innerText = `B${simulator.brakeNotch}`;
 
-            requestAnimationFrame(animate);
-        }
-
-        requestAnimationFrame(animate);
-    </script>
-</body>
-</html>
+            requestAnimat
