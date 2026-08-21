@@ -258,3 +258,110 @@ export class SignalingAndCommunityEngine {
         return Array.from(this.onlineDrivers.values());
     }
 }
+/**
+ * @file AudioSynthesisEngine.ts
+ * @description 台灣3D鐵路模擬器 - Hitachi VVVF 變頻音效與環境聲學合成引擎
+ * 支援：多重振盪器加法合成、IGBT 磁励音階頻率對照、轉子頻率平滑過渡與軌道接縫音
+ */
+
+export class AudioSynthesisEngine {
+    private audioCtx: AudioContext | null = null;
+    private masterGain: GainNode | null = null;
+    
+    // VVVF 變頻音振盪器群組
+    private vvvfOscillators: OscillatorNode[] = [];
+    private vvvfGains: GainNode[] = [];
+    
+    // 環境音效節點 (軌道接縫、風切聲)
+    private trackNoiseNode: AudioBufferSourceNode | null = null;
+    private isInitialized: boolean = false;
+
+    constructor() {
+        // 等待使用者互動後初始化 AudioContext (瀏覽器音效安全政策)
+    }
+
+    public initializeAudioSystem() {
+        if (this.isInitialized) return;
+
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        this.audioCtx = new AudioContextClass();
+
+        // 建立主音量控制
+        this.masterGain = this.audioCtx.createGain();
+        this.masterGain.gain.setValueAtTime(0.25, this.audioCtx.currentTime);
+        this.masterGain.connect(this.audioCtx.destination);
+
+        // 初始化 VVVF 4 諧波加法合成器
+        const harmonicRatios = [1.0, 2.0, 3.0, 4.5];
+        harmonicRatios.forEach((ratio) => {
+            if (!this.audioCtx) return;
+            const osc = this.audioCtx.createOscillator();
+            const gain = this.audioCtx.createGain();
+
+            osc.type = 'sawtooth'; // 鋸齒波最接近 IGBT 脈寬調變（PWM）的高次諧波特性
+            osc.frequency.setValueAtTime(60, this.audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.0, this.audioCtx.currentTime); // 初始靜音
+
+            osc.connect(gain);
+            gain.connect(this.masterGain!);
+            osc.start();
+
+            this.vvvfOscillators.push(osc);
+            this.vvvfGains.push(gain);
+        });
+
+        this.isInitialized = true;
+        console.log("[聲學引擎] 台灣3D鐵路模擬器 Hitachi VVVF 變頻合成器初始化完成。");
+    }
+
+    /**
+     * 即時更新 VVVF 變頻音階與磁勵音
+     * @param speedKph 列車當前時速 (km/h)
+     * @param powerNotch 動力位 (0~4)
+     */
+    public updateVVVFSound(speedKph: number, powerNotch: number) {
+        if (!this.isInitialized || !this.audioCtx) return;
+
+        const currentTime = this.audioCtx.currentTime;
+
+        if (powerNotch === 0 || speedKph <= 0.5) {
+            // 停車或無動力時，變頻音歸零
+            this.vvvfGains.forEach(gain => {
+                gain.gain.setTargetAtTime(0.0, currentTime, 0.1);
+            });
+            return;
+        }
+
+        // 模擬日立 VVVF 變頻音階頻率對照表 (隨著速度攀升，頻率呈階梯或滑動上升)
+        // 基礎載波頻率計算
+        let baseFreq = 55.0 + (speedKph * 14.5);
+        
+        // 模擬低速段獨特的「VVVF 爬升音階」轉折
+        if (speedKph < 45) {
+            const step = Math.floor(speedKph / 8);
+            baseFreq = 60 + (step * 35) + (speedKph * 2.1);
+        } else {
+            // 高速段進入定頻或磁勵音高頻運轉
+            baseFreq = 320 + (speedKph * 3.5);
+        }
+
+        // 動態調整各諧波頻率與音量
+        const currentGainVal = (powerNotch / 4.0) * 0.15;
+        
+        this.vvvfOscillators.forEach((osc, index) => {
+            const multipliers = [1.0, 2.0, 3.0, 4.15];
+            const targetFreq = baseFreq * multipliers[index];
+            
+            // 平滑過渡頻率與振幅，防止爆音
+            osc.frequency.setTargetAtTime(targetFreq, currentTime, 0.05);
+            this.vvvfGains[index].gain.setTargetAtTime(currentGainVal / (index + 1), currentTime, 0.05);
+        });
+    }
+
+    public stopAudio() {
+        if (this.audioCtx && this.audioCtx.state === 'running') {
+            this.audioCtx.suspend();
+            console.log("[聲學引擎] 音效系統已暫停。");
+        }
+    }
+}
