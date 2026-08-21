@@ -149,3 +149,249 @@
             </div>
         </div>
     </div>
+    <script>
+        // --- 第二段：Three.js 3D 渲染引擎與 Roblox 遊戲世界邏輯 ---
+        const simulator = {
+            speed: 0.0,
+            targetLimit: 130.0,
+            powerNotch: 0,
+            brakeNotch: 0,
+            brakeCylinderPressure: 0.0,
+            mainVoltage: 25.0,
+            kpMeters: 0.0,
+            gradient: 0.0,
+            currentStation: "基隆",
+            atcAspect: 'G',
+            countdown: 5.0,
+            ebTriggered: false
+        };
+
+        const trackDatabase = [
+            { name: "基隆", kp: 0.0, limit: 45, gradient: 0.0 },
+            { name: "三坑", kp: 1.3, limit: 75, gradient: 5.2 },
+            { name: "八堵", kp: 3.7, limit: 100, gradient: -3.0 },
+            { name: "七堵", kp: 6.0, limit: 90, gradient: 2.1 },
+            { name: "百福", kp: 9.2, limit: 110, gradient: 0.0 }
+        ];
+
+        function queryTrackData(kpKm) {
+            let limit = 130.0;
+            let stationName = "新自強號專用高速線";
+            let grad = 0.0;
+            for (let i = 0; i < trackDatabase.length; i++) {
+                let st = trackDatabase[i];
+                if (Math.abs(st.kp - kpKm) <= 1.0) {
+                    limit = st.limit;
+                    stationName = `接近 ${st.name} 站`;
+                    grad = st.gradient;
+                    break;
+                }
+            }
+            return { limit, stationName, gradient: Number(grad.toFixed(1)) };
+        }
+
+        function appendLog(msg) {
+            const term = document.getElementById('terminalLog');
+            if (!term) return;
+            const timeStr = new Date().toTimeString().split(' ')[0];
+            term.innerHTML += `[${timeStr}] ${msg}<br>`;
+            term.scrollTop = term.scrollHeight;
+        }
+
+        let scene, camera, renderer;
+        let trackSegments = [];
+        const trackPoolSize = 30;
+        const sceneryGroup = new THREE.Group();
+        const passengerGroup = new THREE.Group();
+
+        function initThreeJS() {
+            const container = document.getElementById('webglCanvas');
+            container.innerHTML = '';
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020617);
+            scene.fog = new THREE.FogExp2(0x020617, 0.015);
+
+            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 2.2, 5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // 環境光與動態光源
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
+            dirLight.position.set(10, 20, 10);
+            scene.add(dirLight);
+
+            scene.add(sceneryGroup);
+            scene.add(passengerGroup);
+
+            // 建立 3D 軌道物件池
+            const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
+            const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 1.0 });
+
+            const groundGeo = new THREE.PlaneGeometry(100, 1000);
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.z = -400;
+            scene.add(ground);
+
+            trackSegments = [];
+            for (let i = 0; i < trackPoolSize; i++) {
+                const group = new THREE.Group();
+
+                const sleeperGeo = new THREE.BoxGeometry(2.6, 0.15, 0.6);
+                const sleeper = new THREE.Mesh(sleeperGeo, sleeperMat);
+                sleeper.position.set(0, 0.05, -i * 4);
+                group.add(sleeper);
+
+                const leftRailGeo = new THREE.BoxGeometry(0.12, 0.2, 4);
+                const leftRail = new THREE.Mesh(leftRailGeo, railMat);
+                leftRail.position.set(-1.0, 0.2, -i * 4);
+                group.add(leftRail);
+
+                const rightRailGeo = new THREE.BoxGeometry(0.12, 0.2, 4);
+                const rightRail = new THREE.Mesh(rightRailGeo, railMat);
+                rightRail.position.set(1.0, 0.2, -i * 4);
+                group.add(rightRail);
+
+                scene.add(group);
+                trackSegments.push(group);
+            }
+
+            // Roblox 風格月台與建築生成
+            for (let i = 0; i < 5; i++) {
+                createRobloxPlatform(-i * 100 - 50);
+            }
+
+            // Roblox 風格積木人旅客生成
+            for (let i = 0; i < 20; i++) {
+                spawnRobloxPassenger(Math.random() * 6 - 3, -Math.random() * 500);
+            }
+
+            document.getElementById('uiStatus').innerText = "Roblox 3D 運行中";
+            appendLog("[引擎核心] 第二段 Three.js 3D 渲染與 Roblox 場景建構完成。");
+        }
+
+        function createRobloxPlatform(zPos) {
+            const shelterGeo = new THREE.BoxGeometry(8, 0.5, 10);
+            const shelterMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+            const shelter = new THREE.Mesh(shelterGeo, shelterMat);
+            shelter.position.set(6, 4, zPos);
+            sceneryGroup.add(shelter);
+
+            const poleGeo = new THREE.CylinderGeometry(0.2, 0.2, 8);
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+            const pole = new THREE.Mesh(poleGeo, poleMat);
+            pole.position.set(5, 2, zPos - 3);
+            sceneryGroup.add(pole);
+        }
+
+        function spawnRobloxPassenger(x, z) {
+            const bodyGeo = new THREE.BoxGeometry(0.5, 0.8, 0.3);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.set(x, 0.5, z);
+            passengerGroup.add(body);
+
+            const headGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xfde047 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.set(x, 1.0, z);
+            passengerGroup.add(head);
+        }
+
+        // 按鈕與事件繫結
+        document.getElementById('btnInitSystem').addEventListener('click', initThreeJS);
+        document.getElementById('btnPowerUp').addEventListener('click', () => {
+            if (simulator.powerNotch < 4) simulator.powerNotch++;
+            simulator.brakeNotch = 0;
+            appendLog(`控制器: 牽引升至 P${simulator.powerNotch}`);
+        });
+        document.getElementById('btnPowerDown').addEventListener('click', () => {
+            if (simulator.powerNotch > 0) simulator.powerNotch--;
+            appendLog(`控制器: 牽引降至 P${simulator.powerNotch}`);
+        });
+        document.getElementById('btnBrakeUp').addEventListener('click', () => {
+            if (simulator.brakeNotch < 8) simulator.brakeNotch++;
+            simulator.powerNotch = 0;
+            appendLog(`控制器: 制動施加至 B${simulator.brakeNotch}`);
+        });
+        document.getElementById('btnBrakeDown').addEventListener('click', () => {
+            if (simulator.brakeNotch > 0) simulator.brakeNotch--;
+            appendLog(`控制器: 制動緩解至 B${simulator.brakeNotch}`);
+        });
+        document.getElementById('btnAck').addEventListener('click', () => {
+            simulator.countdown = 5.0;
+            simulator.ebTriggered = false;
+            appendLog("ATC 警報已確認，系統復歸。");
+        });
+
+        // 頁面載入後自動啟動 3D 引擎
+        initThreeJS();
+
+        // 主物理與動畫迴圈
+        let lastTimestamp = performance.now();
+        let worldZOffset = 0;
+
+        function animate(timestamp) {
+            const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
+            lastTimestamp = timestamp;
+
+            const currentKpKm = simulator.kpMeters / 1000.0;
+            const trackInfo = queryTrackData(currentKpKm);
+            simulator.targetLimit = trackInfo.limit;
+            simulator.gradient = trackInfo.gradient;
+            simulator.currentStation = trackInfo.stationName;
+
+            const gradeResistance = simulator.gradient * 0.14;
+            const rollingResistance = 0.4 + (simulator.speed * 0.01);
+            const aerodynamicDrag = 0.0002 * Math.pow(simulator.speed, 2);
+
+            if (simulator.powerNotch > 0 && !simulator.ebTriggered) {
+                let tractiveForce = simulator.powerNotch * 2.7;
+                simulator.speed += (tractiveForce - gradeResistance - rollingResistance - aerodynamicDrag) * dt;
+            } else if (simulator.brakeNotch > 0 || simulator.ebTriggered) {
+                let brakeDecel = simulator.ebTriggered ? 24.0 : simulator.brakeNotch * 3.2;
+                simulator.speed = Math.max(0, simulator.speed - brakeDecel * dt);
+            } else {
+                simulator.speed = Math.max(0, simulator.speed - (rollingResistance + aerodynamicDrag + gradeResistance) * dt);
+            }
+
+            simulator.kpMeters += (simulator.speed / 3.6) * dt;
+            simulator.brakeCylinderPressure = simulator.brakeNotch * 55.0;
+
+            worldZOffset += (simulator.speed * 0.4) * dt;
+            if (worldZOffset >= 4) worldZOffset %= 4;
+
+            if (trackSegments.length > 0) {
+                for (let i = 0; i < trackSegments.length; i++) {
+                    let baseZ = -i * 4 + worldZOffset;
+                    if (baseZ > 4) baseZ -= (trackPoolSize * 4);
+                    trackSegments[i].position.z = baseZ;
+                }
+            }
+
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+
+            document.getElementById('uiSpeed').innerText = simulator.speed.toFixed(1);
+            document.getElementById('uiLimit').innerText = simulator.targetLimit;
+            document.getElementById('uiBrakeCylinder').innerText = simulator.brakeCylinderPressure.toFixed(0);
+            document.getElementById('uiStation').innerText = simulator.currentStation;
+            document.getElementById('uiKp').innerText = currentKpKm.toFixed(2) + " km";
+            document.getElementById('uiGradient').innerText = simulator.gradient + " ‰";
+            document.getElementById('uiNotch').innerText = `P${simulator.powerNotch}`;
+            document.getElementById('uiBrake').innerText = `B${simulator.brakeNotch}`;
+
+            requestAnimationFrame(animate);
+        }
+
+        requestAnimationFrame(animate);
+    </script>
