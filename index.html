@@ -498,3 +498,222 @@
     </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣3D鐵路模擬器 - 新自強 EMU3000</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: #1e293b;
+            --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
+            --primary-blue: #38bdf8;
+        }
+        body {
+            margin: 0;
+            padding: 10px;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        header { text-align: center; margin-bottom: 6px; }
+        h1 { margin: 0; font-size: 1.1rem; color: var(--primary-blue); }
+        .subtitle { color: #94a3b8; font-size: 0.6rem; margin-top: 2px; }
+
+        .container { display: grid; gap: 6px; max-width: 600px; margin: 0 auto; }
+        
+        .viewport-box {
+            background: #000;
+            border-radius: 6px;
+            overflow: hidden;
+            height: 140px;
+            position: relative;
+            box-shadow: inset 0 0 8px rgba(56, 189, 248, 0.3);
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .panel { background-color: var(--panel-bg); border-radius: 6px; padding: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+
+        .dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin-bottom: 4px; }
+        .gauge-card { background: #0f172a; padding: 4px; border-radius: 4px; text-align: center; }
+        .gauge-value { font-size: 1.3rem; font-weight: bold; font-family: monospace; }
+        .gauge-label { color: #94a3b8; font-size: 0.55rem; margin-top: 1px; }
+
+        .topo-info { background: #090d16; padding: 4px; border-radius: 4px; font-size: 0.65rem; margin-bottom: 4px; color: #38bdf8; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+
+        .atc-status { display: flex; justify-content: space-around; align-items: center; background: #0f172a; padding: 4px; border-radius: 4px; margin-bottom: 4px; font-size: 0.65rem; }
+        .aspect-badge { width: 20px; height: 20px; border-radius: 50%; background: #334155; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.7rem; }
+        .aspect-g { background: var(--accent-green); box-shadow: 0 0 4px var(--accent-green); color: #000; }
+        .aspect-y { background: var(--accent-yellow); box-shadow: 0 0 4px var(--accent-yellow); color: #000; }
+        .aspect-r { background: var(--accent-red); box-shadow: 0 0 4px var(--accent-red); color: #fff; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
+        button { padding: 6px; font-size: 0.75rem; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; color: #fff; }
+        button:active { opacity: 0.7; }
+        .btn-green { background: #16a34a; }
+        .btn-blue { background: #0284c7; }
+        .btn-yellow { background: #ca8a04; color: #000; }
+        .btn-red { background: #dc2626; }
+        .btn-full { grid-column: span 2; }
+
+        .log-box { background: #090d16; padding: 4px; border-radius: 4px; font-family: monospace; font-size: 0.55rem; height: 50px; overflow-y: auto; color: #34d399; margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>台灣3D鐵路模擬器</h1>
+        <div class="subtitle">新自強 EMU3000 模擬系統</div>
+    </header>
+
+    <div class="container">
+        <div class="viewport-box">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+
+        <div class="panel">
+            <h3 style="margin:0 0 3px 0; font-size:0.8rem;">MBus 駕駛艙儀表板</h3>
+            <div class="dashboard-grid">
+                <div class="gauge-card">
+                    <div id="speedDisplay" class="gauge-value" style="color: #38bdf8;">0.0</div>
+                    <div class="gauge-label">速度 (km/h)</div>
+                </div>
+                <div class="gauge-card">
+                    <div id="limitDisplay" class="gauge-value" style="color: #eab308;">130</div>
+                    <div class="gauge-label">速限 (km/h)</div>
+                </div>
+            </div>
+
+            <div class="topo-info">
+                <div>站場: <span id="stationDisplay" style="color:#fff;">基隆 (0.0k)</span></div>
+                <div>坡度: <span id="gradientDisplay" style="color:#fff;">0.0 ‰</span></div>
+            </div>
+
+            <div class="atc-status">
+                <div>ATC:</div>
+                <div id="aspectG" class="aspect-badge aspect-g">G</div>
+                <div id="aspectY" class="aspect-badge">Y</div>
+                <div id="aspectR" class="aspect-badge">R</div>
+                <div>倒數: <span id="countdownDisplay" style="font-family:monospace; font-weight:bold;">5.0</span>s</div>
+            </div>
+
+            <div style="font-size: 0.6rem; color: #94a3b8; display:flex; justify-content:space-between;">
+                <span>牽引: <strong id="notchDisplay" style="color:#fff;">P0</strong></span>
+                <span>制動: <strong id="brakeDisplay" style="color:#fff;">B0</strong></span>
+                <span>里程: <strong id="kpDisplay" style="color:#fff;">0.00 km</strong></span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3 style="margin:0 0 3px 0; font-size:0.8rem;">運轉控制</h3>
+            <div class="controls-grid">
+                <button class="btn-green btn-full" id="btnStart">啟動主迴圈與音效</button>
+                <button class="btn-blue" id="btnPowerUp">加動力 (P+)</button>
+                <button class="btn-yellow" id="btnPowerDown">減動力 (P-)</button>
+                <button class="btn-yellow" id="btnBrakeUp">施加制動 (B+)</button>
+                <button class="btn-blue" id="btnBrakeDown">釋放制動 (B-)</button>
+                <button class="btn-red btn-full" id="btnAck">確認警報 (ACK)</button>
+            </div>
+
+            <div id="logBox" class="log-box">
+                [系統] 模擬器就緒。<br>
+            </div>
+            
+            <div style="margin-top: 6px;">
+                <a href="https://discord.gg/dT47kurqw" target="_blank" style="display: block; background: #5865F2; color: #fff; padding: 6px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.75rem; text-align: center;">
+                    💬 加入 Discord 台灣鐵路模擬社群
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sim = { speed: 0.0, powerNotch: 0, brakeNotch: 0, kpMeters: 0.0, ebTriggered: false, countdown: 5.0, started: false };
+        const stations = [{ name: "基隆", kp: 0.0, limit: 45 }, { name: "八堵", kp: 3.7, limit: 100 }, { name: "七堵", kp: 6.0, limit: 90 }, { name: "南港", kp: 17.5, limit: 120 }, { name: "臺北", kp: 27.1, limit: 80 }];
+
+        function getTrackMetadata(kpKm) {
+            let limit = 130.0, currentStationName = "幹線巡航";
+            for (let st of stations) {
+                if (Math.abs(st.kp - kpKm) <= 1.5) { limit = st.limit; currentStationName = `接近 ${st.name}`; break; }
+            }
+            return { limit, gradient: Number(Math.sin(kpKm / 8.0) * 8.0).toFixed(1), stationName: currentStationName };
+        }
+
+        const canvas = document.getElementById('renderCanvas');
+        const ctx = canvas.getContext('2d');
+        let trackOffset = 0;
+
+        function render3DScene(speed, dt) {
+            canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
+            const w = canvas.width, h = canvas.height;
+            ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, w, h / 2);
+            ctx.fillStyle = '#1e293b'; ctx.fillRect(0, h / 2, w, h / 2);
+            trackOffset = (trackOffset + (speed * 2.5) * dt) % 40;
+            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(w/2 - 20, h/2); ctx.lineTo(w/2 - 150, h); ctx.moveTo(w/2 + 20, h/2); ctx.lineTo(w/2 + 150, h); ctx.stroke();
+            for (let i = 0; i < 10; i++) {
+                let yPos = h / 2 + ((i * 15 + trackOffset) % (h / 2));
+                let scale = (yPos - h / 2) / (h / 2);
+                let halfWidth = 20 + scale * 130;
+                ctx.strokeStyle = `rgba(148, 163, 184, ${scale})`;
+                ctx.beginPath(); ctx.moveTo(w/2 - halfWidth, yPos); ctx.lineTo(w/2 + halfWidth, yPos); ctx.stroke();
+            }
+        }
+
+        let audioCtx = null, oscs = [], gains = [];
+        const logBox = document.getElementById('logBox');
+        function log(msg) { logBox.innerHTML += `[${new Date().toLocaleTimeString().slice(-8)}] ${msg}<br>`; logBox.scrollTop = logBox.scrollHeight; }
+
+        document.getElementById('btnStart').addEventListener('click', () => {
+            if (!sim.started) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const master = audioCtx.createGain(); master.gain.value = 0.15; master.connect(audioCtx.destination);
+                [1.0, 2.0, 3.0, 4.5].forEach(() => {
+                    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                    o.type = 'sawtooth'; o.frequency.value = 60; g.gain.value = 0;
+                    o.connect(g); g.connect(master); o.start();
+                    oscs.push(o); gains.push(g);
+                });
+                sim.started = true; log("[系統] 主迴圈與音效啟動。");
+            }
+        });
+
+        document.getElementById('btnPowerUp').addEventListener('click', () => { sim.powerNotch = Math.min(sim.powerNotch + 1, 4); sim.brakeNotch = 0; document.getElementById('notchDisplay').innerText = `P${sim.powerNotch}`; document.getElementById('brakeDisplay').innerText = `B${sim.brakeNotch}`; });
+        document.getElementById('btnPowerDown').addEventListener('click', () => { sim.powerNotch = Math.max(sim.powerNotch - 1, 0); document.getElementById('notchDisplay').innerText = `P${sim.powerNotch}`; });
+        document.getElementById('btnBrakeUp').addEventListener('click', () => { sim.brakeNotch = Math.min(sim.brakeNotch + 1, 8); sim.powerNotch = 0; document.getElementById('notchDisplay').innerText = `P${sim.powerNotch}`; document.getElementById('brakeDisplay').innerText = `B${sim.brakeNotch}`; });
+        document.getElementById('btnBrakeDown').addEventListener('click', () => { sim.brakeNotch = Math.max(sim.brakeNotch - 1, 0); document.getElementById('brakeDisplay').innerText = `B${sim.brakeNotch}`; });
+        document.getElementById('btnAck').addEventListener('click', () => { if (sim.speed > 0) { sim.countdown = 5.0; sim.ebTriggered = false; log("[ATC] 已確認。"); } });
+
+        let last = performance.now();
+        function masterGameLoop(time) {
+            const dt = Math.min((time - last) / 1000, 0.1); last = time;
+            const track = getTrackMetadata(sim.kpMeters / 1000);
+            const gradeRes = track.gradient * 0.15;
+            if (sim.powerNotch > 0 && !sim.ebTriggered) sim.speed += (sim.powerNotch * 2.4 - gradeRes) * dt;
+            else if (sim.brakeNotch > 0 || sim.ebTriggered) sim.speed = Math.max(0, sim.speed - (sim.ebTriggered ? 18.0 : sim.brakeNotch * 3.0) * dt);
+            else sim.speed = Math.max(0, sim.speed - (0.6 + gradeRes) * dt);
+            sim.kpMeters += (sim.speed / 3.6) * dt;
+            render3DScene(sim.speed, dt);
+            if (sim.speed > track.limit + 3.0) {
+                sim.countdown -= dt; document.getElementById('aspectY').className = "aspect-badge aspect-y";
+                if (sim.countdown <= 0) { sim.ebTriggered = true; document.getElementById('aspectR').className = "aspect-badge aspect-r"; }
+            } else { sim.countdown = 5.0; document.getElementById('aspectY').className = "aspect-badge"; document.getElementById('aspectR').className = "aspect-badge"; document.getElementById('aspectG').className = "aspect-badge aspect-g"; }
+            if (sim.started && audioCtx) {
+                const base = sim.powerNotch > 0 ? 50 + (sim.speed * 14) : 25;
+                oscs.forEach((o, i) => { o.frequency.setTargetAtTime(base * [1,2,3,4.5][i], audioCtx.currentTime, 0.05); gains[i].gain.setTargetAtTime(sim.powerNotch > 0 ? (sim.powerNotch / 40) / (i+1) : 0, audioCtx.currentTime, 0.05); });
+            }
+            document.getElementById('speedDisplay').innerText = sim.speed.toFixed(1); document.getElementById('limitDisplay').innerText = track.limit;
+            document.getElementById('stationDisplay').innerText = `${track.stationName} (${(sim.kpMeters/1000).toFixed(1)}k)`;
+            document.getElementById('gradientDisplay').innerText = `${track.gradient} ‰`; document.getElementById('countdownDisplay').innerText = Math.max(0, sim.countdown).toFixed(1);
+            document.getElementById('kpDisplay').innerText = (sim.kpMeters/1000).toFixed(2) + " km";
+            requestAnimationFrame(masterGameLoop);
+        }
+        requestAnimationFrame(masterGameLoop);
+    </script>
+</body>
+</html>
